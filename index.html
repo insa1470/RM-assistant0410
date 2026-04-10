@@ -1,1 +1,1560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RM助手">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>RM 随行助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* ─── Apple Design System ─── */
+        :root {
+            --ios-green:        #34C759;
+            --ios-green-dark:   #248A3D;
+            --brand:            #007d50;
+            --brand-light:      rgba(0,125,80,0.10);
+            --ios-blue:         #007AFF;
+            --ios-orange:       #FF9500;
+            --ios-red:          #FF3B30;
+            --ios-gray:         #8E8E93;
+            --ios-gray2:        #AEAEB2;
+            --ios-gray3:        #C7C7CC;
+            --ios-gray4:        #D1D1D6;
+            --ios-gray5:        #E5E5EA;
+            --ios-gray6:        #F2F2F7;
+            --label:            #000000;
+            --label-secondary:  rgba(60,60,67,0.60);
+            --label-tertiary:   rgba(60,60,67,0.30);
+            --fill:             rgba(120,120,128,0.12);
+            --fill2:            rgba(120,120,128,0.08);
+            --bg-primary:       #F2F2F7;
+            --bg-secondary:     #FFFFFF;
+            --bg-grouped:       #F2F2F7;
+            --separator:        rgba(60,60,67,0.29);
+            --separator-opaque: #C6C6C8;
+            --radius-sm:        10px;
+            --radius-md:        13px;
+            --radius-lg:        16px;
+            --radius-xl:        22px;
+            --shadow-sm:        0 1px 3px rgba(0,0,0,0.08), 0 1px 1px rgba(0,0,0,0.04);
+            --shadow-md:        0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+            --shadow-lg:        0 8px 30px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.08);
+        }
 
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background: var(--bg-grouped);
+            color: var(--label);
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+            padding-bottom: env(safe-area-inset-bottom);
+            overscroll-behavior: none;
+        }
+
+        input, textarea, select {
+            font-family: inherit;
+            font-size: 17px !important;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        /* ─── Nav Bar (iOS Large Title style) ─── */
+        .ios-navbar {
+            background: rgba(0,125,80,0.96);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 0.5px solid rgba(255,255,255,0.15);
+        }
+
+        /* ─── Tab Bar ─── */
+        .ios-tabbar {
+            background: rgba(255,255,255,0.88);
+            backdrop-filter: saturate(180%) blur(30px);
+            -webkit-backdrop-filter: saturate(180%) blur(30px);
+            border-top: 0.5px solid var(--separator-opaque);
+        }
+
+        /* ─── Grouped List (iOS Settings style) ─── */
+        .ios-group {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .ios-group-header {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--ios-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0 16px 6px;
+        }
+        .ios-row {
+            display: flex;
+            align-items: center;
+            padding: 11px 16px;
+            min-height: 44px;
+            background: var(--bg-secondary);
+            border-bottom: 0.5px solid var(--separator);
+            gap: 12px;
+        }
+        .ios-row:last-child { border-bottom: none; }
+        .ios-row input,
+        .ios-row textarea,
+        .ios-row select {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 17px !important;
+            color: var(--label);
+            min-width: 0;
+            padding: 0;
+        }
+        .ios-row input::placeholder,
+        .ios-row textarea::placeholder { color: var(--label-tertiary); }
+        .ios-row select { color: var(--label); }
+        .ios-row-label {
+            font-size: 17px;
+            color: var(--label);
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: 70px;
+        }
+        .ios-row textarea {
+            resize: none;
+            min-height: 80px;
+            line-height: 1.5;
+            padding: 4px 0;
+        }
+
+        /* ─── iOS Card ─── */
+        .ios-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        /* ─── Buttons ─── */
+        .btn-primary {
+            background: var(--brand);
+            color: #fff;
+            border-radius: var(--radius-xl);
+            font-size: 17px;
+            font-weight: 600;
+            padding: 14px 20px;
+            border: none;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(0,125,80,0.35);
+            transition: transform 0.12s ease, opacity 0.12s ease;
+        }
+        .btn-primary:active { transform: scale(0.97); opacity: 0.88; }
+
+        .btn-secondary {
+            background: var(--fill);
+            color: var(--label);
+            border-radius: var(--radius-xl);
+            font-size: 17px;
+            font-weight: 600;
+            padding: 14px 20px;
+            border: none;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: transform 0.12s ease, opacity 0.12s ease;
+        }
+        .btn-secondary:active { transform: scale(0.97); opacity: 0.75; }
+
+        .btn-destructive {
+            background: rgba(255,59,48,0.10);
+            color: var(--ios-red);
+            border-radius: var(--radius-xl);
+            font-size: 17px;
+            font-weight: 600;
+            padding: 14px 20px;
+            border: none;
+            width: 100%;
+        }
+
+        .btn-tinted {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: var(--radius-xl);
+            font-size: 17px;
+            font-weight: 600;
+            border: none;
+            transition: transform 0.12s ease, opacity 0.12s ease;
+        }
+        .btn-tinted:active { transform: scale(0.97); opacity: 0.82; }
+        .btn-tinted.green  { background: rgba(0,125,80,0.10); color: var(--brand); }
+        .btn-tinted.orange { background: rgba(255,149,0,0.10); color: var(--ios-orange); }
+        .btn-tinted.blue   { background: rgba(0,122,255,0.10); color: var(--ios-blue); }
+        .btn-tinted.slate  { background: rgba(99,99,102,0.10); color: #3c3c43; }
+
+        /* ─── FAB (+ button) ─── */
+        .ios-fab {
+            width: 56px; height: 56px;
+            background: var(--brand);
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 4px 18px rgba(0,125,80,0.45), 0 2px 6px rgba(0,0,0,0.12);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff;
+            transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
+            position: relative;
+            top: -18px;
+        }
+        .ios-fab:active { transform: scale(0.92); box-shadow: 0 2px 8px rgba(0,125,80,0.35); }
+
+        /* ─── Tab Icons ─── */
+        .tab-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0 16px; min-width: 60px; }
+        .tab-btn span { font-size: 10px; font-weight: 500; color: var(--ios-gray2); letter-spacing: -0.2px; }
+        .tab-btn svg { color: var(--ios-gray2); }
+        .tab-btn.active svg { color: var(--brand); }
+        .tab-btn.active span { color: var(--brand); font-weight: 600; }
+
+        /* ─── Hero Card ─── */
+        .hero-card {
+            background: linear-gradient(145deg, var(--brand) 0%, #005a3a 100%);
+            border-radius: var(--radius-xl);
+            padding: 24px 20px;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,125,80,0.30), 0 2px 8px rgba(0,0,0,0.10);
+        }
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            width: 180px; height: 180px;
+            background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);
+            top: -60px; right: -40px;
+            border-radius: 50%;
+        }
+        .hero-card::after {
+            content: '';
+            position: absolute;
+            width: 120px; height: 120px;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+            bottom: -40px; left: 20px;
+            border-radius: 50%;
+        }
+
+        /* ─── Draft Banner ─── */
+        .draft-banner {
+            background: rgba(255,149,0,0.10);
+            border: 1px solid rgba(255,149,0,0.25);
+            border-radius: var(--radius-lg);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* ─── Photo Slots ─── */
+        .photo-slot {
+            aspect-ratio: 1 / 1;
+            border-radius: var(--radius-lg);
+            background: var(--fill2);
+            border: 1.5px dashed var(--ios-gray4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .photo-slot:active { background: var(--fill); }
+        .photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-slot-empty span { font-size: 12px; color: var(--ios-gray); margin-top: 6px; font-weight: 500; }
+
+        /* ─── Bottom Sheet ─── */
+        .sheet-backdrop {
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        .sheet {
+            background: var(--bg-secondary);
+            border-radius: 22px 22px 0 0;
+            padding: 8px 20px 0;
+        }
+        .sheet-handle {
+            width: 36px; height: 5px;
+            background: var(--ios-gray4);
+            border-radius: 100px;
+            margin: 6px auto 16px;
+        }
+
+        /* ─── Alert / Confirm ─── */
+        .ios-alert {
+            background: rgba(242,242,247,0.95);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-radius: 14px;
+            overflow: hidden;
+            width: 270px;
+            box-shadow: var(--shadow-lg);
+        }
+        .ios-alert-title { font-size: 17px; font-weight: 600; text-align: center; padding: 20px 20px 4px; }
+        .ios-alert-desc { font-size: 13px; color: var(--label-secondary); text-align: center; padding: 0 16px 16px; line-height: 1.4; }
+        .ios-alert-sep { height: 0.5px; background: var(--separator-opaque); }
+        .ios-alert-btn { padding: 13px; text-align: center; font-size: 17px; width: 100%; border: none; background: transparent; cursor: pointer; }
+        .ios-alert-btn.destructive { color: var(--ios-red); }
+        .ios-alert-btn.default { font-weight: 600; color: var(--ios-blue); }
+        .ios-alert-btn.cancel { color: var(--ios-blue); }
+        .ios-alert-btn:active { background: var(--fill); }
+
+        /* ─── Back Button ─── */
+        .ios-back-btn {
+            display: flex; align-items: center; gap: 2px;
+            color: var(--brand);
+            font-size: 17px;
+            font-weight: 400;
+            background: none; border: none; padding: 0;
+        }
+
+        /* ─── Section Header in Forms ─── */
+        .form-section-label {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--ios-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0 4px 6px;
+        }
+
+        /* ─── Toast ─── */
+        .ios-toast {
+            background: rgba(30,30,32,0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 100px;
+            padding: 10px 18px;
+            display: flex; align-items: center; gap: 8px;
+            font-size: 14px;
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            white-space: nowrap;
+        }
+
+        /* ─── Quadrant cards ─── */
+        .quad-card {
+            border-radius: var(--radius-md);
+            padding: 12px;
+            flex: 1;
+        }
+        .quad-card textarea {
+            background: transparent; border: none; outline: none;
+            width: 100%; font-size: 14px; resize: none;
+            min-height: 80px; line-height: 1.5; color: var(--label);
+            font-family: inherit;
+        }
+        .quad-label { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+
+        /* ─── History Row ─── */
+        .history-row {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: 13px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+        .type-badge {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* ─── Add-item row ─── */
+        .add-item-btn {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 16px;
+            color: var(--brand);
+            font-size: 17px;
+            background: none; border: none; width: 100%;
+            text-align: left;
+        }
+
+        /* ─── Preview (paper) ─── */
+        .paper {
+            background: #fff;
+            border-radius: var(--radius-lg);
+            padding: 20px 16px;
+            box-shadow: var(--shadow-md);
+            overflow-x: auto;
+        }
+
+        /* ─── Ping animation ─── */
+        @keyframes ios-ping { 0%{transform:scale(1);opacity:1} 75%,100%{transform:scale(1.8);opacity:0} }
+        .ping-dot { animation: ios-ping 1.2s ease-out infinite; }
+
+        /* ─── Segmented control ─── */
+        .seg-ctrl { background: var(--fill); border-radius: 9px; padding: 2px; display: flex; gap: 2px; }
+        .seg-btn { flex: 1; padding: 6px 4px; border-radius: 7px; border: none; font-size: 13px; font-weight: 500; background: transparent; color: var(--label-secondary); transition: all 0.18s ease; }
+        .seg-btn.active { background: #fff; color: var(--label); box-shadow: 0 1px 4px rgba(0,0,0,0.10); font-weight: 600; }
+
+        /* ─── Storage bar ─── */
+        .storage-bar { height: 3px; border-radius: 100px; background: var(--ios-gray5); overflow: hidden; }
+        .storage-fill { height: 100%; border-radius: 100px; background: var(--brand); transition: width 0.3s ease; }
+        .storage-fill.warn { background: var(--ios-red); }
+
+        /* ─── Search bar ─── */
+        .ios-search {
+            background: var(--fill);
+            border-radius: var(--radius-sm);
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 12px;
+        }
+        .ios-search input { background: transparent; border: none; outline: none; flex: 1; font-size: 17px; color: var(--label); }
+        .ios-search input::placeholder { color: var(--label-tertiary); }
+
+        /* ─── Checkbox toggle ─── */
+        .ios-toggle { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; }
+        .toggle-switch { position: relative; width: 51px; height: 31px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-track {
+            position: absolute; inset: 0;
+            background: var(--ios-gray4);
+            border-radius: 100px;
+            transition: background 0.2s ease;
+        }
+        .toggle-track::after {
+            content: '';
+            position: absolute;
+            left: 2px; top: 2px;
+            width: 27px; height: 27px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+            transition: transform 0.2s cubic-bezier(0.34,1.3,0.64,1);
+        }
+        .toggle-switch input:checked + .toggle-track { background: var(--brand); }
+        .toggle-switch input:checked + .toggle-track::after { transform: translateX(20px); }
+
+        /* ─── Dept chip ─── */
+        .dept-chip input { display: none; }
+        .dept-chip label {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 7px 14px;
+            border-radius: 100px;
+            font-size: 15px; font-weight: 500;
+            background: var(--fill2);
+            color: var(--label-secondary);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+        .dept-chip input:checked + label {
+            background: rgba(0,125,80,0.10);
+            color: var(--brand);
+            border-color: rgba(0,125,80,0.25);
+            font-weight: 600;
+        }
+
+        /* Misc utilities */
+        .inset-list-item-sep { border-left: 1px solid var(--separator); margin-left: 16px; }
+
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: scale(1); } }
+
+        .anim-slide-up   { animation: slideUp 0.32s cubic-bezier(0.32,0.72,0,1) forwards; }
+        .anim-fade-in    { animation: fadeIn  0.22s ease forwards; }
+        .anim-scale-in   { animation: scaleIn 0.22s cubic-bezier(0.34,1.2,0.64,1) forwards; }
+    </style>
+</head>
+<body class="max-w-md mx-auto min-h-screen flex flex-col">
+
+    <!-- Safe area top spacer -->
+    <div class="h-[env(safe-area-inset-top)] bg-[#007d50]"></div>
+
+    <!-- Navigation Bar -->
+    <header id="ios-header" class="ios-navbar text-white px-4 pt-2 pb-3 sticky top-0 z-50">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-[10px] font-medium tracking-[0.1em] text-green-200 opacity-80 uppercase">RM Assistant V4.5</p>
+                <h1 class="text-[19px] font-semibold tracking-tight leading-tight">RM 随行助手</h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="gps-indicator" class="hidden relative w-5 h-5 flex items-center justify-center">
+                    <div class="ping-dot absolute inset-0 rounded-full bg-yellow-300 opacity-70"></div>
+                    <i data-lucide="map-pin" class="w-4 h-4 text-yellow-300 relative z-10"></i>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center">
+                    <i data-lucide="user" class="w-4 h-4 text-white"></i>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="app-content" class="flex-grow px-4 py-5 pb-36 space-y-5"></main>
+
+    <!-- Tab Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto ios-tabbar z-50 flex justify-around items-center px-4 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))]">
+        <button onclick="switchView('home')" class="tab-btn" id="nav-home">
+            <i data-lucide="home" class="w-6 h-6"></i>
+            <span>首页</span>
+        </button>
+        <button onclick="handlePlusClick()" class="ios-fab">
+            <i data-lucide="plus" class="w-6 h-6"></i>
+        </button>
+        <button onclick="switchView('history')" class="tab-btn" id="nav-history">
+            <i data-lucide="clock" class="w-6 h-6"></i>
+            <span>记录</span>
+        </button>
+    </nav>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[400] hidden pointer-events-none">
+        <div class="ios-toast"><span id="toast-msg"></span></div>
+    </div>
+
+    <!-- Choice Sheet -->
+    <div id="choice-modal" class="fixed inset-0 sheet-backdrop hidden z-[200] flex items-end justify-center" onclick="if(event.target===this)hideChoice()">
+        <div class="sheet w-full max-w-md anim-slide-up">
+            <div class="sheet-handle"></div>
+            <p class="text-center text-[15px] font-semibold text-gray-800 mb-5">新增记录</p>
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <button onclick="createNew('report')" class="flex flex-col items-center gap-2.5 py-5 rounded-[18px] bg-[color:var(--brand-light)] text-[color:var(--brand)] active:opacity-70 transition-opacity">
+                    <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                        <i data-lucide="file-text" class="w-6 h-6 text-[color:var(--brand)]"></i>
+                    </div>
+                    <span class="text-[13px] font-semibold">访谈报告</span>
+                </button>
+                <button onclick="createNew('site')" class="flex flex-col items-center gap-2.5 py-5 rounded-[18px] bg-orange-50 text-orange-600 active:opacity-70 transition-opacity">
+                    <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                        <i data-lucide="camera" class="w-6 h-6 text-orange-500"></i>
+                    </div>
+                    <span class="text-[13px] font-semibold">现场记录</span>
+                </button>
+                <button onclick="createNew('meeting')" class="flex flex-col items-center gap-2.5 py-5 rounded-[18px] bg-blue-50 text-blue-600 active:opacity-70 transition-opacity">
+                    <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                        <i data-lucide="users" class="w-6 h-6 text-blue-500"></i>
+                    </div>
+                    <span class="text-[13px] font-semibold">会议记录</span>
+                </button>
+            </div>
+            <button onclick="hideChoice()" class="w-full py-4 text-[17px] font-semibold text-[color:var(--ios-blue)] mb-2">取消</button>
+            <div class="h-[env(safe-area-inset-bottom)]"></div>
+        </div>
+    </div>
+
+    <!-- Photo input -->
+    <input type="file" id="site-photo-input" class="hidden" accept="image/*" multiple onchange="handlePhotoUpload(event)">
+
+    <!-- Confirm Modal (iOS Alert style) -->
+    <div id="custom-modal" class="fixed inset-0 bg-black/40 hidden z-[210] flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="ios-alert" id="ios-alert-box">
+            <h3 id="modal-title" class="ios-alert-title">确认操作</h3>
+            <p id="modal-desc" class="ios-alert-desc"></p>
+            <div class="ios-alert-sep"></div>
+            <div class="flex">
+                <button onclick="hideModal()" class="ios-alert-btn cancel flex-1" style="border-right:0.5px solid var(--separator-opaque)">取消</button>
+                <button id="modal-confirm-btn" class="ios-alert-btn destructive flex-1">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DEPARTMENTS_LIST    = ["行长","合规","计财","存汇","帐务","总务","人事","其他"];
+        const DEPARTMENTS_LIST_CN = ["行长","合规","计财","存汇","帐务","总务","人事","其他"];
+        const STORAGE_KEY = 'rm_reports_history_v17';
+        const DRAFT_KEY   = 'rm_assistant_v17_cache';
+
+        let reports = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        let draft = null;
+        let activePhotoIdx = -1;
+        let historySearchTerm = '';
+
+        /* ───── VIEW RENDERERS ───── */
+        const VIEWS = {
+
+        'home': function() {
+            const cachedData = localStorage.getItem(DRAFT_KEY);
+            const hasDraft   = !!cachedData;
+            const draftObj   = hasDraft ? JSON.parse(cachedData) : null;
+            const typeMap    = { report:'访谈报告', meeting:'会议记录', site:'现场记录' };
+            const typeText   = draftObj ? typeMap[draftObj.type] : '记录';
+            const now        = new Date();
+            const greeting   = now.getHours() < 12 ? '早安' : now.getHours() < 18 ? '午安' : '晚安';
+
+            return `
+            <div class="space-y-5 anim-fade-in">
+
+                <!-- Hero -->
+                <div class="hero-card">
+                    <p class="text-green-200 text-[11px] font-medium tracking-widest uppercase mb-1 opacity-80">Professional Banking Tool</p>
+                    <h2 class="text-[26px] font-bold tracking-tight">${greeting}，RM 同仁</h2>
+                    <p class="text-green-100/70 text-[13px] mt-1.5">随时随地记录工作，高解析度现场影像存证</p>
+                    <div class="mt-5 flex items-center gap-3">
+                        <div class="flex-1 bg-white/10 rounded-xl px-3 py-2">
+                            <p class="text-[10px] text-green-200 font-medium">今日记录</p>
+                            <p class="text-white font-bold text-lg">${reports.filter(r => r.visitDate === now.toISOString().split('T')[0]).length}</p>
+                        </div>
+                        <div class="flex-1 bg-white/10 rounded-xl px-3 py-2">
+                            <p class="text-[10px] text-green-200 font-medium">本月记录</p>
+                            <p class="text-white font-bold text-lg">${reports.filter(r => r.visitDate && r.visitDate.startsWith(now.toISOString().substring(0,7))).length}</p>
+                        </div>
+                        <div class="flex-1 bg-white/10 rounded-xl px-3 py-2">
+                            <p class="text-[10px] text-green-200 font-medium">全部记录</p>
+                            <p class="text-white font-bold text-lg">${reports.length}</p>
+                        </div>
+                    </div>
+                </div>
+
+                ${hasDraft ? `
+                <!-- Draft Banner -->
+                <div class="draft-banner">
+                    <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="file-edit" class="w-5 h-5 text-orange-500"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[14px] font-semibold text-gray-800">未完成的${typeText}</p>
+                        <p class="text-[12px] text-orange-500 mt-0.5">上次编辑于 ${new Date(draftObj.timestamp).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}</p>
+                    </div>
+                    <button onclick="restoreDraft()" class="bg-orange-500 text-white text-[13px] font-semibold px-4 py-2 rounded-xl flex-shrink-0">继续</button>
+                </div>
+                <button onclick="showConfirm('弃用草稿','弃用后将无法恢复当前草稿内容。', () => { localStorage.removeItem(DRAFT_KEY); switchView('home'); })" class="w-full text-[14px] text-[color:var(--ios-gray)] text-center">弃用草稿并新建</button>
+                ` : `
+                <!-- Quick Start -->
+                <div class="ios-card">
+                    <div class="flex flex-col items-center py-10 px-6 text-center">
+                        <div class="w-16 h-16 bg-[color:var(--brand-light)] rounded-full flex items-center justify-center mb-4">
+                            <i data-lucide="plus-circle" class="w-8 h-8 text-[color:var(--brand)]"></i>
+                        </div>
+                        <p class="text-[17px] font-semibold text-gray-800 mb-1.5">开始新记录</p>
+                        <p class="text-[14px] text-[color:var(--label-secondary)] mb-6">点击下方 + 或此按钮</p>
+                        <button onclick="handlePlusClick()" class="btn-primary" style="width:180px;">立即新增记录</button>
+                    </div>
+                </div>
+                `}
+
+                ${reports.length > 0 ? `
+                <!-- Recent -->
+                <div class="space-y-3">
+                    <p class="text-[13px] font-semibold text-[color:var(--ios-gray)] uppercase tracking-wide px-1">最近记录</p>
+                    <div class="space-y-2">
+                        ${reports.slice(0,3).map(r => {
+                            const typeMap2 = {report:{label:'访谈',color:'var(--brand)',bg:'var(--brand-light)',icon:'file-text'}, site:{label:'现场',color:'var(--ios-orange)',bg:'rgba(255,149,0,0.1)',icon:'camera'}, meeting:{label:'会议',color:'var(--ios-blue)',bg:'rgba(0,122,255,0.1)',icon:'users'}};
+                            const tm = typeMap2[r.type] || typeMap2.report;
+                            return `<div class="history-row" onclick="loadFromHistory('${r.timestamp}')">
+                                <div class="type-badge" style="background:${tm.bg}"><i data-lucide="${tm.icon}" class="w-5 h-5" style="color:${tm.color}"></i></div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[15px] font-semibold text-gray-900 truncate">${r.type==='meeting' ? r.meetingName : (r.clientName||'未命名')}</p>
+                                    <p class="text-[12px] text-[color:var(--label-secondary)] mt-0.5">${r.visitDate||'-'} · <span style="color:${tm.color};font-weight:600">${tm.label}</span></p>
+                                </div>
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-[color:var(--ios-gray3)]"></i>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    ${reports.length > 3 ? `<button onclick="switchView('history')" class="w-full text-center text-[14px] text-[color:var(--brand)] font-medium py-2">查看全部 ${reports.length} 条记录</button>` : ''}
+                </div>
+                ` : ''}
+            </div>`;
+        },
+
+        'edit-report': function() {
+            return `
+            <div class="space-y-6 anim-fade-in">
+                <!-- Nav -->
+                <div class="flex items-center gap-2 -mx-1">
+                    <button onclick="confirmCancel()" class="ios-back-btn">
+                        <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                        <span>返回</span>
+                    </button>
+                    <h2 class="text-[17px] font-semibold text-gray-900 ml-1">访谈报告</h2>
+                </div>
+
+                <!-- Section 1 -->
+                <div class="space-y-2">
+                    <p class="form-section-label">客户信息</p>
+                    <div class="ios-group">
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">客户名称</span>
+                            <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value)" placeholder="请输入客户全称">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">负责人</span>
+                            <input type="text" value="${draft.owner||''}" oninput="updateDraft('owner',this.value)" placeholder="实际负责人姓名">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">拜访地点</span>
+                            <input type="text" id="cityInput" value="${draft.city||''}" oninput="updateDraft('city',this.value)" placeholder="城市 / 地区">
+                            <button onclick="getLocation()" class="text-[color:var(--brand)] ml-1 flex-shrink-0">
+                                <i data-lucide="map-pin" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">企业型态</span>
+                            <select onchange="updateDraft('companyType',this.value)" class="text-right flex-1">
+                                <option value="台商" ${draft.companyType==='台商'?'selected':''}>台商</option>
+                                <option value="陆资" ${draft.companyType==='陆资'?'selected':''}>陆资</option>
+                                <option value="外商" ${draft.companyType==='外商'?'selected':''}>外商</option>
+                            </select>
+                            <i data-lucide="chevron-right" class="w-4 h-4 text-[color:var(--ios-gray3)] flex-shrink-0"></i>
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">产业描述</span>
+                            <input type="text" value="${draft.industryDesc||''}" oninput="updateDraft('industryDesc',this.value)" placeholder="行业描述">
+                        </div>
+                        <div class="ios-toggle">
+                            <span class="text-[17px]">8+E 客户</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" ${draft.is8PlusE?'checked':''} onchange="updateDraft('is8PlusE',this.checked)">
+                                <span class="toggle-track"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2 -->
+                <div class="space-y-2">
+                    <p class="form-section-label">拜访详情</p>
+                    <div class="ios-group">
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">日期</span>
+                            <input type="date" value="${draft.visitDate}" oninput="updateDraft('visitDate',this.value)" class="text-right flex-1">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">时间</span>
+                            <div class="flex items-center gap-2 ml-auto">
+                                <select onchange="updateDraft('visitHour',this.value)" class="text-[15px]">
+                                    ${Array.from({length:24},(_,i)=>`<option value="${i}" ${parseInt(draft.visitHour)===i?'selected':''}>${i.toString().padStart(2,'0')}:00</option>`).join('')}
+                                </select>
+                                <span class="text-[color:var(--ios-gray3)]">–</span>
+                                <select onchange="updateDraft('visitEndHour',this.value)" class="text-[15px]">
+                                    ${Array.from({length:24},(_,i)=>`<option value="${i}" ${parseInt(draft.visitEndHour)===i?'selected':''}>${i.toString().padStart(2,'0')}:00</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">拜访目的</span>
+                            <select onchange="updateDraft('purpose',this.value)" class="text-right flex-1">
+                                <option value="新户开发" ${draft.purpose==='新户开发'?'selected':''}>新户开发</option>
+                                <option value="旧户维系" ${draft.purpose==='旧户维系'?'selected':''}>旧户维系</option>
+                            </select>
+                            <i data-lucide="chevron-right" class="w-4 h-4 text-[color:var(--ios-gray3)] flex-shrink-0"></i>
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">争取业务</span>
+                            <input type="text" value="${draft.targetBusiness||''}" oninput="updateDraft('targetBusiness',this.value)" placeholder="业务类型">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">RM 组别</span>
+                            <input type="text" value="${draft.rmGroup||''}" oninput="updateDraft('rmGroup',this.value)" placeholder="例：深圳">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">顾客人员</span>
+                            <input type="text" value="${draft.customerStaff||''}" oninput="updateDraft('customerStaff',this.value)" placeholder="姓名 / 职称">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">我行人员</span>
+                            <input type="text" value="${draft.bankStaff||''}" oninput="updateDraft('bankStaff',this.value)" placeholder="参与人员姓名">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Content List -->
+                <div class="space-y-2">
+                    <p class="form-section-label">访谈记录摘要</p>
+                    <div class="ios-group">
+                        ${draft.contentList.map((item,index)=>`
+                        <div class="ios-row items-start py-3">
+                            <span class="text-[15px] font-medium text-[color:var(--label-secondary)] mt-0.5 w-5 flex-shrink-0">${index+1}.</span>
+                            <textarea oninput="updateListItem('contentList',${index},this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[60px] leading-relaxed" placeholder="访谈要点...">${item}</textarea>
+                            ${index>0?`<button onclick="removeListItem('contentList',${index})" class="text-[color:var(--ios-red)] ml-2 mt-1 flex-shrink-0"><i data-lucide="minus-circle" class="w-5 h-5"></i></button>`:'<div class="w-7"></div>'}
+                        </div>`).join('')}
+                        <button onclick="addListItem('contentList')" class="add-item-btn">
+                            <i data-lucide="plus-circle" class="w-5 h-5 text-[color:var(--brand)]"></i>
+                            <span>新增访谈要点</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Section 4: Todo List -->
+                <div class="space-y-2">
+                    <p class="form-section-label">待办与后续规划</p>
+                    <div class="ios-group">
+                        ${draft.todoList.map((item,index)=>`
+                        <div class="ios-row items-start py-3">
+                            <span class="text-[15px] font-medium text-[color:var(--label-secondary)] mt-0.5 w-5 flex-shrink-0">${index+1}.</span>
+                            <textarea oninput="updateListItem('todoList',${index},this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[60px] leading-relaxed" placeholder="待办事项...">${item}</textarea>
+                            ${index>0?`<button onclick="removeListItem('todoList',${index})" class="text-[color:var(--ios-red)] ml-2 mt-1 flex-shrink-0"><i data-lucide="minus-circle" class="w-5 h-5"></i></button>`:'<div class="w-7"></div>'}
+                        </div>`).join('')}
+                        <button onclick="addListItem('todoList')" class="add-item-btn">
+                            <i data-lucide="plus-circle" class="w-5 h-5 text-[color:var(--brand)]"></i>
+                            <span>新增待办规划</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3 pt-2 pb-4">
+                    <button onclick="confirmCancel()" class="btn-secondary">存草稿</button>
+                    <button onclick="goPreview()" class="btn-primary">前往预览 →</button>
+                </div>
+            </div>`;
+        },
+
+        'edit-meeting': function() {
+            const mName = draft.meetingName || '';
+            const isTodo = mName.includes('待办');
+            const isDaily = mName.includes('日常');
+            if (isDaily && (!draft.dailySections || draft.dailySections.length === 0))
+                draft.dailySections = [{ dept:'', content:'' }];
+
+            return `
+            <div class="space-y-6 anim-fade-in">
+                <div class="flex items-center gap-2 -mx-1">
+                    <button onclick="confirmCancel()" class="ios-back-btn">
+                        <i data-lucide="chevron-left" class="w-5 h-5"></i><span>返回</span>
+                    </button>
+                    <h2 class="text-[17px] font-semibold text-gray-900 ml-1">会议记录</h2>
+                </div>
+
+                <!-- Basic Info -->
+                <div class="space-y-2">
+                    <p class="form-section-label">会议信息</p>
+                    <div class="ios-group">
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">分行名称</span>
+                            <input type="text" value="${draft.branch||''}" oninput="updateDraft('branch',this.value)" placeholder="分行">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">会议类型</span>
+                            <select onchange="updateDraft('meetingName',this.value); switchView('edit-meeting');" class="text-right flex-1 text-[15px]">
+                                <option value="主管会议" ${mName==='主管会议'?'selected':''}>主管会议</option>
+                                <option value="待办会议" ${mName==='待办会议'?'selected':''}>待办会议</option>
+                                <option value="日常会议" ${mName==='日常会议'?'selected':''}>日常会议</option>
+                            </select>
+                            <i data-lucide="chevron-right" class="w-4 h-4 text-[color:var(--ios-gray3)] flex-shrink-0"></i>
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">日期</span>
+                            <input type="date" value="${draft.visitDate}" oninput="updateDraft('visitDate',this.value)" class="text-right flex-1">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">时间</span>
+                            <div class="flex items-center gap-2 ml-auto">
+                                <select onchange="updateDraft('visitHour',this.value)" class="text-[15px]">
+                                    ${Array.from({length:24},(_,i)=>`<option value="${i}" ${parseInt(draft.visitHour)===i?'selected':''}>${i.toString().padStart(2,'0')}:00</option>`).join('')}
+                                </select>
+                                <span class="text-[color:var(--ios-gray3)]">–</span>
+                                <select onchange="updateDraft('visitEndHour',this.value)" class="text-[15px]">
+                                    ${Array.from({length:24},(_,i)=>`<option value="${i}" ${parseInt(draft.visitEndHour)===i?'selected':''}>${i.toString().padStart(2,'0')}:00</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">地点</span>
+                            <input type="text" value="${draft.city||''}" oninput="updateDraft('city',this.value)" placeholder="会议室">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">主席</span>
+                            <input type="text" value="${draft.chairman||''}" oninput="updateDraft('chairman',this.value)" placeholder="主持人">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">记录</span>
+                            <input type="text" value="${draft.recorder||''}" oninput="updateDraft('recorder',this.value)" placeholder="记录者">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attendees -->
+                <div class="space-y-2">
+                    <p class="form-section-label">出席人员</p>
+                    <div class="ios-group">
+                        <div class="ios-row items-start py-3">
+                            <textarea oninput="updateDraft('attendeeText',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[70px] leading-relaxed" placeholder="请输入出席者姓名...">${draft.attendeeText||''}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content Section -->
+                ${isDaily ? `
+                <div class="space-y-3">
+                    <p class="form-section-label">会议内容（可按部门分组）</p>
+                    ${draft.dailySections.map((sec,idx)=>`
+                    <div class="ios-group relative">
+                        ${idx>0?`<button onclick="removeDailySection(${idx})" class="absolute top-3 right-3 z-10 text-[color:var(--ios-red)]"><i data-lucide="x-circle" class="w-5 h-5"></i></button>`:''}
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">部门/组</span>
+                            <input type="text" value="${sec.dept||''}" oninput="updateDailySection(${idx},'dept',this.value)" placeholder="例：深圳二组">
+                        </div>
+                        <div class="ios-row items-start py-3">
+                            <textarea oninput="updateDailySection(${idx},'content',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[100px] leading-relaxed" placeholder="讨论内容与决议...">${sec.content||''}</textarea>
+                        </div>
+                    </div>`).join('')}
+                    <button onclick="addDailySection()" class="ios-group w-full">
+                        <div class="add-item-btn justify-center">
+                            <i data-lucide="plus-circle" class="w-5 h-5 text-[color:var(--ios-blue)]"></i>
+                            <span class="text-[color:var(--ios-blue)] text-[17px]">新增部门/小组</span>
+                        </div>
+                    </button>
+                </div>
+                ` : isTodo ? `
+                <div class="space-y-2">
+                    <p class="form-section-label">待办四象限分析</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="quad-card" style="background:rgba(255,59,48,0.06)">
+                            <p class="quad-label text-red-600">紧急且重要</p>
+                            <textarea oninput="updateQuadrant('urgentImportant',this.value)" placeholder="立即处理...">${draft.todoQuadrants.urgentImportant}</textarea>
+                        </div>
+                        <div class="quad-card" style="background:rgba(255,149,0,0.06)">
+                            <p class="quad-label text-orange-600">重要不紧急</p>
+                            <textarea oninput="updateQuadrant('importantNotUrgent',this.value)" placeholder="计划安排...">${draft.todoQuadrants.importantNotUrgent}</textarea>
+                        </div>
+                        <div class="quad-card" style="background:rgba(0,122,255,0.06)">
+                            <p class="quad-label text-blue-600">紧急不重要</p>
+                            <textarea oninput="updateQuadrant('urgentNotImportant',this.value)" placeholder="委托处理...">${draft.todoQuadrants.urgentNotImportant}</textarea>
+                        </div>
+                        <div class="quad-card" style="background:rgba(142,142,147,0.06)">
+                            <p class="quad-label text-gray-500">不重要不紧急</p>
+                            <textarea oninput="updateQuadrant('notUrgentNotImportant',this.value)" placeholder="低优先...">${draft.todoQuadrants.notUrgentNotImportant}</textarea>
+                        </div>
+                    </div>
+                </div>
+                ` : `
+                <div class="space-y-3">
+                    <p class="form-section-label">各部门讨论事项</p>
+                    <div class="flex flex-wrap gap-2 px-1">
+                        ${DEPARTMENTS_LIST.map((d,i)=>`
+                        <div class="dept-chip">
+                            <input type="checkbox" id="chk-${d}" ${draft.discussions[d]!==undefined?'checked':''} onchange="toggleDeptDiscussion('${d}',this.checked)">
+                            <label for="chk-${d}">${DEPARTMENTS_LIST_CN[i]}</label>
+                        </div>`).join('')}
+                    </div>
+                    ${Object.keys(draft.discussions).length > 0 ? `
+                    <div class="space-y-3 mt-1">
+                        ${Object.keys(draft.discussions).sort((a,b)=>DEPARTMENTS_LIST.indexOf(a)-DEPARTMENTS_LIST.indexOf(b)).map(dept=>`
+                        <div class="ios-group relative">
+                            <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color:var(--separator)">
+                                <span class="text-[15px] font-semibold text-[color:var(--brand)]">${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(dept)]} 部门</span>
+                                <button onclick="toggleDeptDiscussion('${dept}',false)" class="text-[color:var(--ios-gray2)]"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            </div>
+                            <div class="ios-row items-start py-3">
+                                <textarea oninput="updateDeptContent('${dept}',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[90px] leading-relaxed" placeholder="部门报告或讨论内容...">${draft.discussions[dept]}</textarea>
+                            </div>
+                        </div>`).join('')}
+                    </div>` : `
+                    <div class="ios-card py-8 text-center">
+                        <p class="text-[14px] text-[color:var(--label-tertiary)]">请在上方选择部门开始记录</p>
+                    </div>`}
+                </div>
+                `}
+
+                <!-- Actions -->
+                <div class="flex gap-3 pt-2 pb-4">
+                    <button onclick="confirmCancel()" class="btn-secondary">存草稿</button>
+                    <button onclick="goPreview()" style="background:var(--ios-blue);" class="btn-primary" >前往预览 →</button>
+                </div>
+            </div>`;
+        },
+
+        'edit-site': function() {
+            return `
+            <div class="space-y-6 anim-fade-in">
+                <div class="flex items-center gap-2 -mx-1">
+                    <button onclick="confirmCancel()" class="ios-back-btn">
+                        <i data-lucide="chevron-left" class="w-5 h-5"></i><span>返回</span>
+                    </button>
+                    <h2 class="text-[17px] font-semibold text-gray-900 ml-1">现场记录</h2>
+                </div>
+
+                <!-- Basic -->
+                <div class="space-y-2">
+                    <p class="form-section-label">基本资料</p>
+                    <div class="ios-group">
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">客户名称</span>
+                            <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value)" placeholder="客户全称">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">RM 组别</span>
+                            <input type="text" value="${draft.rmGroup||''}" oninput="updateDraft('rmGroup',this.value)" placeholder="组别名称">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">负责人</span>
+                            <input type="text" value="${draft.owner||''}" oninput="updateDraft('owner',this.value)" placeholder="实际负责人">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">访察日期</span>
+                            <input type="date" value="${draft.visitDate}" oninput="updateDraft('visitDate',this.value)" class="text-right flex-1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content -->
+                <div class="space-y-2">
+                    <p class="form-section-label">访察内容</p>
+                    <div class="ios-group">
+                        <div class="px-4 py-2 border-b" style="border-color:var(--separator)">
+                            <p class="text-[13px] font-semibold text-[color:var(--ios-gray)] mb-2">与公司高管面谈情形</p>
+                            <textarea oninput="updateDraft('mgmtTalk',this.value)" class="w-full bg-transparent border-none outline-none text-[15px] resize-none min-h-[80px] leading-relaxed" placeholder="面谈重点...">${draft.mgmtTalk||''}</textarea>
+                        </div>
+                        <div class="px-4 py-2 border-b" style="border-color:var(--separator)">
+                            <p class="text-[13px] font-semibold text-[color:var(--ios-gray)] mb-2">访厂情况（产线及库存）</p>
+                            <textarea oninput="updateDraft('factoryEnv',this.value)" class="w-full bg-transparent border-none outline-none text-[15px] resize-none min-h-[80px] leading-relaxed" placeholder="产线动能、库存水位...">${draft.factoryEnv||''}</textarea>
+                        </div>
+                        <div class="px-4 py-2 border-b" style="border-color:var(--separator)">
+                            <p class="text-[13px] font-semibold text-[color:var(--ios-gray)] mb-2">最新接单与营收获利表现</p>
+                            <textarea oninput="updateDraft('businessPerf',this.value)" class="w-full bg-transparent border-none outline-none text-[15px] resize-none min-h-[80px] leading-relaxed" placeholder="财务表现及展望...">${draft.businessPerf||''}</textarea>
+                        </div>
+                        <div class="px-4 py-2">
+                            <p class="text-[13px] font-semibold text-[color:var(--ios-gray)] mb-2">综合评述</p>
+                            <textarea oninput="updateDraft('summary',this.value)" class="w-full bg-transparent border-none outline-none text-[15px] resize-none min-h-[80px] leading-relaxed" placeholder="RM 核心观察...">${draft.summary||''}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Photos -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <p class="form-section-label mb-0">现场照片</p>
+                        <span class="text-[12px] text-[color:var(--brand)] font-medium">最多 4 张 · 高清存证</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        ${[0,1,2,3].map(i=>`
+                        <div class="photo-slot" onclick="triggerUpload(${i})">
+                            ${draft.photos[i] ? `
+                                <img src="${draft.photos[i]}">
+                                <button onclick="removePhoto(event,${i})" class="absolute top-2 right-2 bg-black/55 text-white p-1.5 rounded-full backdrop-blur-sm">
+                                    <i data-lucide="x" class="w-3 h-3"></i>
+                                </button>
+                                <div class="absolute bottom-2 left-2 bg-black/40 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm">照片 ${i+1}</div>
+                            ` : `
+                                <div class="photo-slot-empty flex flex-col items-center">
+                                    <i data-lucide="camera" class="w-7 h-7 text-[color:var(--ios-gray3)]"></i>
+                                    <span>点击上传</span>
+                                </div>
+                            `}
+                        </div>`).join('')}
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3 pt-2 pb-4">
+                    <button onclick="confirmCancel()" class="btn-secondary">存草稿</button>
+                    <button onclick="goPreview()" style="background:var(--ios-orange);box-shadow:0 4px 14px rgba(255,149,0,0.35);" class="btn-primary">前往预览 →</button>
+                </div>
+            </div>`;
+        },
+
+        'preview': function() {
+            const type    = draft.type;
+            const dateStr = draft.visitDate ? draft.visitDate.replace(/-/g,'/') : '-';
+            const datePure= (draft.visitDate||'').replace(/-/g,'');
+            const timeStr = draft.visitHour !== undefined
+                ? `${draft.visitHour.toString().padStart(2,'0')}:00 – ${draft.visitEndHour.toString().padStart(2,'0')}:00` : '';
+
+            /* ── preview HTML content ── */
+            let previewHtml = '';
+            if (type === 'site') {
+                previewHtml = `<div id="word-content" style="font-family:'SimSun',serif;font-size:12px;line-height:1.4;color:black;">
+                    <div style="text-align:center;margin-bottom:20px;">
+                        <p style="font-weight:bold;font-size:18px;margin:0 0 6px;">${draft.clientName}－现场检查照片</p>
+                        <p style="font-size:12px;color:#666;margin:0;">日期：${dateStr}</p>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
+                        ${draft.photos.map((p,idx)=>p?`<img src="${p}" style="width:100%;border:0.5pt solid #ddd;aspect-ratio:4/3;object-fit:cover;">`:`<div style="aspect-ratio:4/3;background:#f9fafb;border:1px dashed #e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:10px;">照片 ${idx+1} 未上传</div>`).join('')}
+                    </div>
+                    <h2 style="text-align:center;border-bottom:2px solid black;padding-bottom:8px;font-weight:bold;font-size:15px;margin-bottom:12px;">玉山银行(中国) 企业现场访察记录</h2>
+                    <table style="width:100%;border-collapse:collapse;border:1px solid black;margin-bottom:14px;">
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;width:22%;font-weight:bold;">客户名称</td><td style="border:1px solid black;padding:5px 7px;width:38%;">${draft.clientName}</td><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;width:14%;font-weight:bold;">RM组别</td><td style="border:1px solid black;padding:5px 7px;">${draft.rmGroup||'-'}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;font-weight:bold;">实际负责人</td><td style="border:1px solid black;padding:5px 7px;">${draft.owner||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;font-weight:bold;">访察日期</td><td style="border:1px solid black;padding:5px 7px;">${dateStr}</td></tr>
+                    </table>
+                    <div style="font-weight:bold;margin:10px 0 5px;">一、与公司高管面谈情形</div><div style="padding:8px;border:0.5pt solid #eee;min-height:50px;line-height:1.5;">${(draft.mgmtTalk||'无内容').replace(/\n/g,'<br>')}</div>
+                    <div style="font-weight:bold;margin:12px 0 5px;">二、访厂情况(产线及库存)</div><div style="padding:8px;border:0.5pt solid #eee;min-height:50px;line-height:1.5;">${(draft.factoryEnv||'无内容').replace(/\n/g,'<br>')}</div>
+                    <div style="font-weight:bold;margin:12px 0 5px;">三、最新接单与营收获利表现</div><div style="padding:8px;border:0.5pt solid #eee;min-height:50px;line-height:1.5;">${(draft.businessPerf||'无内容').replace(/\n/g,'<br>')}</div>
+                    <div style="font-weight:bold;margin:12px 0 5px;">四、综合评述</div><div style="padding:8px;border:0.5pt solid #eee;min-height:50px;line-height:1.5;">${(draft.summary||'无内容').replace(/\n/g,'<br>')}</div>
+                </div>`;
+            } else if (type === 'report') {
+                const cHtml = draft.contentList.filter(i=>i.trim()!=='').map((i,idx)=>`<div style="margin-bottom:3px;">${idx+1}. ${i}</div>`).join('');
+                const tHtml = draft.todoList.filter(i=>i.trim()!=='').map((i,idx)=>`<div style="margin-bottom:3px;">${idx+1}. ${i}</div>`).join('');
+                previewHtml = `<div id="word-content" style="font-family:'SimSun',serif;font-size:12px;line-height:1.3;color:black;">
+                    <h2 style="text-align:center;color:#007d50;border-bottom:2.5px solid #007d50;padding-bottom:8px;font-weight:bold;font-size:15px;margin-bottom:12px;">玉山銀行(中國)對公業務出差報告</h2>
+                    <table style="width:100%;border-collapse:collapse;border:1px solid black;">
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;width:18%;font-weight:bold;">客戶名稱</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${draft.clientName}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">實際負責人</td><td style="border:1px solid black;padding:4px 7px;width:32%;">${draft.owner||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;width:18%;font-weight:bold;">RM組別</td><td style="border:1px solid black;padding:4px 7px;">${draft.rmGroup||'-'}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">訪談時間</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${dateStr} ${timeStr}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">產業描述</td><td style="border:1px solid black;padding:4px 7px;">${draft.industryDesc||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">型態/8+E</td><td style="border:1px solid black;padding:4px 7px;">${draft.companyType}${draft.is8PlusE?'(8+E)':''}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">訪談目的</td><td style="border:1px solid black;padding:4px 7px;">${draft.purpose}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">地點</td><td style="border:1px solid black;padding:4px 7px;">${draft.city||'-'}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">爭取業務</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${draft.targetBusiness||'-'}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">參與人員</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">顧客: ${draft.customerStaff||'-'} / 我行: ${draft.bankStaff||'-'}</td></tr>
+                        <tr><td colspan="4" style="background:#f5f5f5;border:1px solid black;padding:5px;text-align:center;font-weight:bold;border-top:1.5px solid black;">訪談紀錄摘要</td></tr>
+                        <tr><td colspan="4" style="border:1px solid black;padding:10px;min-height:150px;vertical-align:top;line-height:1.5;">${cHtml||'-'}</td></tr>
+                        <tr><td colspan="4" style="background:#f5f5f5;border:1px solid black;padding:5px;text-align:center;font-weight:bold;border-top:1.5px solid black;">待辦與後續規劃</td></tr>
+                        <tr><td colspan="4" style="border:1px solid black;padding:10px;min-height:120px;vertical-align:top;line-height:1.5;">${tHtml||'-'}</td></tr>
+                    </table>
+                </div>`;
+            } else {
+                const mName = draft.meetingName||'';
+                let mainContentHtml = '';
+                if (mName.includes('日常')) {
+                    mainContentHtml = `<div style="font-weight:bold;margin:12px 0 8px;">会议讨论事项摘要：</div>
+                        ${draft.dailySections.map(sec=>`<table style="width:100%;border-collapse:collapse;border:1px solid #ccc;margin-bottom:7px;"><tr><td style="background:#f2f2f2;padding:4px 9px;font-weight:bold;font-size:11px;">部门汇报：${sec.dept||'全员'}</td></tr><tr><td style="padding:7px 9px;font-size:12px;white-space:pre-wrap;line-height:1.5;">${sec.content||'未输入'}</td></tr></table>`).join('')}`;
+                } else if (mName.includes('待办')) {
+                    mainContentHtml = `<div style="font-weight:bold;margin-bottom:8px;margin-top:14px;">待办事项四象限分析：</div>
+                        <table style="width:100%;border-collapse:collapse;border:1px solid black;font-size:11px;">
+                        <tr><td style="border:1px solid black;background:#fff1f0;padding:7px;height:90px;vertical-align:top;"><div style="color:#cf1322;font-weight:bold;margin-bottom:3px;">【紧急且重要】</div>${draft.todoQuadrants.urgentImportant}</td>
+                            <td style="border:1px solid black;background:#fff2e8;padding:7px;height:90px;vertical-align:top;"><div style="color:#d4380d;font-weight:bold;margin-bottom:3px;">【重要不紧急】</div>${draft.todoQuadrants.importantNotUrgent}</td></tr>
+                        <tr><td style="border:1px solid black;background:#e6f7ff;padding:7px;height:90px;vertical-align:top;"><div style="color:#096dd9;font-weight:bold;margin-bottom:3px;">【紧急不重要】</div>${draft.todoQuadrants.urgentNotImportant}</td>
+                            <td style="border:1px solid black;background:#f5f5f5;padding:7px;height:90px;vertical-align:top;"><div style="color:#595959;font-weight:bold;margin-bottom:3px;">【不重要不紧急】</div>${draft.todoQuadrants.notUrgentNotImportant}</td></tr></table>`;
+                } else {
+                    const discHtml = Object.keys(draft.discussions).sort((a,b)=>DEPARTMENTS_LIST.indexOf(a)-DEPARTMENTS_LIST.indexOf(b)).filter(d=>draft.discussions[d].trim()!=='').map(d=>`<table style="width:100%;border-collapse:collapse;border:1px solid #ccc;margin-bottom:7px;"><tr><td style="background:#f2f2f2;padding:4px 9px;font-weight:bold;font-size:11px;">部门汇报：${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(d)]}</td></tr><tr><td style="padding:7px 9px;font-size:12px;white-space:pre-wrap;line-height:1.4;">${draft.discussions[d]}</td></tr></table>`).join('');
+                    mainContentHtml = `<div style="font-weight:bold;margin:12px 0 8px;">各部门讨论事项摘要：</div>${discHtml||'无讨论事项'}`;
+                }
+                previewHtml = `<div id="word-content" style="font-family:'SimSun',serif;font-size:12px;line-height:1.4;color:black;">
+                    <h2 style="text-align:center;font-size:17px;margin-bottom:11px;font-weight:bold;border-bottom:2px solid #000;padding-bottom:7px;">玉山银行 ${draft.branch||''} 会议记录</h2>
+                    <table style="width:100%;border-collapse:collapse;border:1px solid black;margin-bottom:11px;">
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;width:15%;font-weight:bold;">会议名称</td><td style="border:1px solid black;padding:5px 7px;width:35%;">${draft.meetingName}</td><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;width:15%;font-weight:bold;">日期时间</td><td style="border:1px solid black;padding:5px 7px;">${dateStr} ${timeStr}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;font-weight:bold;">会议地点</td><td style="border:1px solid black;padding:5px 7px;">${draft.city||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;font-weight:bold;">主席/记录</td><td style="border:1px solid black;padding:5px 7px;">${draft.chairman||'-'} / ${draft.recorder||'-'}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;font-weight:bold;">出席人员</td><td colspan="3" style="border:1px solid black;padding:5px 7px;">${draft.attendeeText||'-'}</td></tr>
+                    </table>
+                    ${mainContentHtml}
+                </div>`;
+            }
+
+            /* ── action buttons ── */
+            let btnLayout = '';
+            if (type === 'site') {
+                btnLayout = `
+                <button onclick="downloadSitePhotosPDF('${dateStr}','${datePure}')" class="btn-tinted orange">
+                    <i data-lucide="image" class="w-5 h-5"></i> 导出照片 PDF
+                </button>
+                <button onclick="downloadSiteTextWord('${dateStr}','${datePure}')" class="btn-tinted slate">
+                    <i data-lucide="file-text" class="w-5 h-5"></i> 导出文字 Word
+                </button>
+                <button onclick="copyFullContent()" class="btn-tinted blue">
+                    <i data-lucide="copy" class="w-5 h-5"></i> 复制全文（微信/飞书）
+                </button>`;
+            } else {
+                btnLayout = `
+                <button onclick="downloadWordUniversal()" class="btn-primary">
+                    <i data-lucide="download" class="w-5 h-5"></i> 导出正式文件（A4 格式）
+                </button>
+                <button onclick="copyFullContent()" class="btn-tinted blue">
+                    <i data-lucide="copy" class="w-5 h-5"></i> 复制全文（微信/飞书）
+                </button>`;
+            }
+
+            return `
+            <div class="space-y-5 anim-fade-in">
+                <div class="flex items-center gap-2 -mx-1">
+                    <button onclick="switchView('edit-${draft.type}')" class="ios-back-btn">
+                        <i data-lucide="chevron-left" class="w-5 h-5"></i><span>返回编辑</span>
+                    </button>
+                    <h2 class="text-[17px] font-semibold text-gray-900 ml-1">格式预览</h2>
+                </div>
+                <div class="paper">${previewHtml}</div>
+                <div class="space-y-3 pb-4">${btnLayout}</div>
+            </div>`;
+        },
+
+        'history': function() {
+            const typeConf = {
+                report: { label:'访谈', color:'var(--brand)',    bg:'var(--brand-light)',              icon:'file-text' },
+                site:   { label:'现场', color:'var(--ios-orange)', bg:'rgba(255,149,0,0.10)',           icon:'camera'    },
+                meeting:{ label:'会议', color:'var(--ios-blue)',   bg:'rgba(0,122,255,0.10)',           icon:'users'     }
+            };
+            const usage = calculateStorageUsage();
+            const filtered = reports.filter(r => {
+                const title = r.type === 'meeting' ? r.meetingName : (r.clientName||'未命名');
+                return title.toLowerCase().includes(historySearchTerm.toLowerCase());
+            });
+
+            return `
+            <div class="space-y-5 anim-fade-in">
+                <!-- Header -->
+                <div class="flex justify-between items-end px-0.5">
+                    <div>
+                        <h2 class="text-[22px] font-bold text-gray-900">历史记录</h2>
+                        <p class="text-[13px] text-[color:var(--label-secondary)] mt-0.5">${reports.length} 份文件</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="storage-bar w-20">
+                            <div class="storage-fill ${usage>80?'warn':''}" style="width:${usage}%"></div>
+                        </div>
+                        <p class="text-[11px] text-[color:var(--ios-gray)] mt-1">存储 ${usage}%</p>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="ios-search">
+                    <i data-lucide="search" class="w-4 h-4 text-[color:var(--label-tertiary)] flex-shrink-0"></i>
+                    <input type="text" value="${historySearchTerm}" oninput="searchHistory(this.value)" placeholder="搜索客户或会议主题">
+                    ${historySearchTerm ? `<button onclick="searchHistory('')" class="text-[color:var(--ios-gray2)] flex-shrink-0"><i data-lucide="x-circle" class="w-4 h-4"></i></button>` : ''}
+                </div>
+
+                <!-- List -->
+                <div class="space-y-2">
+                    ${filtered.length === 0 ? `
+                    <div class="ios-card py-16 text-center">
+                        <i data-lucide="inbox" class="w-10 h-10 text-[color:var(--ios-gray3)] mx-auto mb-3"></i>
+                        <p class="text-[15px] text-[color:var(--label-secondary)]">${historySearchTerm ? '未找到相关记录' : '暂无记录'}</p>
+                        ${!historySearchTerm ? `<p class="text-[13px] text-[color:var(--label-tertiary)] mt-1">点击下方 + 开始新建</p>` : ''}
+                    </div>` :
+                    filtered.map(r => {
+                        const tc = typeConf[r.type] || typeConf.report;
+                        return `<div class="history-row">
+                            <div class="type-badge" style="background:${tc.bg}">
+                                <i data-lucide="${tc.icon}" class="w-5 h-5" style="color:${tc.color}"></i>
+                            </div>
+                            <div class="flex-1 min-w-0 cursor-pointer" onclick="loadFromHistory('${r.timestamp}')">
+                                <p class="text-[15px] font-semibold text-gray-900 truncate">${r.type==='meeting'?r.meetingName:(r.clientName||'未命名')}</p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <p class="text-[12px] text-[color:var(--label-secondary)]">${r.visitDate||'-'}</p>
+                                    <span class="text-[11px] font-semibold" style="color:${tc.color}">${tc.label}</span>
+                                </div>
+                            </div>
+                            <button onclick="confirmDelete('${r.timestamp}')" class="p-2 text-[color:var(--ios-gray3)] active:text-[color:var(--ios-red)] transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="loadFromHistory('${r.timestamp}')" class="p-1">
+                                <i data-lucide="chevron-right" class="w-5 h-5 text-[color:var(--ios-gray3)]"></i>
+                            </button>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        }
+        };
+
+        /* ─────────────── CORE LOGIC (unchanged) ─────────────── */
+
+        function calculateStorageUsage() {
+            let total = 0;
+            for (let x in localStorage) {
+                if (localStorage.hasOwnProperty(x)) total += (localStorage[x].length + x.length) * 2;
+            }
+            return Math.min(Math.round((total / (5 * 1024 * 1024)) * 100), 100);
+        }
+
+        function searchHistory(val) { historySearchTerm = val; switchView('history'); }
+
+        function switchView(name) {
+            const content = document.getElementById('app-content');
+            content.innerHTML = VIEWS[name] ? VIEWS[name]() : '<div class="p-10 text-center text-gray-400">加载失败</div>';
+            lucide.createIcons();
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            const navBtn = document.getElementById(`nav-${name.split('-')[0]}`);
+            if (navBtn) navBtn.classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function handlePlusClick() { document.getElementById('choice-modal').classList.remove('hidden'); lucide.createIcons(); }
+        function hideChoice()      { document.getElementById('choice-modal').classList.add('hidden'); }
+
+        function createNew(type) {
+            hideChoice();
+            const now = new Date();
+            const base = { type, visitDate: now.toISOString().split('T')[0], timestamp: now.getTime() };
+            if (type === 'report') {
+                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:'', customerStaff:'', contentList:[''], todoList:[''], bankStaff:'' };
+            } else if (type === 'meeting') {
+                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, branch:'', meetingName:'主管会议', chairman:'', recorder:'', city:'', attendeeText:'', discussions:{}, todoQuadrants:{ urgentImportant:'', importantNotUrgent:'', urgentNotImportant:'', notUrgentNotImportant:'' }, dailySections:[{dept:'',content:''}] };
+            } else if (type === 'site') {
+                draft = { ...base, clientName:'', rmGroup:'', owner:'', mgmtTalk:'', factoryEnv:'', businessPerf:'', summary:'', photos:[null,null,null,null] };
+            }
+            saveDraft();
+            switchView(`edit-${type}`);
+        }
+
+        function triggerUpload(idx) { activePhotoIdx = idx; document.getElementById('site-photo-input').click(); }
+
+        async function handlePhotoUpload(e) {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+            showToast(`⌛ 正在处理 ${files.length} 张照片…`);
+            let slotsToFill = [];
+            for (let i = 0; i < 4; i++) slotsToFill.push((activePhotoIdx + i) % 4);
+            let fileIndex = 0;
+            for (const slotIdx of slotsToFill) {
+                if (fileIndex >= files.length) break;
+                const compressed = await compressImage(files[fileIndex]);
+                if (compressed) { draft.photos[slotIdx] = compressed; fileIndex++; }
+            }
+            saveDraft();
+            switchView('edit-site');
+            showToast(`✅ ${fileIndex} 张高清影像已就位`);
+            e.target.value = '';
+        }
+
+        function compressImage(file) {
+            return new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = evt => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const MAX = 1200;
+                        let w = img.width, h = img.height;
+                        if (w > MAX) { h *= MAX/w; w = MAX; }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                    img.src = evt.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function removePhoto(e, idx) { e.stopPropagation(); draft.photos[idx] = null; saveDraft(); switchView('edit-site'); }
+
+        function saveDraft() {
+            try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); }
+            catch (e) { if (e.name==='QuotaExceededError') showToast('❌ 存储空间不足，请先导出并清除旧记录'); }
+        }
+
+        function restoreDraft() { const c = localStorage.getItem(DRAFT_KEY); if (c) { draft = JSON.parse(c); switchView(`edit-${draft.type}`); } }
+        function saveHistory()  { localStorage.setItem(STORAGE_KEY, JSON.stringify(reports)); }
+        function updateDraft(k, v) { draft[k] = v; saveDraft(); }
+        function updateListItem(list, idx, val) { draft[list][idx] = val; saveDraft(); }
+        function addListItem(list)    { draft[list].push(''); switchView(`edit-${draft.type}`); }
+        function removeListItem(list, idx) { draft[list].splice(idx,1); if(!draft[list].length) draft[list]=['']; switchView(`edit-${draft.type}`); }
+
+        function addDailySection()     { if(!draft.dailySections) draft.dailySections=[]; draft.dailySections.push({dept:'',content:''}); switchView('edit-meeting'); }
+        function removeDailySection(i) { draft.dailySections.splice(i,1); if(!draft.dailySections.length) draft.dailySections=[{dept:'',content:''}]; switchView('edit-meeting'); }
+        function updateDailySection(i, k, v) { draft.dailySections[i][k] = v; saveDraft(); }
+
+        function toggleDeptDiscussion(dept, checked) {
+            if (checked) { if (draft.discussions[dept]===undefined) draft.discussions[dept]=''; }
+            else { delete draft.discussions[dept]; }
+            saveDraft(); switchView('edit-meeting');
+        }
+        function updateDeptContent(dept, val) { draft.discussions[dept] = val; saveDraft(); }
+        function updateQuadrant(key, val)  { draft.todoQuadrants[key] = val; saveDraft(); }
+
+        function goPreview() {
+            const title = draft.type==='meeting' ? draft.meetingName : draft.clientName;
+            if (!title||!title.trim()) return showToast('⚠️ 请填写标题或客户名称');
+            switchView('preview');
+        }
+
+        async function getLocation() {
+            if (!navigator.geolocation) { showToast('❌ 定位不支持'); return; }
+            showToast('📍 获取位置中…');
+            document.getElementById('gps-indicator').classList.remove('hidden');
+            navigator.geolocation.getCurrentPosition(async pos => {
+                const { latitude, longitude } = pos.coords;
+                try {
+                    const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=zh-CN`);
+                    const data = await res.json();
+                    if (data?.address) {
+                        const parts = [data.address.country, data.address.city||data.address.province||data.address.state, data.address.suburb||data.address.district||data.address.county||data.address.town].filter(Boolean);
+                        updateDraft('city', parts.join('/'));
+                        switchView(`edit-${draft.type}`);
+                        showToast('✅ 位置已更新');
+                    }
+                } catch { showToast('❌ 解析失败'); }
+                finally { document.getElementById('gps-indicator').classList.add('hidden'); }
+            }, () => { showToast('❌ 定位失败'); document.getElementById('gps-indicator').classList.add('hidden'); });
+        }
+
+        function confirmDelete(ts) {
+            showConfirm('确认删除？', '删除后将无法恢复，包含高清影像。', () => {
+                reports = reports.filter(r => r.timestamp.toString() !== ts.toString());
+                saveHistory(); switchView('history'); showToast('🗑️ 记录已删除');
+            });
+        }
+
+        function loadFromHistory(ts) {
+            draft = reports.find(r => r.timestamp.toString() === ts.toString());
+            if (draft) switchView('preview');
+        }
+
+        function createTextImg(text, fontSize, isBold=false) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.font = `${isBold?'bold ':''}${fontSize*4}px "Noto Sans SC",sans-serif`;
+            const m = ctx.measureText(text);
+            canvas.width = m.width; canvas.height = fontSize*5;
+            ctx.font = `${isBold?'bold ':''}${fontSize*4}px "Noto Sans SC",sans-serif`;
+            ctx.fillStyle = 'black'; ctx.textBaseline = 'top';
+            ctx.fillText(text, 0, 0);
+            return { data: canvas.toDataURL('image/png'), width: canvas.width/10, height: canvas.height/10 };
+        }
+
+        function downloadSitePhotosPDF(dateStr, datePure) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const titleText = `${draft.clientName}-现场检查照片-${dateStr}`;
+            const fileName  = `${draft.clientName}-现场检查照片-${datePure}.pdf`;
+            const titleImg  = createTextImg(titleText, 18, true);
+            doc.addImage(titleImg.data, 'PNG', (210-titleImg.width)/2, 15, titleImg.width, titleImg.height);
+            let yPos = 35;
+            draft.photos.filter(p=>p).forEach((imgData, index) => {
+                const col = index%2===0 ? 15 : 110;
+                const row = Math.floor(index/2);
+                const y   = yPos + row*(110+10);
+                if (y+110 > 280) { doc.addPage(); yPos = 20; }
+                try { doc.addImage(imgData, 'JPEG', col, yPos + Math.floor(index/2)*(120), 85, 110); }
+                catch(e) { console.error(e); }
+            });
+            doc.save(fileName);
+            finalizeSave(false);
+        }
+
+        function downloadSiteTextWord(dateStr, datePure) {
+            const fileName = `${draft.rmGroup||'RM'}-现场访察记录(文字版)-${draft.clientName}-${datePure}.doc`;
+            const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            <head><meta charset="utf-8"><style>body{font-family:SimSun,serif;font-size:11pt;}table{border-collapse:collapse;width:100%;}td{border:0.5pt solid black;padding:6pt;vertical-align:top;}.label{background:#f2f2f2;font-weight:bold;width:22%;}.h{font-family:SimHei;font-weight:bold;color:black;font-size:14pt;}</style></head>
+            <body><h2 style="text-align:center;font-family:SimHei;font-size:18pt;border-bottom:2pt solid black;padding-bottom:5pt;">玉山银行(中国) 企业现场访察记录</h2>
+            <table><tr><td class="label">客户名称</td><td width="38%">${draft.clientName}</td><td class="label" width="15%">RM组别</td><td>${draft.rmGroup||'-'}</td></tr>
+            <tr><td class="label">实际负责人</td><td>${draft.owner||'-'}</td><td class="label">访察日期</td><td>${dateStr}</td></tr></table>
+            <p class="h">一、与公司高管面谈情形</p><div style="padding:10pt;border:0.5pt solid #ddd;">${(draft.mgmtTalk||'无').replace(/\n/g,'<br>')}</div>
+            <p class="h">二、访厂情况(产线及库存)</p><div style="padding:10pt;border:0.5pt solid #ddd;">${(draft.factoryEnv||'无').replace(/\n/g,'<br>')}</div>
+            <p class="h">三、最新接单与营收获利表现</p><div style="padding:10pt;border:0.5pt solid #ddd;">${(draft.businessPerf||'无').replace(/\n/g,'<br>')}</div>
+            <p class="h">四、综合评述</p><div style="padding:10pt;border:0.5pt solid #ddd;">${(draft.summary||'无').replace(/\n/g,'<br>')}</div>
+            <p style="color:#999;font-size:9pt;margin-top:24pt;">注：现场检查照片请参阅随附之 PDF 文件。</p></body></html>`;
+            triggerDownload(html, fileName);
+            finalizeSave(false);
+        }
+
+        function downloadWordUniversal() {
+            const datePure = (draft.visitDate||'').replace(/-/g,'');
+            const dateStr  = (draft.visitDate||'').replace(/-/g,'/');
+            const timeStr  = draft.visitHour !== undefined ? `${draft.visitHour.toString().padStart(2,'0')}:00 - ${draft.visitEndHour.toString().padStart(2,'0')}:00` : '';
+            let html = '', fileName = '';
+
+            if (draft.type === 'meeting') {
+                fileName = `会议记录-${draft.branch||'分行'}-${datePure}.doc`;
+                const mName = draft.meetingName||'';
+                let meetingBody = '';
+                if (mName.includes('日常')) {
+                    meetingBody = `<p style="font-family:SimHei;font-weight:bold;margin:14pt 0 8pt;">会议内容摘要：</p>` +
+                        draft.dailySections.map(sec=>`<table style="border:0.5pt solid black;margin-bottom:9pt;width:100%;"><tr><td style="background:#F2F2F2;font-weight:bold;padding:4pt 8pt;border-bottom:0.5pt solid black;">部门汇报：${sec.dept||'全员'}</td></tr><tr><td style="padding:7pt 9pt;line-height:1.5;">${(sec.content||'').replace(/\n/g,'<br>')}</td></tr></table>`).join('');
+                } else if (mName.includes('待办')) {
+                    meetingBody = `<p style="font-family:SimHei;font-weight:bold;margin-top:14pt;">待办事项四象限分析：</p>
+                    <table style="border:1pt solid black;width:100%;table-layout:fixed;">
+                    <tr><td style="background:#fff1f0;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【紧急且重要】</b><br>${(draft.todoQuadrants.urgentImportant||'').replace(/\n/g,'<br>')}</td>
+                        <td style="background:#fff2e8;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【重要不紧急】</b><br>${(draft.todoQuadrants.importantNotUrgent||'').replace(/\n/g,'<br>')}</td></tr>
+                    <tr><td style="background:#e6f7ff;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【紧急不重要】</b><br>${(draft.todoQuadrants.urgentNotImportant||'').replace(/\n/g,'<br>')}</td>
+                        <td style="background:#f5f5f5;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【不重要不紧急】</b><br>${(draft.todoQuadrants.notUrgentNotImportant||'').replace(/\n/g,'<br>')}</td></tr></table>`;
+                } else {
+                    const depts = Object.keys(draft.discussions).sort((a,b)=>DEPARTMENTS_LIST.indexOf(a)-DEPARTMENTS_LIST.indexOf(b)).filter(d=>draft.discussions[d].trim()!=='');
+                    meetingBody = `<p style="font-family:SimHei;font-weight:bold;margin:14pt 0 8pt;">各部门讨论事项摘要：</p>` +
+                        (depts.map(d=>`<table style="border:0.5pt solid black;margin-bottom:9pt;width:100%;"><tr><td style="background:#F2F2F2;font-weight:bold;padding:4pt 8pt;border-bottom:0.5pt solid black;">部门汇报：${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(d)]}</td></tr><tr><td style="padding:7pt 9pt;line-height:1.5;">${draft.discussions[d].replace(/\n/g,'<br>')}</td></tr></table>`).join('')||'无内容');
+                }
+                html = `<html><head><meta charset="utf-8"><style>table{border-collapse:collapse;width:100%;}td{border:0.5pt solid windowtext;padding:4pt 7pt;font-family:SimSun;font-size:10pt;line-height:1.3;}</style></head>
+                <body><h2 style="text-align:center;font-family:SimHei;font-size:17pt;margin-bottom:11pt;">玉山银行 ${draft.branch||''} 会议记录</h2>
+                <table><tr><td style="background:#F2F2F2;font-weight:bold;width:15%;">会议名称</td><td width="35%">${draft.meetingName}</td><td style="background:#F2F2F2;font-weight:bold;width:15%;">日期时间</td><td>${dateStr} ${timeStr}</td></tr>
+                <tr><td style="background:#F2F2F2;font-weight:bold;">会议地点</td><td>${draft.city||'-'}</td><td style="background:#F2F2F2;font-weight:bold;">主席/记录</td><td>${draft.chairman||'-'} / ${draft.recorder||'-'}</td></tr>
+                <tr><td style="background:#F2F2F2;font-weight:bold;">出席人员</td><td colspan="3">${draft.attendeeText||'-'}</td></tr></table>
+                ${meetingBody}</body></html>`;
+            } else {
+                fileName = `${draft.rmGroup||'RM'}-CallReport-${draft.clientName}-${datePure}.doc`;
+                const cHtml = draft.contentList.filter(i=>i.trim()!=='').map((i,idx)=>`<p style="margin:0 0 3pt;">${idx+1}. ${i}</p>`).join('');
+                const tHtml = draft.todoList.filter(i=>i.trim()!=='').map((i,idx)=>`<p style="margin:0 0 3pt;">${idx+1}. ${i}</p>`).join('');
+                html = `<html><head><meta charset="utf-8"><style>table{border-collapse:collapse;width:100%;table-layout:fixed;}td{border:0.5pt solid windowtext;padding:3pt 6pt;font-family:SimSun;font-size:10pt;line-height:1.2;word-break:break-all;}.lb{background:#F2F2F2;font-weight:bold;width:18%;}.ca{padding:9pt;vertical-align:top;line-height:1.5;font-size:10.5pt;}</style></head>
+                <body><h2 style="text-align:center;color:#007d50;font-family:SimHei;font-size:15pt;margin-bottom:9pt;">玉山银行(中国) 对公业务出差报告</h2>
+                <table><tr><td class="lb">客户名称</td><td colspan="3">${draft.clientName}</td></tr>
+                <tr><td class="lb">实际负责人</td><td width="32%">${draft.owner||'-'}</td><td class="lb" width="18%">RM组别</td><td>${draft.rmGroup||'-'}</td></tr>
+                <tr><td class="lb">访谈时间</td><td colspan="3">${dateStr} ${timeStr}</td></tr>
+                <tr><td class="lb">产业描述</td><td>${draft.industryDesc||'-'}</td><td class="lb">型态/8+E</td><td>${draft.companyType} ${draft.is8PlusE?'(8+E)':''}</td></tr>
+                <tr><td class="lb">访谈目的</td><td>${draft.purpose}</td><td class="lb">地点</td><td>${draft.city||'-'}</td></tr>
+                <tr><td class="lb">争取业务</td><td colspan="3">${draft.targetBusiness||'-'}</td></tr>
+                <tr><td class="lb">参与人员</td><td colspan="3">顾客: ${draft.customerStaff||'-'} / 我行: ${draft.bankStaff||'-'}</td></tr>
+                <tr><td colspan="4" style="background:#F2F2F2;text-align:center;font-weight:bold;height:18pt;border-top:1.5pt solid black;">访谈记录摘要</td></tr>
+                <tr><td colspan="4" class="ca" style="height:200pt;">${cHtml||'无'}</td></tr>
+                <tr><td colspan="4" style="background:#F2F2F2;text-align:center;font-weight:bold;height:18pt;border-top:1.5pt solid black;">待办与后续规划</td></tr>
+                <tr><td colspan="4" class="ca" style="height:160pt;">${tHtml||'无'}</td></tr></table></body></html>`;
+            }
+            triggerDownload(html, fileName);
+            finalizeSave(true);
+        }
+
+        function triggerDownload(html, fileName) {
+            const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+        }
+
+        function finalizeSave(clearDraft) {
+            showToast('✅ 文件已导出');
+            if (!reports.some(r => r.timestamp === draft.timestamp)) { reports.unshift({...draft}); saveHistory(); }
+            if (clearDraft) localStorage.removeItem(DRAFT_KEY);
+        }
+
+        function copyFullContent() {
+            const dateStr = (draft.visitDate||'').replace(/-/g,'/');
+            const timeStr = draft.visitHour !== undefined ? `${draft.visitHour.toString().padStart(2,'0')}:00 – ${draft.visitEndHour.toString().padStart(2,'0')}:00` : '';
+            let text = '';
+            if (draft.type === 'site') {
+                text = `玉山银行(中国) 企业现场访察记录\n──────────────────\n【客户名称】${draft.clientName}\n【RM组别】${draft.rmGroup||'-'}\n【实际负责人】${draft.owner||'-'}\n【访察日期】${dateStr}\n\n【1. 与高管面谈情形】\n${draft.mgmtTalk||'无'}\n\n【2. 访厂及库存情况】\n${draft.factoryEnv||'无'}\n\n【3. 营收与获利表现】\n${draft.businessPerf||'无'}\n\n【4. 综合评述】\n${draft.summary||'无'}\n──────────────────\nRM 随行助手生成`;
+            } else if (draft.type === 'meeting') {
+                const mName = draft.meetingName||'';
+                let detail = '';
+                if (mName.includes('日常')) detail = `【会议内容摘要】\n${draft.dailySections.map(s=>`[${s.dept||'小组'}]: ${s.content||'无'}`).join('\n')}`;
+                else if (mName.includes('待办')) detail = `【待办四象限】\n● 紧急且重要：${draft.todoQuadrants.urgentImportant||'无'}\n● 重要不紧急：${draft.todoQuadrants.importantNotUrgent||'无'}\n● 紧急不重要：${draft.todoQuadrants.urgentNotImportant||'无'}\n● 不重不紧：${draft.todoQuadrants.notUrgentNotImportant||'无'}`;
+                else detail = `【各部门摘要】\n${Object.keys(draft.discussions).map(d=>`[${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(d)]}]: ${draft.discussions[d]}`).join('\n')}`;
+                text = `玉山银行 ${draft.branch||''} 会议记录\n──────────────────\n【会议名称】${draft.meetingName}\n【时间】${dateStr} ${timeStr}\n【出席】${draft.attendeeText||'-'}\n\n${detail}\n──────────────────\nRM 随行助手生成`;
+            } else {
+                text = `玉山银行(中国) 访谈报告\n──────────────────\n【客户】${draft.clientName}\n【负责人】${draft.owner||'-'}\n【时间】${dateStr} ${timeStr}\n\n【访谈摘要】\n${draft.contentList.join('\n')}\n\n【待办规划】\n${draft.todoList.join('\n')}\n──────────────────\nRM 随行助手生成`;
+            }
+            const el = document.createElement('textarea');
+            el.value = text; document.body.appendChild(el); el.select();
+            try { document.execCommand('copy'); showToast('📋 已复制（微信/飞书可直接粘贴）'); }
+            catch { showToast('❌ 复制失败，请长按预览区'); }
+            document.body.removeChild(el);
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            t.classList.remove('hidden');
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => t.classList.add('hidden'), 3000);
+        }
+
+        function showConfirm(title, desc, onConfirm) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-desc').innerText  = desc;
+            document.getElementById('modal-confirm-btn').onclick = () => { onConfirm(); hideModal(); };
+            const box = document.getElementById('ios-alert-box');
+            box.classList.remove('anim-scale-in');
+            void box.offsetWidth; // force reflow to restart animation
+            box.classList.add('anim-scale-in');
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function hideModal() { document.getElementById('custom-modal').classList.add('hidden'); }
+        function confirmCancel() { showConfirm('离开编辑？', '内容已自动存为草稿。', () => switchView('home')); }
+
+        window.onload = function() {
+            const cached = localStorage.getItem(DRAFT_KEY);
+            if (cached) restoreDraft(); else switchView('home');
+        };
+    </script>
+</body>
+</html>
