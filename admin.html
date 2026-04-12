@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RM 助手 — 管理後台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --brand: #007d50;
+            --brand-light: rgba(0,125,80,0.10);
+        }
+        body { font-family: -apple-system, "Helvetica Neue", sans-serif; background: #F2F2F7; }
+        .card { background: #fff; border-radius: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .stat-box { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+        .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+        .badge-report  { background: rgba(0,125,80,0.12);  color: #007d50; }
+        .badge-meeting { background: rgba(0,122,255,0.12); color: #007AFF; }
+        .badge-site    { background: rgba(255,149,0,0.12); color: #FF9500; }
+        .table-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 8px; padding: 12px 16px; border-bottom: 0.5px solid #E5E5EA; align-items: center; font-size: 14px; }
+        .table-head { background: #F2F2F7; font-weight: 600; font-size: 12px; color: #8E8E93; border-radius: 10px 10px 0 0; }
+        #login-screen, #dashboard { transition: opacity 0.3s; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- ── 登入畫面 ── -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-6">
+        <div class="card p-8 w-full max-w-sm">
+            <div class="flex flex-col items-center mb-8">
+                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:var(--brand-light)">
+                    <i data-lucide="shield-check" class="w-8 h-8" style="color:var(--brand)"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900">管理後台</h1>
+                <p class="text-sm text-gray-400 mt-1">RM 隨行助手</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-sm font-medium text-gray-600 block mb-1.5">Worker URL</label>
+                    <input id="worker-url-input" type="url" placeholder="https://rm-assistant-api.xxx.workers.dev"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-200 text-[15px] outline-none focus:border-[color:var(--brand)] transition-colors">
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-600 block mb-1.5">管理員密碼</label>
+                    <input id="password-input" type="password" placeholder="••••••••"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-200 text-[15px] outline-none focus:border-[color:var(--brand)] transition-colors"
+                        onkeydown="if(event.key==='Enter') login()">
+                </div>
+                <p id="login-error" class="text-red-500 text-sm hidden">密碼錯誤或無法連接，請確認後重試</p>
+                <button onclick="login()"
+                    class="w-full py-3.5 rounded-xl font-semibold text-white text-[16px] transition-opacity active:opacity-80"
+                    style="background:var(--brand)">
+                    進入後台
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 儀表板 ── -->
+    <div id="dashboard" class="hidden max-w-5xl mx-auto px-4 py-8 space-y-6">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">行銷動態分析</h1>
+                <p id="header-since" class="text-sm text-gray-400 mt-0.5"></p>
+            </div>
+            <div class="flex items-center gap-3">
+                <select id="range-select" onchange="loadData()" class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
+                    <option value="7">近 7 天</option>
+                    <option value="30" selected>近 30 天</option>
+                    <option value="90">近 90 天</option>
+                    <option value="365">近一年</option>
+                </select>
+                <button onclick="logout()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-gray-500 bg-white border border-gray-200">
+                    <i data-lucide="log-out" class="w-4 h-4"></i> 登出
+                </button>
+            </div>
+        </div>
+
+        <!-- 總覽數字 -->
+        <div class="grid grid-cols-3 gap-4">
+            <div class="stat-box text-center">
+                <p class="text-3xl font-bold" style="color:var(--brand)" id="stat-total">—</p>
+                <p class="text-sm text-gray-400 mt-1">總紀錄數</p>
+            </div>
+            <div class="stat-box text-center">
+                <p class="text-3xl font-bold text-blue-500" id="stat-users">—</p>
+                <p class="text-sm text-gray-400 mt-1">活躍用戶</p>
+            </div>
+            <div class="stat-box text-center">
+                <p class="text-3xl font-bold text-orange-500" id="stat-clients">—</p>
+                <p class="text-sm text-gray-400 mt-1">涵蓋客戶</p>
+            </div>
+        </div>
+
+        <!-- 圖表區：每日趨勢 + 類型分佈 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="card p-5 md:col-span-2">
+                <h2 class="text-[15px] font-semibold text-gray-700 mb-4">每日拜訪趨勢</h2>
+                <canvas id="chart-daily" height="120"></canvas>
+            </div>
+            <div class="card p-5">
+                <h2 class="text-[15px] font-semibold text-gray-700 mb-4">活動類型分佈</h2>
+                <canvas id="chart-type" height="180"></canvas>
+            </div>
+        </div>
+
+        <!-- 每人排行 + 拜訪目的 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="card p-5">
+                <h2 class="text-[15px] font-semibold text-gray-700 mb-4">個人拜訪排行</h2>
+                <canvas id="chart-user" height="200"></canvas>
+            </div>
+            <div class="card p-5">
+                <h2 class="text-[15px] font-semibold text-gray-700 mb-4">拜訪目的分析</h2>
+                <canvas id="chart-purpose" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- 各人最後動態 -->
+        <div class="card overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100">
+                <h2 class="text-[15px] font-semibold text-gray-700">人員活動狀況</h2>
+            </div>
+            <div class="table-row table-head">
+                <span>姓名</span>
+                <span>最後拜訪</span>
+                <span>期間筆數</span>
+                <span>累計筆數</span>
+                <span>狀態</span>
+            </div>
+            <div id="user-table-body"></div>
+        </div>
+
+        <!-- 明細紀錄 -->
+        <div class="card overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="text-[15px] font-semibold text-gray-700">明細紀錄</h2>
+                <select id="user-filter" onchange="loadRecords()" class="text-sm px-3 py-1.5 rounded-xl border border-gray-200 bg-white outline-none">
+                    <option value="">全部人員</option>
+                </select>
+            </div>
+            <div id="records-body" class="divide-y divide-gray-100"></div>
+            <div id="records-more" class="px-5 py-3 text-center hidden">
+                <button onclick="loadMoreRecords()" class="text-sm font-medium" style="color:var(--brand)">載入更多</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let WORKER_URL = '';
+        let PASSWORD   = '';
+        let charts     = {};
+        let recordsOffset = 0;
+        const RECORDS_LIMIT = 30;
+
+        /* ── 登入 ── */
+        async function login() {
+            const url = document.getElementById('worker-url-input').value.trim().replace(/\/$/, '');
+            const pwd = document.getElementById('password-input').value.trim();
+            if (!url || !pwd) return;
+
+            try {
+                const res = await fetch(`${url}/api/stats?password=${encodeURIComponent(pwd)}&range=7`);
+                if (!res.ok) { showLoginError(); return; }
+                WORKER_URL = url;
+                PASSWORD   = pwd;
+                localStorage.setItem('rm_admin_url', url);
+                localStorage.setItem('rm_admin_pwd', pwd);
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                await loadData();
+            } catch (e) {
+                showLoginError();
+            }
+        }
+
+        function showLoginError() {
+            const err = document.getElementById('login-error');
+            err.classList.remove('hidden');
+            setTimeout(() => err.classList.add('hidden'), 4000);
+        }
+
+        function logout() {
+            localStorage.removeItem('rm_admin_url');
+            localStorage.removeItem('rm_admin_pwd');
+            location.reload();
+        }
+
+        /* ── 載入統計資料 ── */
+        async function loadData() {
+            const range = document.getElementById('range-select').value;
+            const res   = await fetch(`${WORKER_URL}/api/stats?password=${encodeURIComponent(PASSWORD)}&range=${range}`);
+            const data  = await res.json();
+
+            // 更新 header
+            document.getElementById('header-since').textContent = `${data.since} 至今`;
+
+            // 總覽數字
+            document.getElementById('stat-total').textContent   = data.totals?.total   ?? 0;
+            document.getElementById('stat-users').textContent   = data.totals?.users   ?? 0;
+            document.getElementById('stat-clients').textContent = data.totals?.clients ?? 0;
+
+            renderDailyChart(data.dailyTrend);
+            renderTypeChart(data.typeBreakdown);
+            renderUserChart(data.perUser);
+            renderPurposeChart(data.purposeBreakdown);
+            renderUserTable(data.perUser, data.lastVisit);
+            populateUserFilter(data.lastVisit);
+
+            // 載入明細
+            recordsOffset = 0;
+            loadRecords();
+        }
+
+        /* ── 圖表渲染 ── */
+        function renderDailyChart(trend) {
+            const labels = (trend || []).map(r => r.visit_date?.slice(5));
+            const values = (trend || []).map(r => r.count);
+            redraw('chart-daily', 'line', {
+                labels,
+                datasets: [{
+                    label: '拜訪次數',
+                    data: values,
+                    borderColor: '#007d50',
+                    backgroundColor: 'rgba(0,125,80,0.08)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                }]
+            }, {
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                    x: { grid: { display: false } }
+                }
+            });
+        }
+
+        function renderTypeChart(breakdown) {
+            const TYPE_MAP = { report:'訪談報告', meeting:'會議記錄', site:'現場記錄' };
+            const labels = (breakdown || []).map(r => TYPE_MAP[r.type] || r.type);
+            const values = (breakdown || []).map(r => r.count);
+            redraw('chart-type', 'doughnut', {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: ['#007d50','#007AFF','#FF9500'],
+                    borderWidth: 0,
+                }]
+            }, { plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } } }, cutout: '60%' });
+        }
+
+        function renderUserChart(perUser) {
+            const labels = (perUser || []).map(r => r.user_name);
+            const values = (perUser || []).map(r => r.count);
+            redraw('chart-user', 'bar', {
+                labels,
+                datasets: [{
+                    label: '拜訪次數',
+                    data: values,
+                    backgroundColor: 'rgba(0,125,80,0.75)',
+                    borderRadius: 6,
+                }]
+            }, {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } }, y: { grid: { display: false } } }
+            });
+        }
+
+        function renderPurposeChart(breakdown) {
+            const labels = (breakdown || []).map(r => r.purpose || '未填');
+            const values = (breakdown || []).map(r => r.count);
+            redraw('chart-purpose', 'doughnut', {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: ['#34C759','#FF9500','#007AFF','#FF3B30','#AF52DE'],
+                    borderWidth: 0,
+                }]
+            }, { plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } } }, cutout: '60%' });
+        }
+
+        function redraw(id, type, data, options) {
+            if (charts[id]) charts[id].destroy();
+            const ctx = document.getElementById(id).getContext('2d');
+            charts[id] = new Chart(ctx, { type, data, options: { responsive: true, ...options } });
+        }
+
+        /* ── 人員活動表格 ── */
+        function renderUserTable(perUser, lastVisit) {
+            const rangeMap = Object.fromEntries((perUser || []).map(r => [r.user_name, r.count]));
+            const today    = new Date().toISOString().split('T')[0];
+            const html = (lastVisit || []).map(r => {
+                const daysSince = Math.floor((new Date(today) - new Date(r.last_date)) / 86400000);
+                const status = daysSince <= 3  ? `<span class="badge" style="background:#d1fae5;color:#065f46">活躍</span>`
+                             : daysSince <= 14 ? `<span class="badge" style="background:#fef3c7;color:#92400e">${daysSince}天前</span>`
+                             :                   `<span class="badge" style="background:#fee2e2;color:#991b1b">${daysSince}天前</span>`;
+                return `<div class="table-row text-gray-700">
+                    <span class="font-medium">${r.user_name}</span>
+                    <span class="text-gray-500">${r.last_date || '-'}</span>
+                    <span class="font-semibold" style="color:var(--brand)">${rangeMap[r.user_name] || 0}</span>
+                    <span>${r.total_all}</span>
+                    ${status}
+                </div>`;
+            }).join('');
+            document.getElementById('user-table-body').innerHTML = html || '<div class="px-5 py-8 text-center text-gray-400 text-sm">尚無資料</div>';
+        }
+
+        /* ── 下拉篩選 ── */
+        function populateUserFilter(lastVisit) {
+            const sel = document.getElementById('user-filter');
+            const current = sel.value;
+            sel.innerHTML = '<option value="">全部人員</option>' +
+                (lastVisit || []).map(r => `<option value="${r.user_name}" ${r.user_name===current?'selected':''}>${r.user_name}</option>`).join('');
+        }
+
+        /* ── 明細紀錄 ── */
+        const TYPE_LABEL = { report:'訪談', meeting:'會議', site:'現場' };
+        const TYPE_CLASS = { report:'badge-report', meeting:'badge-meeting', site:'badge-site' };
+
+        async function loadRecords() {
+            recordsOffset = 0;
+            document.getElementById('records-body').innerHTML = '';
+            await fetchRecords(false);
+        }
+
+        async function loadMoreRecords() {
+            await fetchRecords(true);
+        }
+
+        async function fetchRecords(append) {
+            const user  = document.getElementById('user-filter').value;
+            let url = `${WORKER_URL}/api/records?password=${encodeURIComponent(PASSWORD)}&limit=${RECORDS_LIMIT}&offset=${recordsOffset}`;
+            if (user) url += `&user=${encodeURIComponent(user)}`;
+            const res  = await fetch(url);
+            const data = await res.json();
+            const rows = data.records || [];
+
+            const html = rows.map(r => `
+                <div class="flex items-center gap-3 px-5 py-3">
+                    <span class="badge ${TYPE_CLASS[r.type] || 'badge-report'}">${TYPE_LABEL[r.type] || r.type}</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[14px] font-semibold text-gray-800 truncate">${r.client_name || r.meeting_name || '—'}</p>
+                        <p class="text-[12px] text-gray-400">${r.user_name} · ${r.visit_date || '-'} · ${r.city || r.branch || '-'}</p>
+                    </div>
+                    ${r.purpose ? `<span class="text-[12px] text-gray-400 flex-shrink-0">${r.purpose}</span>` : ''}
+                </div>`).join('');
+
+            if (append) {
+                document.getElementById('records-body').insertAdjacentHTML('beforeend', html);
+            } else {
+                document.getElementById('records-body').innerHTML = html || '<div class="px-5 py-8 text-center text-gray-400 text-sm">此區間無紀錄</div>';
+            }
+
+            recordsOffset += rows.length;
+            const moreBtn = document.getElementById('records-more');
+            if (rows.length === RECORDS_LIMIT) moreBtn.classList.remove('hidden');
+            else moreBtn.classList.add('hidden');
+        }
+
+        /* ── 初始化 ── */
+        window.onload = function() {
+            lucide.createIcons();
+            // 如果 localStorage 有記住的登入資訊，自動填入
+            const savedUrl = localStorage.getItem('rm_admin_url');
+            const savedPwd = localStorage.getItem('rm_admin_pwd');
+            if (savedUrl) document.getElementById('worker-url-input').value = savedUrl;
+            if (savedPwd) document.getElementById('password-input').value = savedPwd;
+            if (savedUrl && savedPwd) login();
+        };
+    </script>
+</body>
+</html>
