@@ -3,13 +3,13 @@ main = "worker/index.js"
 compatibility_date = "2024-01-01"
 
 # ⚠️ 填入你的 Cloudflare Account ID（Dashboard 右側邊欄可找到）
-account_id = "YOUR_ACCOUNT_ID"
+account_id = "0ab1f1f1444512b30bee083f31ab8443"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "rm-assistant-db"
 # ⚠️ 執行 `npx wrangler d1 create rm-assistant-db` 後填入
-database_id = "YOUR_DATABASE_ID"
+database_id = "65b8196b-a1b5-4507-b77f-056179809023"
 
 [vars]
 # ⚠️ 後台管理員密碼（可自訂）
