@@ -506,7 +506,10 @@
                     <div class="ping-dot absolute inset-0 rounded-full bg-yellow-300 opacity-70"></div>
                     <i data-lucide="map-pin" class="w-4 h-4 text-yellow-300 relative z-10"></i>
                 </div>
-                <div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center">
+                <div id="admin-nav-btn" class="hidden w-8 h-8 rounded-full bg-white/25 flex items-center justify-center cursor-pointer active:opacity-70" onclick="window.location.href='admin.html'">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-white"></i>
+                </div>
+                <div id="user-nav-icon" class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center">
                     <i data-lucide="user" class="w-4 h-4 text-white"></i>
                 </div>
             </div>
@@ -590,6 +593,31 @@
         </div>
     </div>
 
+    <!-- Admin Password Modal -->
+    <div id="admin-modal" class="fixed inset-0 bg-black/50 z-[220] hidden flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="ios-alert" style="max-width:320px;width:100%;">
+            <div class="flex flex-col items-center pt-2 pb-1 px-1">
+                <div class="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mb-3">
+                    <i data-lucide="shield-check" class="w-7 h-7 text-[color:var(--brand)]"></i>
+                </div>
+                <h3 class="ios-alert-title">管理者驗證</h3>
+                <p class="ios-alert-desc">偵測到管理者帳號，請輸入密碼進入後台</p>
+                <input id="admin-pwd-input" type="password" placeholder="管理者密碼"
+                    class="w-full mt-3 mb-1 px-4 py-3 rounded-xl bg-[color:var(--fill)] text-[17px] outline-none border border-transparent focus:border-[color:var(--brand)] transition-colors text-center"
+                    onkeydown="if(event.key==='Enter') verifyAdminPassword()"
+                    oninput="document.getElementById('admin-verify-btn').disabled=this.value.length===0">
+                <p id="admin-pwd-error" class="text-[13px] text-red-500 hidden mt-1">密碼錯誤，請再試一次</p>
+            </div>
+            <div class="ios-alert-sep"></div>
+            <div class="flex">
+                <button onclick="document.getElementById('admin-modal').classList.add('hidden')"
+                    class="ios-alert-btn cancel flex-1" style="border-right:0.5px solid var(--separator-opaque)">略過</button>
+                <button id="admin-verify-btn" disabled onclick="verifyAdminPassword()"
+                    class="ios-alert-btn flex-1 text-[color:var(--brand)] font-semibold disabled:opacity-40">確認</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Confirm Modal (iOS Alert style) -->
     <div id="custom-modal" class="fixed inset-0 bg-black/40 hidden z-[210] flex items-center justify-center p-6 backdrop-blur-sm">
         <div class="ios-alert" id="ios-alert-box">
@@ -612,11 +640,15 @@
         // ⚠️ 部署 Worker 後，填入你的 Worker URL（例：https://rm-assistant-api.yourname.workers.dev）
         const WORKER_URL     = 'https://rm-assistant-api.insa-eco.workers.dev';
 
+        const ADMIN_NAMES    = ['insahung', 'sz0453', '洪紹書'];
+        const ADMIN_PWD_KEY  = 'rm_admin_verified';
+
         let reports = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         let draft = null;
         let activePhotoIdx = -1;
         let historySearchTerm = '';
         let currentUserName = localStorage.getItem(USER_NAME_KEY) || '';
+        let isAdminVerified  = sessionStorage.getItem(ADMIN_PWD_KEY) === '1';
 
         /* ───── VIEW RENDERERS ───── */
         const VIEWS = {
@@ -1586,6 +1618,48 @@
             localStorage.setItem(USER_NAME_KEY, name);
             document.getElementById('name-modal').classList.add('hidden');
             switchView('home'); // 刷新首頁顯示名字
+            // 儲存名字後檢查是否為管理者
+            checkAdminUser();
+        }
+
+        function checkAdminUser() {
+            if (!ADMIN_NAMES.includes(currentUserName)) return;
+            if (isAdminVerified) {
+                showAdminIcon();
+                return;
+            }
+            // 是管理者但尚未驗證，彈出密碼框
+            setTimeout(() => {
+                const modal = document.getElementById('admin-modal');
+                const input = document.getElementById('admin-pwd-input');
+                const btn   = document.getElementById('admin-verify-btn');
+                input.value = '';
+                btn.disabled = true;
+                document.getElementById('admin-pwd-error').classList.add('hidden');
+                modal.classList.remove('hidden');
+                setTimeout(() => input.focus(), 100);
+            }, 300);
+        }
+
+        function verifyAdminPassword() {
+            const input = document.getElementById('admin-pwd-input');
+            if (input.value === 'esun1313') {
+                isAdminVerified = true;
+                sessionStorage.setItem(ADMIN_PWD_KEY, '1');
+                document.getElementById('admin-modal').classList.add('hidden');
+                showAdminIcon();
+            } else {
+                const err = document.getElementById('admin-pwd-error');
+                err.classList.remove('hidden');
+                input.value = '';
+                document.getElementById('admin-verify-btn').disabled = true;
+                setTimeout(() => err.classList.add('hidden'), 3000);
+            }
+        }
+
+        function showAdminIcon() {
+            document.getElementById('admin-nav-btn').classList.remove('hidden');
+            document.getElementById('user-nav-icon').classList.add('hidden');
         }
 
         function copyFullContent() {
@@ -1636,11 +1710,17 @@
         window.onload = function() {
             const cached = localStorage.getItem(DRAFT_KEY);
             if (cached) restoreDraft(); else switchView('home');
-            // 若尚未設定姓名，顯示輸入框
+            // 若尚未設定姓名，顯示輸入框；否則直接檢查管理者
             if (!currentUserName) {
                 setTimeout(() => showNamePrompt(false), 400);
             } else {
                 document.getElementById('name-modal').classList.add('hidden');
+                // 已有姓名，檢查是否為管理者
+                if (isAdminVerified) {
+                    showAdminIcon();
+                } else {
+                    checkAdminUser();
+                }
             }
         };
     </script>
