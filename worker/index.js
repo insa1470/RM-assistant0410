@@ -148,23 +148,21 @@ async function handleHint(request, env) {
   const prompt = `你是玉山銀行企業金融部的RM業務助手。\n以下是行內資料庫中與「${name}」相關的供應鏈紀錄：\n\n${lines}\n\n請用繁體中文，在150字以內提供業務洞察，聚焦於：\n1. 此公司在供應鏈中的角色與位置\n2. 潛在的跨客戶金融商機（如金流串聯、貿融、TMU、跨境轉介）\n3. 建議的業務切入角度\n\n請直接輸出洞察內容，不需標題或編號。`;
 
   let insight = null;
-  if (env.CLAUDE_API_KEY) {
+  if (env.GEMINI_API_KEY) {
     try {
-      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': env.CLAUDE_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5',
-          max_tokens: 250,
-          messages: [{ role: 'user', content: prompt }]
-        })
-      });
+      const aiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 300, temperature: 0.4 }
+          })
+        }
+      );
       const aiData = await aiRes.json();
-      insight = aiData.content?.[0]?.text || null;
+      insight = aiData.candidates?.[0]?.content?.parts?.[0]?.text || null;
     } catch (e) {
       insight = null; // 靜默失敗，仍回傳關聯資料
     }
