@@ -65,6 +65,16 @@
             -webkit-appearance: none;
             appearance: none;
         }
+        input[type="checkbox"] {
+            -webkit-appearance: checkbox !important;
+            appearance: checkbox !important;
+            width: 18px !important;
+            height: 18px !important;
+            margin: 0;
+            flex-shrink: 0;
+            cursor: pointer;
+            accent-color: var(--brand);
+        }
 
         /* ─── Nav Bar (iOS Large Title style) ─── */
         .ios-navbar {
@@ -828,9 +838,17 @@
                             </select>
                             <i data-lucide="chevron-right" class="w-4 h-4 text-[color:var(--ios-gray3)] flex-shrink-0"></i>
                         </div>
-                        <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">争取业务</span>
-                            <input type="text" value="${draft.targetBusiness||''}" oninput="updateDraft('targetBusiness',this.value)" placeholder="业务类型">
+                        <div style="padding:12px 16px;">
+                            <div style="font-size:15px;color:var(--label);font-weight:500;margin-bottom:10px;">爭取業務</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                ${['放款','金流存款','TMU','跨境轉介','網銀自動化','貿融'].map(biz=>{
+                                    const checked = Array.isArray(draft.targetBusiness) ? draft.targetBusiness.includes(biz) : (draft.targetBusiness||'').includes(biz);
+                                    return `<label style="display:flex;align-items:center;gap:8px;background:${checked?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};border:1.5px solid ${checked?'var(--brand)':'transparent'};border-radius:10px;padding:9px 12px;cursor:pointer;transition:all .15s;">
+                                        <input type="checkbox" ${checked?'checked':''} onchange="toggleBusiness('${biz}',this.checked)" style="width:18px;height:18px;accent-color:var(--brand);cursor:pointer;">
+                                        <span style="font-size:14px;font-weight:${checked?'600':'400'};color:${checked?'var(--brand)':'var(--label)'}">${biz}</span>
+                                    </label>`;
+                                }).join('')}
+                            </div>
                         </div>
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">RM 组别</span>
@@ -1172,7 +1190,7 @@
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">訪談時間</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${dateStr} ${timeStr}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">產業描述</td><td style="border:1px solid black;padding:4px 7px;">${draft.industryDesc||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">型態/8+E</td><td style="border:1px solid black;padding:4px 7px;">${draft.companyType}${draft.is8PlusE?'(8+E)':''}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">訪談目的</td><td style="border:1px solid black;padding:4px 7px;">${draft.purpose}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">地點</td><td style="border:1px solid black;padding:4px 7px;">${draft.city||'-'}</td></tr>
-                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">爭取業務</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${draft.targetBusiness||'-'}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">爭取業務</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length?draft.targetBusiness.join('、'):(draft.targetBusiness||'-')}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">參與人員</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">顧客: ${draft.customerStaff||'-'} / 我行: ${draft.bankStaff||'-'}</td></tr>
                         <tr><td colspan="4" style="background:#f5f5f5;border:1px solid black;padding:5px;text-align:center;font-weight:bold;border-top:1.5px solid black;">訪談紀錄摘要</td></tr>
                         <tr><td colspan="4" style="border:1px solid black;padding:10px;min-height:150px;vertical-align:top;line-height:1.5;">${cHtml||'-'}</td></tr>
@@ -1344,7 +1362,7 @@
             const id  = now.getTime();
             const base = { id, type, visitDate: now.toISOString().split('T')[0], timestamp: id };
             if (type === 'report') {
-                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:'', customerStaff:'', contentList:[''], todoList:[''], bankStaff:'' };
+                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:[], customerStaff:'', contentList:[''], todoList:[''], bankStaff:'' };
             } else if (type === 'meeting') {
                 draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, branch:'', meetingName:'主管会议', chairman:'', recorder:'', city:'', attendeeText:'', discussions:{}, todoQuadrants:{ urgentImportant:'', importantNotUrgent:'', urgentNotImportant:'', notUrgentNotImportant:'' }, dailySections:[{dept:'',content:''}] };
             } else if (type === 'site') {
@@ -1426,6 +1444,23 @@
         function restoreDraft() { if (drafts.length > 0) loadDraft(drafts[0].id); }
         function saveHistory()  { localStorage.setItem(STORAGE_KEY, JSON.stringify(reports)); }
         function updateDraft(k, v) { draft[k] = v; saveDraft(); }
+
+        function toggleBusiness(biz, checked) {
+            if (!Array.isArray(draft.targetBusiness)) {
+                // 向下相容：舊字串轉陣列
+                draft.targetBusiness = draft.targetBusiness ? [draft.targetBusiness] : [];
+            }
+            if (checked) {
+                if (!draft.targetBusiness.includes(biz)) draft.targetBusiness.push(biz);
+            } else {
+                draft.targetBusiness = draft.targetBusiness.filter(b => b !== biz);
+            }
+            saveDraft();
+            // 即時更新勾選框樣式（不重繪整個表單）
+            const labels = document.querySelectorAll('[data-biz]');
+            // 若有 data-biz 屬性直接更新，否則 switchView 重繪
+            switchView(`edit-${draft.type}`);
+        }
         function updateListItem(list, idx, val) { draft[list][idx] = val; saveDraft(); }
         function addListItem(list)    { draft[list].push(''); switchView(`edit-${draft.type}`); }
         function removeListItem(list, idx) { draft[list].splice(idx,1); if(!draft[list].length) draft[list]=['']; switchView(`edit-${draft.type}`); }
@@ -1570,7 +1605,7 @@
                 <tr><td class="lb">访谈时间</td><td colspan="3">${dateStr} ${timeStr}</td></tr>
                 <tr><td class="lb">产业描述</td><td>${draft.industryDesc||'-'}</td><td class="lb">型态/8+E</td><td>${draft.companyType} ${draft.is8PlusE?'(8+E)':''}</td></tr>
                 <tr><td class="lb">访谈目的</td><td>${draft.purpose}</td><td class="lb">地点</td><td>${draft.city||'-'}</td></tr>
-                <tr><td class="lb">争取业务</td><td colspan="3">${draft.targetBusiness||'-'}</td></tr>
+                <tr><td class="lb">争取业务</td><td colspan="3">${Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length?draft.targetBusiness.join('、'):(draft.targetBusiness||'-')}</td></tr>
                 <tr><td class="lb">参与人员</td><td colspan="3">顾客: ${draft.customerStaff||'-'} / 我行: ${draft.bankStaff||'-'}</td></tr>
                 <tr><td colspan="4" style="background:#F2F2F2;text-align:center;font-weight:bold;height:18pt;border-top:1.5pt solid black;">访谈记录摘要</td></tr>
                 <tr><td colspan="4" class="ca" style="height:200pt;">${cHtml||'无'}</td></tr>
