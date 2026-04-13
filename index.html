@@ -117,6 +117,45 @@
             gap: 12px;
         }
         .ios-row:last-child { border-bottom: none; }
+
+        /* ─── Split Row (two fields side-by-side) ─── */
+        .ios-row-split {
+            display: flex;
+            border-bottom: 0.5px solid var(--separator);
+            background: var(--bg-secondary);
+        }
+        .ios-row-split:last-child { border-bottom: none; }
+        .ios-row-half {
+            display: flex;
+            align-items: center;
+            padding: 11px 12px 11px 16px;
+            min-height: 46px;
+            flex: 1;
+            min-width: 0;
+            gap: 6px;
+        }
+        .ios-row-half + .ios-row-half {
+            border-left: 0.5px solid var(--separator);
+            padding-left: 12px;
+        }
+        .ios-row-half .ios-row-label {
+            font-size: 14px;
+            min-width: 52px;
+        }
+        .ios-row-half input,
+        .ios-row-half select {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 14px !important;
+            color: var(--label);
+            min-width: 0;
+            padding: 0;
+        }
+        .ios-row-half input::placeholder { color: var(--label-tertiary); font-size: 13px !important; }
+        .ios-row-half select { color: var(--label); }
+
         .ios-row input,
         .ios-row textarea,
         .ios-row select {
@@ -768,18 +807,45 @@
                     <h2 class="text-[17px] font-semibold text-gray-900 ml-1">访谈报告</h2>
                 </div>
 
-                <!-- Section 1 -->
+                <!-- Section 1：客户信息 -->
                 <div class="space-y-2">
                     <p class="form-section-label">客户信息</p>
                     <div class="ios-group">
+                        <!-- 客户名称：全寬 -->
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">客户名称</span>
                             <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value)" placeholder="请输入客户全称">
                         </div>
-                        <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">负责人</span>
-                            <input type="text" value="${draft.owner||''}" oninput="updateDraft('owner',this.value)" placeholder="实际负责人姓名">
+                        <!-- 负责人 ＋ 企业型态：同行 -->
+                        <div class="ios-row-split">
+                            <div class="ios-row-half">
+                                <span class="ios-row-label">负责人</span>
+                                <input type="text" value="${draft.owner||''}" oninput="updateDraft('owner',this.value)" placeholder="负责人姓名">
+                            </div>
+                            <div class="ios-row-half">
+                                <span class="ios-row-label">企业型态</span>
+                                <select onchange="updateDraft('companyType',this.value)">
+                                    <option value="台商" ${draft.companyType==='台商'?'selected':''}>台商</option>
+                                    <option value="陆资" ${draft.companyType==='陆资'?'selected':''}>陆资</option>
+                                    <option value="外商" ${draft.companyType==='外商'?'selected':''}>外商</option>
+                                </select>
+                            </div>
                         </div>
+                        <!-- 产业描述 ＋ 8+E：同行 -->
+                        <div class="ios-row-split">
+                            <div class="ios-row-half" style="flex:1.4;">
+                                <span class="ios-row-label">产业描述</span>
+                                <input type="text" value="${draft.industryDesc||''}" oninput="updateDraft('industryDesc',this.value)" placeholder="行业描述">
+                            </div>
+                            <div class="ios-row-half" style="flex:0.8;justify-content:space-between;">
+                                <span style="font-size:13px;color:var(--label);white-space:nowrap;">8+E 客户</span>
+                                <label class="toggle-switch" style="flex-shrink:0;">
+                                    <input type="checkbox" ${draft.is8PlusE?'checked':''} onchange="updateDraft('is8PlusE',this.checked)">
+                                    <span class="toggle-track"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <!-- 拜访地点：全寬（GPS 按鈕保留） -->
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">拜访地点</span>
                             <input type="text" id="cityInput" value="${draft.city||''}" oninput="updateDraft('city',this.value)" placeholder="城市 / 地区">
@@ -787,37 +853,28 @@
                                 <i data-lucide="map-pin" class="w-4 h-4"></i>
                             </button>
                         </div>
-                        <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">企业型态</span>
-                            <select onchange="updateDraft('companyType',this.value)" class="text-right flex-1">
-                                <option value="台商" ${draft.companyType==='台商'?'selected':''}>台商</option>
-                                <option value="陆资" ${draft.companyType==='陆资'?'selected':''}>陆资</option>
-                                <option value="外商" ${draft.companyType==='外商'?'selected':''}>外商</option>
-                            </select>
-                            <i data-lucide="chevron-right" class="w-4 h-4 text-[color:var(--ios-gray3)] flex-shrink-0"></i>
-                        </div>
-                        <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">产业描述</span>
-                            <input type="text" value="${draft.industryDesc||''}" oninput="updateDraft('industryDesc',this.value)" placeholder="行业描述">
-                        </div>
-                        <div class="ios-toggle">
-                            <span class="text-[17px]">8+E 客户</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" ${draft.is8PlusE?'checked':''} onchange="updateDraft('is8PlusE',this.checked)">
-                                <span class="toggle-track"></span>
-                            </label>
-                        </div>
                     </div>
                 </div>
 
-                <!-- Section 2 -->
+                <!-- Section 2：拜访详情 -->
                 <div class="space-y-2">
                     <p class="form-section-label">拜访详情</p>
                     <div class="ios-group">
-                        <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">日期</span>
-                            <input type="date" value="${draft.visitDate}" oninput="updateDraft('visitDate',this.value)" class="text-right flex-1">
+                        <!-- 日期 ＋ 拜访目的：同行 -->
+                        <div class="ios-row-split">
+                            <div class="ios-row-half">
+                                <span class="ios-row-label">日期</span>
+                                <input type="date" value="${draft.visitDate}" oninput="updateDraft('visitDate',this.value)" style="font-size:13px !important;">
+                            </div>
+                            <div class="ios-row-half">
+                                <span class="ios-row-label">拜访目的</span>
+                                <select onchange="updateDraft('purpose',this.value)" style="font-size:13px !important;">
+                                    <option value="新户开发" ${draft.purpose==='新户开发'?'selected':''}>新户开发</option>
+                                    <option value="旧户维系" ${draft.purpose==='旧户维系'?'selected':''}>旧户维系</option>
+                                </select>
+                            </div>
                         </div>
+                        <!-- 时间：全寬 -->
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">时间</span>
                             <div class="flex items-center gap-2 ml-auto">
@@ -830,34 +887,31 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">拜访目的</span>
-                            <select onchange="updateDraft('purpose',this.value)" class="text-right flex-1">
-                                <option value="新户开发" ${draft.purpose==='新户开发'?'selected':''}>新户开发</option>
-                                <option value="旧户维系" ${draft.purpose==='旧户维系'?'selected':''}>旧户维系</option>
-                            </select>
-                            <i data-lucide="chevron-right" class="w-4 h-4 text-[color:var(--ios-gray3)] flex-shrink-0"></i>
-                        </div>
-                        <div style="padding:12px 16px;">
-                            <div style="font-size:15px;color:var(--label);font-weight:500;margin-bottom:10px;">爭取業務</div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <!-- 爭取業務：3 欄 × 2 列 -->
+                        <div style="padding:12px 16px;border-bottom:0.5px solid var(--separator);">
+                            <div style="font-size:13px;color:var(--ios-gray);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">爭取業務</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">
                                 ${['放款','金流存款','TMU','跨境轉介','網銀自動化','貿融'].map(biz=>{
                                     const checked = Array.isArray(draft.targetBusiness) ? draft.targetBusiness.includes(biz) : (draft.targetBusiness||'').includes(biz);
-                                    return `<label style="display:flex;align-items:center;gap:8px;background:${checked?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};border:1.5px solid ${checked?'var(--brand)':'transparent'};border-radius:10px;padding:9px 12px;cursor:pointer;transition:all .15s;">
-                                        <input type="checkbox" ${checked?'checked':''} onchange="toggleBusiness('${biz}',this.checked)" style="width:18px;height:18px;accent-color:var(--brand);cursor:pointer;">
-                                        <span style="font-size:14px;font-weight:${checked?'600':'400'};color:${checked?'var(--brand)':'var(--label)'}">${biz}</span>
+                                    return `<label style="display:flex;align-items:center;gap:5px;background:${checked?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};border:1.5px solid ${checked?'var(--brand)':'transparent'};border-radius:9px;padding:7px 8px;cursor:pointer;transition:all .15s;">
+                                        <input type="checkbox" ${checked?'checked':''} onchange="toggleBusiness('${biz}',this.checked)" style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer;flex-shrink:0;">
+                                        <span style="font-size:12px;font-weight:${checked?'600':'400'};color:${checked?'var(--brand)':'var(--label)'};line-height:1.2;">${biz}</span>
                                     </label>`;
                                 }).join('')}
                             </div>
                         </div>
-                        <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">RM 组别</span>
-                            <input type="text" value="${draft.rmGroup||''}" oninput="updateDraft('rmGroup',this.value)" placeholder="例：深圳">
+                        <!-- RM组别 ＋ 顾客人员：同行 -->
+                        <div class="ios-row-split">
+                            <div class="ios-row-half">
+                                <span class="ios-row-label">RM 组别</span>
+                                <input type="text" value="${draft.rmGroup||''}" oninput="updateDraft('rmGroup',this.value)" placeholder="例：深圳">
+                            </div>
+                            <div class="ios-row-half">
+                                <span class="ios-row-label">顾客人员</span>
+                                <input type="text" value="${draft.customerStaff||''}" oninput="updateDraft('customerStaff',this.value)" placeholder="姓名/职称">
+                            </div>
                         </div>
-                        <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">顾客人员</span>
-                            <input type="text" value="${draft.customerStaff||''}" oninput="updateDraft('customerStaff',this.value)" placeholder="姓名 / 职称">
-                        </div>
+                        <!-- 我行人员：全寬 -->
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">我行人员</span>
                             <input type="text" value="${draft.bankStaff||''}" oninput="updateDraft('bankStaff',this.value)" placeholder="参与人员姓名">
