@@ -38,11 +38,6 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="text-sm font-medium text-gray-600 block mb-1.5">Worker URL</label>
-                    <input id="worker-url-input" type="url" placeholder="https://rm-assistant-api.xxx.workers.dev"
-                        class="w-full px-4 py-3 rounded-xl border border-gray-200 text-[15px] outline-none focus:border-[color:var(--brand)] transition-colors">
-                </div>
-                <div>
                     <label class="text-sm font-medium text-gray-600 block mb-1.5">管理員密碼</label>
                     <input id="password-input" type="password" placeholder="••••••••"
                         class="w-full px-4 py-3 rounded-xl border border-gray-200 text-[15px] outline-none focus:border-[color:var(--brand)] transition-colors"
@@ -152,24 +147,21 @@
     </div>
 
     <script>
-        let WORKER_URL = '';
-        let PASSWORD   = '';
+        const WORKER_URL = 'https://rm-assistant-api.insa-eco.workers.dev';
+        let PASSWORD     = '';
         let charts     = {};
         let recordsOffset = 0;
         const RECORDS_LIMIT = 30;
 
         /* ── 登入 ── */
         async function login() {
-            const url = document.getElementById('worker-url-input').value.trim().replace(/\/$/, '');
             const pwd = document.getElementById('password-input').value.trim();
-            if (!url || !pwd) return;
+            if (!pwd) return;
 
             try {
-                const res = await fetch(`${url}/api/stats?password=${encodeURIComponent(pwd)}&range=7`);
+                const res = await fetch(`${WORKER_URL}/api/stats?password=${encodeURIComponent(pwd)}&range=7`);
                 if (!res.ok) { showLoginError(); return; }
-                WORKER_URL = url;
-                PASSWORD   = pwd;
-                localStorage.setItem('rm_admin_url', url);
+                PASSWORD = pwd;
                 localStorage.setItem('rm_admin_pwd', pwd);
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('dashboard').classList.remove('hidden');
@@ -368,11 +360,11 @@
         window.onload = function() {
             lucide.createIcons();
             // 如果 localStorage 有記住的登入資訊，自動填入
-            const savedUrl = localStorage.getItem('rm_admin_url');
             const savedPwd = localStorage.getItem('rm_admin_pwd');
-            if (savedUrl) document.getElementById('worker-url-input').value = savedUrl;
-            if (savedPwd) document.getElementById('password-input').value = savedPwd;
-            if (savedUrl && savedPwd) login();
+            if (savedPwd) {
+                document.getElementById('password-input').value = savedPwd;
+                login();
+            }
         };
     </script>
 </body>
