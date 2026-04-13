@@ -860,12 +860,25 @@
                 <div class="space-y-2">
                     <p class="form-section-label">拜访详情</p>
                     <div class="ios-group">
-                        <!-- 日期 ＋ 拜访目的：同行 -->
+                        <!-- ① 日期 ＋ 時間：同行 -->
                         <div class="ios-row-split">
                             <div class="ios-row-half">
                                 <span class="ios-row-label">日期</span>
                                 <input type="date" value="${draft.visitDate}" oninput="updateDraft('visitDate',this.value)" style="font-size:13px !important;">
                             </div>
+                            <div class="ios-row-half" style="gap:4px;">
+                                <span class="ios-row-label">時間</span>
+                                <select onchange="updateDraft('visitHour',this.value)" style="font-size:12px !important;flex:1;">
+                                    ${Array.from({length:24},(_,i)=>`<option value="${i}" ${parseInt(draft.visitHour)===i?'selected':''}>${i.toString().padStart(2,'0')}:00</option>`).join('')}
+                                </select>
+                                <span style="color:var(--ios-gray3);font-size:12px;">–</span>
+                                <select onchange="updateDraft('visitEndHour',this.value)" style="font-size:12px !important;flex:1;">
+                                    ${Array.from({length:24},(_,i)=>`<option value="${i}" ${parseInt(draft.visitEndHour)===i?'selected':''}>${i.toString().padStart(2,'0')}:00</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <!-- ② 拜访目的 ＋ 下次跟進：同行 -->
+                        <div class="ios-row-split">
                             <div class="ios-row-half">
                                 <span class="ios-row-label">拜访目的</span>
                                 <select onchange="updateDraft('purpose',this.value)" style="font-size:13px !important;">
@@ -873,34 +886,33 @@
                                     <option value="旧户维系" ${draft.purpose==='旧户维系'?'selected':''}>旧户维系</option>
                                 </select>
                             </div>
-                        </div>
-                        <!-- 时间：全寬 -->
-                        <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">时间</span>
-                            <div class="flex items-center gap-2 ml-auto">
-                                <select onchange="updateDraft('visitHour',this.value)" class="text-[15px]">
-                                    ${Array.from({length:24},(_,i)=>`<option value="${i}" ${parseInt(draft.visitHour)===i?'selected':''}>${i.toString().padStart(2,'0')}:00</option>`).join('')}
-                                </select>
-                                <span class="text-[color:var(--ios-gray3)]">–</span>
-                                <select onchange="updateDraft('visitEndHour',this.value)" class="text-[15px]">
-                                    ${Array.from({length:24},(_,i)=>`<option value="${i}" ${parseInt(draft.visitEndHour)===i?'selected':''}>${i.toString().padStart(2,'0')}:00</option>`).join('')}
-                                </select>
+                            <div style="flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:8px 10px 8px 12px;border-left:0.5px solid var(--separator);min-width:0;">
+                                <span style="font-size:12px;color:var(--ios-gray);text-transform:uppercase;letter-spacing:.04em;line-height:1;">下次跟進</span>
+                                <div style="display:flex;flex-direction:column;gap:4px;width:100%;">
+                                    ${['強追蹤','定期追蹤','暫無商機'].map(fu=>{
+                                        const sel = (draft.followUp||'')===fu;
+                                        return `<label style="display:flex;align-items:center;gap:5px;background:${sel?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};border:1.5px solid ${sel?'var(--brand)':'transparent'};border-radius:7px;padding:4px 8px;cursor:pointer;">
+                                            <input type="radio" name="followUp" value="${fu}" ${sel?'checked':''} onchange="updateDraft('followUp','${fu}')" style="width:13px;height:13px;accent-color:var(--brand);cursor:pointer;flex-shrink:0;">
+                                            <span style="font-size:12px;font-weight:${sel?'600':'400'};color:${sel?'var(--brand)':'var(--label)'};">${fu}</span>
+                                        </label>`;
+                                    }).join('')}
+                                </div>
                             </div>
                         </div>
-                        <!-- 爭取業務：3 欄 × 2 列 -->
-                        <div style="padding:12px 16px;border-bottom:0.5px solid var(--separator);">
-                            <div style="font-size:13px;color:var(--ios-gray);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">爭取業務</div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">
-                                ${['放款','金流存款','TMU','跨境轉介','網銀自動化','貿融'].map(biz=>{
+                        <!-- ③ 爭取業務：6×1 單行 -->
+                        <div style="padding:10px 16px;border-bottom:0.5px solid var(--separator);">
+                            <div style="font-size:12px;color:var(--ios-gray);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;">爭取業務</div>
+                            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px;">
+                                ${[['放款','放款'],['金流存款','金流'],['TMU','TMU'],['跨境轉介','跨境'],['網銀自動化','網銀'],['貿融','貿融']].map(([biz,label])=>{
                                     const checked = Array.isArray(draft.targetBusiness) ? draft.targetBusiness.includes(biz) : (draft.targetBusiness||'').includes(biz);
-                                    return `<label style="display:flex;align-items:center;gap:5px;background:${checked?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};border:1.5px solid ${checked?'var(--brand)':'transparent'};border-radius:9px;padding:7px 8px;cursor:pointer;transition:all .15s;">
-                                        <input type="checkbox" ${checked?'checked':''} onchange="toggleBusiness('${biz}',this.checked)" style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer;flex-shrink:0;">
-                                        <span style="font-size:12px;font-weight:${checked?'600':'400'};color:${checked?'var(--brand)':'var(--label)'};line-height:1.2;">${biz}</span>
+                                    return `<label style="display:flex;flex-direction:column;align-items:center;gap:3px;background:${checked?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};border:1.5px solid ${checked?'var(--brand)':'transparent'};border-radius:8px;padding:6px 2px;cursor:pointer;text-align:center;">
+                                        <input type="checkbox" ${checked?'checked':''} onchange="toggleBusiness('${biz}',this.checked)" style="width:14px;height:14px;accent-color:var(--brand);cursor:pointer;">
+                                        <span style="font-size:10px;font-weight:${checked?'600':'400'};color:${checked?'var(--brand)':'var(--label)'};line-height:1.2;white-space:nowrap;">${label}</span>
                                     </label>`;
                                 }).join('')}
                             </div>
                         </div>
-                        <!-- RM组别 ＋ 顾客人员：同行 -->
+                        <!-- ④ RM组别 ＋ 顾客人员：同行 -->
                         <div class="ios-row-split">
                             <div class="ios-row-half">
                                 <span class="ios-row-label">RM 组别</span>
@@ -911,10 +923,17 @@
                                 <input type="text" value="${draft.customerStaff||''}" oninput="updateDraft('customerStaff',this.value)" placeholder="姓名/职称">
                             </div>
                         </div>
-                        <!-- 我行人员：全寬 -->
-                        <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">我行人员</span>
-                            <input type="text" value="${draft.bankStaff||''}" oninput="updateDraft('bankStaff',this.value)" placeholder="参与人员姓名">
+                        <!-- ⑤ 我行人員 ＋ 總行領導陪訪 toggle -->
+                        <div class="ios-row" style="gap:8px;">
+                            <span class="ios-row-label text-[15px]" style="flex-shrink:0;">我行人员</span>
+                            <input type="text" value="${draft.bankStaff||''}" oninput="updateDraft('bankStaff',this.value)" placeholder="参与人员姓名" style="flex:1;min-width:0;">
+                            <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;border-left:0.5px solid var(--separator);padding-left:10px;margin-left:4px;">
+                                <span style="font-size:12px;color:var(--label-secondary);white-space:nowrap;line-height:1.2;">總行<br>領導</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" ${draft.hqLeader?'checked':''} onchange="updateDraft('hqLeader',this.checked)">
+                                    <span class="toggle-track"></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1245,6 +1264,7 @@
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">產業描述</td><td style="border:1px solid black;padding:4px 7px;">${draft.industryDesc||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">型態/8+E</td><td style="border:1px solid black;padding:4px 7px;">${draft.companyType}${draft.is8PlusE?'(8+E)':''}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">訪談目的</td><td style="border:1px solid black;padding:4px 7px;">${draft.purpose}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">地點</td><td style="border:1px solid black;padding:4px 7px;">${draft.city||'-'}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">爭取業務</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length?draft.targetBusiness.join('、'):(draft.targetBusiness||'-')}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">下次跟進</td><td style="border:1px solid black;padding:4px 7px;">${draft.followUp||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">總行領導陪訪</td><td style="border:1px solid black;padding:4px 7px;">${draft.hqLeader?'是':'否'}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">參與人員</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">顧客: ${draft.customerStaff||'-'} / 我行: ${draft.bankStaff||'-'}</td></tr>
                         <tr><td colspan="4" style="background:#f5f5f5;border:1px solid black;padding:5px;text-align:center;font-weight:bold;border-top:1.5px solid black;">訪談紀錄摘要</td></tr>
                         <tr><td colspan="4" style="border:1px solid black;padding:10px;min-height:150px;vertical-align:top;line-height:1.5;">${cHtml||'-'}</td></tr>
@@ -1416,7 +1436,7 @@
             const id  = now.getTime();
             const base = { id, type, visitDate: now.toISOString().split('T')[0], timestamp: id };
             if (type === 'report') {
-                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:[], customerStaff:'', contentList:[''], todoList:[''], bankStaff:'' };
+                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:[], followUp:'', hqLeader:false, customerStaff:'', contentList:[''], todoList:[''], bankStaff:'' };
             } else if (type === 'meeting') {
                 draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, branch:'', meetingName:'主管会议', chairman:'', recorder:'', city:'', attendeeText:'', discussions:{}, todoQuadrants:{ urgentImportant:'', importantNotUrgent:'', urgentNotImportant:'', notUrgentNotImportant:'' }, dailySections:[{dept:'',content:''}] };
             } else if (type === 'site') {
@@ -1660,6 +1680,7 @@
                 <tr><td class="lb">产业描述</td><td>${draft.industryDesc||'-'}</td><td class="lb">型态/8+E</td><td>${draft.companyType} ${draft.is8PlusE?'(8+E)':''}</td></tr>
                 <tr><td class="lb">访谈目的</td><td>${draft.purpose}</td><td class="lb">地点</td><td>${draft.city||'-'}</td></tr>
                 <tr><td class="lb">争取业务</td><td colspan="3">${Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length?draft.targetBusiness.join('、'):(draft.targetBusiness||'-')}</td></tr>
+                <tr><td class="lb">下次跟进</td><td>${draft.followUp||'-'}</td><td class="lb">总行领导陪访</td><td>${draft.hqLeader?'是':'否'}</td></tr>
                 <tr><td class="lb">参与人员</td><td colspan="3">顾客: ${draft.customerStaff||'-'} / 我行: ${draft.bankStaff||'-'}</td></tr>
                 <tr><td colspan="4" style="background:#F2F2F2;text-align:center;font-weight:bold;height:18pt;border-top:1.5pt solid black;">访谈记录摘要</td></tr>
                 <tr><td colspan="4" class="ca" style="height:200pt;">${cHtml||'无'}</td></tr>
