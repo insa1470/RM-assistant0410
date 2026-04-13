@@ -209,16 +209,18 @@ const RECORDS_LIMIT = 30;
 async function login() {
   const pwd = document.getElementById('password-input').value.trim();
   if (!pwd) return;
+  // ── 只對驗證請求做錯誤捕捉，避免 loadData() 的例外誤觸密碼錯誤提示
   try {
     const res = await fetch(`${WORKER_URL}/api/stats?password=${enc(pwd)}&range=30`);
     if (!res.ok) { showLoginError(); return; }
-    PASSWORD = pwd;
-    localStorage.setItem('rm_admin_pwd', pwd);
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('dashboard').classList.remove('hidden');
-    await loadTargets();
-    await loadData();
-  } catch { showLoginError(); }
+  } catch { showLoginError(); return; }
+
+  PASSWORD = pwd;
+  localStorage.setItem('rm_admin_pwd', pwd);
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  try { await loadTargets(); } catch(e) { console.warn('loadTargets error', e); }
+  try { await loadData();    } catch(e) { console.warn('loadData error', e); }
 }
 
 function showLoginError() {
