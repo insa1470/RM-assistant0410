@@ -610,30 +610,47 @@
         const DEPARTMENTS_LIST    = ["行长","合规","计财","存汇","帐务","总务","人事","其他"];
         const DEPARTMENTS_LIST_CN = ["行长","合规","计财","存汇","帐务","总务","人事","其他"];
         const STORAGE_KEY    = 'rm_reports_history_v17';
-        const DRAFT_KEY      = 'rm_assistant_v17_cache';
+        const DRAFT_KEY      = 'rm_assistant_v17_cache';   // 舊版相容保留
+        const DRAFTS_KEY     = 'rm_drafts_v1';             // 新版多草稿
         const USER_NAME_KEY  = 'rm_user_name';
         // ⚠️ 部署 Worker 後，填入你的 Worker URL（例：https://rm-assistant-api.yourname.workers.dev）
         const WORKER_URL     = 'https://rm-assistant-api.insa-eco.workers.dev';
 
         const ADMIN_NAMES = ['insahung', 'sz0453', '洪紹書'];
 
-        let reports = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        let draft = null;
-        let activePhotoIdx = -1;
+        let reports  = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        let drafts   = JSON.parse(localStorage.getItem(DRAFTS_KEY)  || '[]');
+        let draft    = null;
+        let activePhotoIdx   = -1;
         let historySearchTerm = '';
-        let currentUserName = localStorage.getItem(USER_NAME_KEY) || '';
+        let currentUserName  = localStorage.getItem(USER_NAME_KEY) || '';
+
+        // 舊版單一草稿遷移至新版多草稿
+        (function migrateLegacyDraft() {
+            const old = localStorage.getItem(DRAFT_KEY);
+            if (!old) return;
+            try {
+                const d = JSON.parse(old);
+                if (d && !drafts.find(x => x.id === (d.id || d.timestamp))) {
+                    d.id = d.id || d.timestamp;
+                    drafts.unshift(d);
+                    localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+                }
+            } catch(e) {}
+            localStorage.removeItem(DRAFT_KEY);
+        })();
 
         /* ───── VIEW RENDERERS ───── */
         const VIEWS = {
 
         'home': function() {
-            const cachedData = localStorage.getItem(DRAFT_KEY);
-            const hasDraft   = !!cachedData;
-            const draftObj   = hasDraft ? JSON.parse(cachedData) : null;
-            const typeMap    = { report:'访谈报告', meeting:'会议记录', site:'现场记录' };
-            const typeText   = draftObj ? typeMap[draftObj.type] : '记录';
-            const now        = new Date();
-            const greeting   = now.getHours() < 12 ? '早安' : now.getHours() < 18 ? '午安' : '晚安';
+            const now      = new Date();
+            const greeting = now.getHours() < 12 ? '早安' : now.getHours() < 18 ? '午安' : '晚安';
+            const draftTypeConf = {
+                report:  { label:'訪談', color:'var(--brand)',      bg:'var(--brand-light)',        icon:'file-text' },
+                site:    { label:'現場', color:'var(--ios-orange)',  bg:'rgba(255,149,0,0.10)',      icon:'camera'    },
+                meeting: { label:'會議', color:'var(--ios-blue)',    bg:'rgba(0,122,255,0.10)',      icon:'users'     }
+            };
 
             return `
             <div class="space-y-5 anim-fade-in">
@@ -665,19 +682,32 @@
                     </div>
                 </div>
 
-                ${hasDraft ? `
-                <!-- Draft Banner -->
-                <div class="draft-banner">
-                    <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <i data-lucide="file-edit" class="w-5 h-5 text-orange-500"></i>
+                ${drafts.length > 0 ? `
+                <!-- 草稿列表 -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between px-1">
+                        <p class="text-[13px] font-semibold text-[color:var(--ios-gray)] uppercase tracking-wide">草稿（${drafts.length}）</p>
+                        <button onclick="handlePlusClick()" class="text-[13px] font-medium text-[color:var(--brand)]">＋ 新增</button>
                     </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-[14px] font-semibold text-gray-800">未完成的${typeText}</p>
-                        <p class="text-[12px] text-orange-500 mt-0.5">上次编辑于 ${new Date(draftObj.timestamp).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}</p>
-                    </div>
-                    <button onclick="restoreDraft()" class="bg-orange-500 text-white text-[13px] font-semibold px-4 py-2 rounded-xl flex-shrink-0">继续</button>
+                    ${drafts.map(d => {
+                        const tc   = draftTypeConf[d.type] || draftTypeConf.report;
+                        const title = d.type === 'meeting' ? (d.meetingName || '會議記錄') : (d.clientName || '未命名');
+                        const time  = new Date(d.timestamp).toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+                        return `<div class="draft-banner">
+                            <div class="type-badge flex-shrink-0" style="background:${tc.bg}">
+                                <i data-lucide="${tc.icon}" class="w-5 h-5" style="color:${tc.color}"></i>
+                            </div>
+                            <div class="flex-1 min-w-0" onclick="loadDraft(${d.id})" style="cursor:pointer">
+                                <p class="text-[14px] font-semibold text-gray-800 truncate">${title}</p>
+                                <p class="text-[12px] text-[color:var(--label-secondary)] mt-0.5">${time} · <span style="color:${tc.color};font-weight:600">${tc.label}</span></p>
+                            </div>
+                            <button onclick="loadDraft(${d.id})" class="bg-orange-500 text-white text-[12px] font-semibold px-3 py-1.5 rounded-xl flex-shrink-0">繼續</button>
+                            <button onclick="deleteDraft(${d.id})" class="ml-1 text-[color:var(--ios-gray3)] flex-shrink-0">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>`;
+                    }).join('')}
                 </div>
-                <button onclick="showConfirm('弃用草稿','弃用后将无法恢复当前草稿内容。', () => { localStorage.removeItem(DRAFT_KEY); switchView('home'); })" class="w-full text-[14px] text-[color:var(--ios-gray)] text-center">弃用草稿并新建</button>
                 ` : `
                 <!-- Quick Start -->
                 <div class="ios-card">
@@ -1311,7 +1341,8 @@
         function createNew(type) {
             hideChoice();
             const now = new Date();
-            const base = { type, visitDate: now.toISOString().split('T')[0], timestamp: now.getTime() };
+            const id  = now.getTime();
+            const base = { id, type, visitDate: now.toISOString().split('T')[0], timestamp: id };
             if (type === 'report') {
                 draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:'', customerStaff:'', contentList:[''], todoList:[''], bankStaff:'' };
             } else if (type === 'meeting') {
@@ -1366,11 +1397,33 @@
         function removePhoto(e, idx) { e.stopPropagation(); draft.photos[idx] = null; saveDraft(); switchView('edit-site'); }
 
         function saveDraft() {
-            try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); }
-            catch (e) { if (e.name==='QuotaExceededError') showToast('❌ 存储空间不足，请先导出并清除旧记录'); }
+            if (!draft) return;
+            draft.id = draft.id || draft.timestamp;
+            try {
+                const idx = drafts.findIndex(d => d.id === draft.id);
+                if (idx >= 0) drafts[idx] = { ...draft };
+                else drafts.unshift({ ...draft });
+                if (drafts.length > 20) drafts = drafts.slice(0, 20);
+                localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+            } catch(e) {
+                if (e.name === 'QuotaExceededError') showToast('❌ 存储空间不足，请先导出并清除旧记录');
+            }
         }
 
-        function restoreDraft() { const c = localStorage.getItem(DRAFT_KEY); if (c) { draft = JSON.parse(c); switchView(`edit-${draft.type}`); } }
+        function loadDraft(id) {
+            const d = drafts.find(d => d.id === id);
+            if (d) { draft = { ...d }; switchView(`edit-${draft.type}`); }
+        }
+
+        function deleteDraft(id) {
+            showConfirm('刪除草稿？', '此草稿將永久刪除，無法恢復。', () => {
+                drafts = drafts.filter(d => d.id !== id);
+                localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+                switchView('home');
+            });
+        }
+
+        function restoreDraft() { if (drafts.length > 0) loadDraft(drafts[0].id); }
         function saveHistory()  { localStorage.setItem(STORAGE_KEY, JSON.stringify(reports)); }
         function updateDraft(k, v) { draft[k] = v; saveDraft(); }
         function updateListItem(list, idx, val) { draft[list][idx] = val; saveDraft(); }
@@ -1539,8 +1592,10 @@
         function finalizeSave(clearDraft) {
             showToast('✅ 文件已导出');
             if (!reports.some(r => r.timestamp === draft.timestamp)) { reports.unshift({...draft}); saveHistory(); }
-            if (clearDraft) localStorage.removeItem(DRAFT_KEY);
-            // 上傳至後端（背景執行，不影響本地儲存）
+            if (clearDraft) {
+                drafts = drafts.filter(d => d.id !== draft.id);
+                localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+            }
             uploadToWorker(draft);
         }
 
@@ -1651,14 +1706,11 @@
         function confirmCancel() { showConfirm('离开编辑？', '内容已自动存为草稿。', () => switchView('home')); }
 
         window.onload = function() {
-            const cached = localStorage.getItem(DRAFT_KEY);
-            if (cached) restoreDraft(); else switchView('home');
-            // 若尚未設定姓名，顯示輸入框；否則直接檢查管理者
+            switchView('home');
             if (!currentUserName) {
                 setTimeout(() => showNamePrompt(false), 400);
             } else {
                 document.getElementById('name-modal').classList.add('hidden');
-                // 已有姓名，檢查是否為管理者
                 checkAdminUser();
             }
         };
