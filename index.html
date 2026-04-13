@@ -946,29 +946,40 @@
                                 <span style="font-size:15px;font-weight:600;color:var(--label-secondary);">1.</span>
                                 <span style="font-size:12px;color:var(--ios-gray);background:var(--ios-gray6);padding:2px 8px;border-radius:99px;">基本财务摘要</span>
                             </div>
-                            <div style="font-size:14px;line-height:2.2;color:var(--label);">
-                                該公司，主要(客戶)買方是
-                                <input oninput="updateTmpl('buyer',this.value)" value="${(draft.tmpl||{}).buyer||''}" placeholder="買方名稱" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:90px;text-align:center;padding:0 2px;color:var(--label);">
+                            ${(()=>{
+                                const T = draft.tmpl||{};
+                                const inStyle = `display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;text-align:center;padding:0 2px;color:var(--label);`;
+                                const bizStr = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '（未勾選）';
+                                const followStr = draft.followUp||'（未設定）';
+                                return `<div style="font-size:14px;line-height:2.4;color:var(--label);">
+                                該公司屬於
+                                <input oninput="updateTmpl('group',this.value)" value="${T.group||''}" placeholder="集團名稱" style="${inStyle}width:90px;">
+                                集團，主要(客戶)買方是
+                                <input oninput="updateTmpl('buyer',this.value)" value="${T.buyer||''}" placeholder="買方名稱" style="${inStyle}width:90px;">
                                 ，收款條件是
-                                <input oninput="updateTmpl('buyerTerms',this.value)" value="${(draft.tmpl||{}).buyerTerms||''}" placeholder="如 T/T 30天" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:90px;text-align:center;padding:0 2px;color:var(--label);">
+                                <input oninput="updateTmpl('buyerTerms',this.value)" value="${T.buyerTerms||''}" placeholder="如 T/T 30天" style="${inStyle}width:95px;">
                                 。<br>
                                 主要供應商是
-                                <input oninput="updateTmpl('supplier',this.value)" value="${(draft.tmpl||{}).supplier||''}" placeholder="供應商名稱" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:90px;text-align:center;padding:0 2px;color:var(--label);">
+                                <input oninput="updateTmpl('supplier',this.value)" value="${T.supplier||''}" placeholder="供應商名稱" style="${inStyle}width:90px;">
                                 ，付款條件是
-                                <input oninput="updateTmpl('supplierTerms',this.value)" value="${(draft.tmpl||{}).supplierTerms||''}" placeholder="如月結60天" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:90px;text-align:center;padding:0 2px;color:var(--label);">
+                                <input oninput="updateTmpl('supplierTerms',this.value)" value="${T.supplierTerms||''}" placeholder="如月結60天" style="${inStyle}width:90px;">
                                 。<br>
                                 年營收約人民幣
-                                <input oninput="updateTmpl('revenue',this.value)" value="${(draft.tmpl||{}).revenue||''}" placeholder="如 5,000萬" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:80px;text-align:center;padding:0 2px;color:var(--label);">
+                                <input oninput="updateTmpl('revenue',this.value)" value="${T.revenue||''}" placeholder="如 5,000萬" style="${inStyle}width:80px;">
                                 ，毛利約
-                                <input oninput="updateTmpl('grossMargin',this.value)" value="${(draft.tmpl||{}).grossMargin||''}" placeholder="如 15%" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:60px;text-align:center;padding:0 2px;color:var(--label);">
+                                <input oninput="updateTmpl('grossMargin',this.value)" value="${T.grossMargin||''}" placeholder="如 15%" style="${inStyle}width:60px;">
                                 ，員工人數約
-                                <input oninput="updateTmpl('headcount',this.value)" value="${(draft.tmpl||{}).headcount||''}" placeholder="如 200人" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:65px;text-align:center;padding:0 2px;color:var(--label);">
-                                ，<br>本次爭取業務為
-                                <span style="display:inline-block;background:rgba(0,125,80,0.08);border:1px solid rgba(0,125,80,0.3);border-radius:6px;padding:1px 8px;font-size:13px;font-weight:600;color:var(--brand);vertical-align:middle;">
-                                    ${Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '（未勾選）'}
-                                </span>
+                                <input oninput="updateTmpl('headcount',this.value)" value="${T.headcount||''}" placeholder="如 200人" style="${inStyle}width:65px;">
+                                。<br>
+                                顧客的主要需求為
+                                <input oninput="updateTmpl('customerNeed',this.value)" value="${T.customerNeed||''}" placeholder="如 融資需求" style="${inStyle}width:110px;">
+                                ，本次RM爭取業務為
+                                <span style="display:inline-block;background:rgba(0,125,80,0.08);border:1px solid rgba(0,125,80,0.3);border-radius:6px;padding:1px 8px;font-size:13px;font-weight:600;color:var(--brand);vertical-align:middle;">${bizStr}</span>
+                                ，RM將
+                                <span style="display:inline-block;background:rgba(255,149,0,0.10);border:1px solid rgba(255,149,0,0.4);border-radius:6px;padding:1px 8px;font-size:13px;font-weight:600;color:var(--ios-orange);vertical-align:middle;">${followStr}</span>
                                 。
-                            </div>
+                                </div>`;
+                            })()}
                         </div>
 
                         <!-- 第 2 點起：自由輸入 -->
@@ -1285,7 +1296,8 @@
             } else if (type === 'report') {
                 const t = draft.tmpl || {};
                 const bizStr = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '-';
-                const tmplSentence = `1. 該公司，主要(客戶)買方是${t.buyer||'__'}，收款條件是${t.buyerTerms||'__'}。主要供應商是${t.supplier||'__'}，付款條件是${t.supplierTerms||'__'}，年營收約人民幣${t.revenue||'__'}，毛利約${t.grossMargin||'__'}，員工人數約${t.headcount||'__'}，本次爭取業務為${bizStr}。`;
+                const followStr = draft.followUp || '-';
+                const tmplSentence = `1. 該公司屬於${t.group||'__'}集團，主要(客戶)買方是${t.buyer||'__'}，收款條件是${t.buyerTerms||'__'}。主要供應商是${t.supplier||'__'}，付款條件是${t.supplierTerms||'__'}。年營收約人民幣${t.revenue||'__'}，毛利約${t.grossMargin||'__'}，員工人數約${t.headcount||'__'}。顧客的主要需求為${t.customerNeed||'__'}，本次RM爭取業務為${bizStr}，RM將${followStr}。`;
                 const extraHtml = draft.contentList.filter(i=>i.trim()!=='').map((i,idx)=>`<div style="margin-bottom:3px;">${idx+2}. ${i}</div>`).join('');
                 const cHtml = `<div style="margin-bottom:5px;">${tmplSentence}</div>${extraHtml}`;
                 const tHtml = draft.todoList.filter(i=>i.trim()!=='').map((i,idx)=>`<div style="margin-bottom:3px;">${idx+1}. ${i}</div>`).join('');
@@ -1468,7 +1480,7 @@
             const id  = now.getTime();
             const base = { id, type, visitDate: now.toISOString().split('T')[0], timestamp: id };
             if (type === 'report') {
-                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:[], followUp:'', hqLeader:false, customerStaff:'', contentList:[''], todoList:[''], bankStaff:'', tmpl:{ buyer:'', buyerTerms:'', supplier:'', supplierTerms:'', revenue:'', grossMargin:'', headcount:'' } };
+                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:[], followUp:'', hqLeader:false, customerStaff:'', contentList:[''], todoList:[''], bankStaff:'', tmpl:{ group:'', buyer:'', buyerTerms:'', supplier:'', supplierTerms:'', revenue:'', grossMargin:'', headcount:'', customerNeed:'' } };
             } else if (type === 'meeting') {
                 draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, branch:'', meetingName:'主管会议', chairman:'', recorder:'', city:'', attendeeText:'', discussions:{}, todoQuadrants:{ urgentImportant:'', importantNotUrgent:'', urgentNotImportant:'', notUrgentNotImportant:'' }, dailySections:[{dept:'',content:''}] };
             } else if (type === 'site') {
@@ -1710,7 +1722,8 @@
                 fileName = `${draft.rmGroup||'RM'}-CallReport-${draft.clientName}-${datePure}.doc`;
                 const tw = draft.tmpl || {};
                 const wBiz = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '-';
-                const wTmpl = `<p style="margin:0 0 3pt;">1. 該公司，主要(客戶)買方是${tw.buyer||'__'}，收款條件是${tw.buyerTerms||'__'}。主要供應商是${tw.supplier||'__'}，付款條件是${tw.supplierTerms||'__'}，年營收約人民幣${tw.revenue||'__'}，毛利約${tw.grossMargin||'__'}，員工人數約${tw.headcount||'__'}，本次爭取業務為${wBiz}。</p>`;
+                const wFollow = draft.followUp || '-';
+                const wTmpl = `<p style="margin:0 0 3pt;">1. 該公司屬於${tw.group||'__'}集團，主要(客戶)買方是${tw.buyer||'__'}，收款條件是${tw.buyerTerms||'__'}。主要供應商是${tw.supplier||'__'}，付款條件是${tw.supplierTerms||'__'}。年營收約人民幣${tw.revenue||'__'}，毛利約${tw.grossMargin||'__'}，員工人數約${tw.headcount||'__'}。顧客的主要需求為${tw.customerNeed||'__'}，本次RM爭取業務為${wBiz}，RM將${wFollow}。</p>`;
                 const wExtra = draft.contentList.filter(i=>i.trim()!=='').map((i,idx)=>`<p style="margin:0 0 3pt;">${idx+2}. ${i}</p>`).join('');
                 const cHtml = wTmpl + wExtra;
                 const tHtml = draft.todoList.filter(i=>i.trim()!=='').map((i,idx)=>`<p style="margin:0 0 3pt;">${idx+1}. ${i}</p>`).join('');
