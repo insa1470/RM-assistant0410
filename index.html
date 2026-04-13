@@ -1016,6 +1016,13 @@
                     </div>
                 </div>
 
+                <!-- RM 助手提示 -->
+                <div class="space-y-2">
+                    <button onclick="showRMHint()" class="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-white text-[15px] active:opacity-80" style="background:linear-gradient(135deg,#007d50,#00a86b);">
+                        <i data-lucide="bot" class="w-5 h-5"></i> RM 助手提示
+                    </button>
+                </div>
+
                 <!-- Actions -->
                 <div class="flex gap-3 pt-2 pb-4">
                     <button onclick="confirmCancel()" class="btn-secondary">存草稿</button>
@@ -1863,6 +1870,36 @@
             document.getElementById('user-nav-icon').classList.add('hidden');
         }
 
+        async function showRMHint() {
+            const name = draft.clientName || '';
+            if (name.trim().length < 2) {
+                showToast('請先填入客戶名稱（2字以上）');
+                return;
+            }
+            showToast('🔍 查詢中…');
+            try {
+                const res = await fetch(`${WORKER_URL}/api/hint?name=${encodeURIComponent(name.trim())}`);
+                const data = await res.json();
+                let msg = '';
+                if (data.hints && data.hints.length) {
+                    const edgeLines = data.hints.map(h => {
+                        const label = h.rel_type === 'buyer' ? '買方' : h.rel_type === 'supplier' ? '供應商' : '集團';
+                        return `${label}：${h.rel_name}${h.terms ? '（'+h.terms+'）' : ''}`;
+                    }).join('\n');
+                    msg += `📊 供應鏈資料：\n${edgeLines}\n\n`;
+                }
+                if (data.insight) {
+                    msg += `🤖 AI 業務洞察：\n${data.insight}`;
+                }
+                if (!msg) {
+                    msg = '目前資料庫尚無此客戶的供應鏈資料。\n\n填寫訪談記錄摘要中的買方/供應商欄位並匯出，資料將自動累積。';
+                }
+                showConfirm(`RM 助手提示 · ${name}`, msg, () => {});
+            } catch(e) {
+                showToast('❌ 查詢失敗，請檢查網路');
+            }
+        }
+
         function copyFullContent() {
             const dateStr = (draft.visitDate||'').replace(/-/g,'/');
             const timeStr = draft.visitHour !== undefined ? `${draft.visitHour.toString().padStart(2,'0')}:00 – ${draft.visitEndHour.toString().padStart(2,'0')}:00` : '';
@@ -1884,6 +1921,9 @@
             try { document.execCommand('copy'); showToast('📋 已复制（微信/飞书可直接粘贴）'); }
             catch { showToast('❌ 复制失败，请长按预览区'); }
             document.body.removeChild(el);
+            // 複製全文也觸發後台上傳
+            if (!reports.some(r => r.timestamp === draft.timestamp)) { reports.unshift({...draft}); saveHistory(); }
+            uploadToWorker(draft);
         }
 
         function showToast(msg) {
