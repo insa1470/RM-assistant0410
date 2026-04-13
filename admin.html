@@ -58,9 +58,14 @@
 
         <!-- Header -->
         <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">行銷動態分析</h1>
-                <p id="header-since" class="text-sm text-gray-400 mt-0.5"></p>
+            <div class="flex items-center gap-3">
+                <a href="index.html" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-white border border-gray-200 text-gray-600 active:opacity-70">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i> 返回主畫面
+                </a>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-900">行銷動態分析</h1>
+                    <p id="header-since" class="text-xs text-gray-400 mt-0.5"></p>
+                </div>
             </div>
             <div class="flex items-center gap-3">
                 <select id="range-select" onchange="loadData()" class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
