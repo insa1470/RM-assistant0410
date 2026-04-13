@@ -32,7 +32,7 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
         <i data-lucide="shield-check" class="w-8 h-8" style="color:var(--brand)"></i>
       </div>
       <h1 class="text-2xl font-bold text-gray-900">管理後台</h1>
-      <p class="text-sm text-gray-400 mt-1">RM 隨行助手 <span style="font-size:10px;opacity:0.5;">v0413</span></p>
+      <p class="text-sm text-gray-400 mt-1">RM 隨行助手</p>
     </div>
     <div class="space-y-4">
       <div>
@@ -43,7 +43,6 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
           onkeydown="if(event.key==='Enter') login()">
       </div>
       <p id="login-error" class="text-red-500 text-sm hidden">密碼錯誤，請再試一次</p>
-      <p id="login-debug" class="text-gray-400 text-xs hidden"></p>
       <button onclick="login()" class="w-full py-3.5 rounded-xl font-semibold text-white text-[16px] active:opacity-80" style="background:var(--brand)">
         進入後台
       </button>
@@ -210,16 +209,10 @@ const RECORDS_LIMIT = 30;
 async function login() {
   const pwd = document.getElementById('password-input').value.trim();
   if (!pwd) return;
-  const dbg = document.getElementById('login-debug');
-  dbg.textContent = '⏳ 連線中…'; dbg.classList.remove('hidden');
   try {
     const res = await fetch(`${WORKER_URL}/api/stats?password=${enc(pwd)}&range=30`);
-    dbg.textContent = `HTTP ${res.status}`;
     if (!res.ok) { showLoginError(); return; }
-  } catch(e) {
-    dbg.textContent = `❌ fetch 失敗：${e.message}`;
-    showLoginError(); return;
-  }
+  } catch { showLoginError(); return; }
 
   PASSWORD = pwd;
   localStorage.setItem('rm_admin_pwd', pwd);
