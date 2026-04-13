@@ -815,7 +815,7 @@
                         <div class="ios-row-split">
                             <div class="ios-row-half" style="flex:1.6;">
                                 <span class="ios-row-label">客户名称</span>
-                                <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value)" placeholder="客户全称">
+                                <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value);triggerHint(this.value)" placeholder="客户全称">
                             </div>
                             <div class="ios-row-half">
                                 <span class="ios-row-label">RM 组别</span>
@@ -861,6 +861,9 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- AI Hint Card -->
+                <div id="hint-card"></div>
 
                 <!-- Section 2：拜访详情 -->
                 <div class="space-y-2">
@@ -1567,6 +1570,39 @@
             if (!draft.tmpl) draft.tmpl = {};
             draft.tmpl[k] = v;
             saveDraft();
+            if (k === 'buyer' || k === 'supplier') triggerHint(v);
+        }
+
+        let _hintTimer = null;
+        function triggerHint(name) {
+            clearTimeout(_hintTimer);
+            const card = document.getElementById('hint-card');
+            if (!card) return;
+            if (!name || name.trim().length < 2) { card.innerHTML = ''; return; }
+            _hintTimer = setTimeout(() => fetchHint(name.trim()), 700);
+        }
+        async function fetchHint(name) {
+            const card = document.getElementById('hint-card');
+            if (!card) return;
+            card.innerHTML = `<div style="padding:10px 12px;font-size:12px;color:var(--label);">🔍 AI 正在查找 <b>${name}</b> 的相關資訊…</div>`;
+            try {
+                const res = await fetch(`${WORKER_URL}/api/hint?name=${encodeURIComponent(name)}`);
+                if (!res.ok) { card.innerHTML = ''; return; }
+                const data = await res.json();
+                if (!data.hint && (!data.edges || !data.edges.length)) { card.innerHTML = ''; return; }
+                let edgeHtml = '';
+                if (data.edges && data.edges.length) {
+                    edgeHtml = data.edges.map(e => {
+                        const label = e.rel_type === 'buyer' ? '買方' : e.rel_type === 'supplier' ? '供應商' : '集團';
+                        return `<span style="display:inline-block;background:#f0f9f5;border:1px solid #c3e6d8;border-radius:12px;padding:2px 8px;margin:2px;font-size:11px;color:#007d50;">${label}: ${e.rel_name}</span>`;
+                    }).join('');
+                }
+                card.innerHTML = `<div style="margin:6px 0;padding:10px 14px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12.5px;line-height:1.6;">
+                    <div style="font-weight:600;color:var(--brand);margin-bottom:4px;">🤖 AI 業務提示 · ${name}</div>
+                    ${edgeHtml ? `<div style="margin-bottom:6px;">${edgeHtml}</div>` : ''}
+                    ${data.hint ? `<div style="color:#333;">${data.hint}</div>` : ''}
+                </div>`;
+            } catch(e) { card.innerHTML = ''; }
         }
 
         function toggleBusiness(biz, checked) {
@@ -1783,6 +1819,9 @@
                         city:         record.city         || null,
                         branch:       record.branch       || null,
                         is8PlusE:     record.is8PlusE     ? true : false,
+                        tmpl:         record.tmpl         || null,
+                        followUp:     record.followUp     || null,
+                        hqLeader:     record.hqLeader     ? true : false,
                     })
                 });
             } catch (e) {

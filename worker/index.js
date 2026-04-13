@@ -1,15 +1,16 @@
 /**
- * RM 隨行助手 — Cloudflare Worker API v2
+ * RM 隨行助手 — Cloudflare Worker API v3
  *
  * 路由：
- *   POST /api/record          — 上傳紀錄
- *   GET  /api/stats           — 統計資料（管理者）
- *   GET  /api/records         — 明細列表（管理者）
- *   GET  /api/targets         — 取得月度目標設定
- *   POST /api/targets         — 儲存月度目標設定
- *   GET  /api/export          — 匯出 CSV
- *   POST /api/setup           — 初始化資料表
- *   POST /api/migrate         — 資料庫升級（加入新欄位）
+ *   POST /api/record    — 上傳紀錄（含 tmpl 結構化欄位 + company_graph 寫入）
+ *   GET  /api/stats     — 統計資料（管理者）
+ *   GET  /api/records   — 明細列表（管理者）
+ *   GET  /api/targets   — 取得月度目標設定
+ *   POST /api/targets   — 儲存月度目標設定
+ *   GET  /api/export    — 匯出 CSV
+ *   GET  /api/hint      — AI 助手：供應鏈關聯提示（含 Claude 洞察）
+ *   POST /api/setup     — 初始化資料表
+ *   POST /api/migrate   — 資料庫升級
  */
 
 const CORS = {
@@ -32,6 +33,7 @@ export default {
       if (path === '/api/targets' && request.method === 'GET')  return await handleGetTargets(request, env);
       if (path === '/api/targets' && request.method === 'POST') return await handleSetTargets(request, env);
       if (path === '/api/export'  && request.method === 'GET')  return await handleExport(request, env);
+      if (path === '/api/hint'    && request.method === 'GET')  return await handleHint(request, env);
       if (path === '/api/setup'   && request.method === 'POST') return await handleSetup(request, env);
       if (path === '/api/migrate' && request.method === 'POST') return await handleMigrate(request, env);
       return jsonRes({ error: '找不到路由' }, 404);
@@ -49,19 +51,23 @@ async function handleUpload(request, env) {
   const {
     id, userName, type, clientName, meetingName,
     rmGroup, owner, visitDate, visitHour, visitEndHour,
-    purpose, city, branch, is8PlusE
+    purpose, city, branch, is8PlusE,
+    tmpl, followUp, hqLeader
   } = b;
 
   if (!userName || !type) return jsonRes({ error: '缺少必填欄位' }, 400);
+
+  const recordId = id || crypto.randomUUID();
+  const tmplJson = tmpl ? JSON.stringify(tmpl) : null;
 
   await env.DB.prepare(`
     INSERT OR REPLACE INTO records
       (id, user_name, type, client_name, meeting_name, rm_group, owner,
        visit_date, visit_hour, visit_end_hour, purpose, city, branch,
-       is_8_plus_e, created_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+       is_8_plus_e, tmpl_json, follow_up, hq_leader, created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
   `).bind(
-    id || crypto.randomUUID(),
+    recordId,
     userName.trim(), type,
     clientName || null, meetingName || null,
     rmGroup || null, owner || null,
@@ -69,14 +75,106 @@ async function handleUpload(request, env) {
     visitHour  != null ? parseInt(visitHour)    : null,
     visitEndHour != null ? parseInt(visitEndHour) : null,
     purpose || null, city || null, branch || null,
-    is8PlusE ? 1 : 0
+    is8PlusE ? 1 : 0,
+    tmplJson,
+    followUp || null,
+    hqLeader ? 1 : 0
   ).run();
+
+  // ── 寫入 company_graph（供 AI 供應鏈分析用）
+  if (clientName && tmpl) {
+    // 先清除同一 record_id 的舊圖譜（避免重複上傳產生重複邊）
+    await env.DB.prepare(`DELETE FROM company_graph WHERE record_id = ?`).bind(recordId).run();
+
+    const edges = [];
+    if (tmpl.buyer)    edges.push(['buyer',    tmpl.buyer,    tmpl.buyerTerms    || null]);
+    if (tmpl.supplier) edges.push(['supplier', tmpl.supplier, tmpl.supplierTerms || null]);
+    if (tmpl.group)    edges.push(['group',    tmpl.group,    null]);
+
+    for (const [relType, relName, terms] of edges) {
+      await env.DB.prepare(`
+        INSERT INTO company_graph (record_id, focal_co, rel_type, rel_name, terms, customer_need, visit_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(recordId, clientName, relType, relName, terms,
+              tmpl.customerNeed || null, visitDate || null).run();
+    }
+  }
 
   return jsonRes({ success: true });
 }
 
 /* ──────────────────────────────────────────
-   GET /api/stats?password=&range=30&sleep=30
+   GET /api/hint?name=台積電
+   → 搜尋供應鏈關聯 + 呼叫 Claude 生成洞察
+────────────────────────────────────────── */
+async function handleHint(request, env) {
+  const url  = new URL(request.url);
+  const name = (url.searchParams.get('name') || '').trim();
+  if (name.length < 2) return jsonRes({ hints: [], insight: null });
+
+  const pat = `%${name}%`;
+
+  // 搜尋 company_graph
+  const graphRes = await env.DB.prepare(`
+    SELECT focal_co, rel_type, rel_name, terms, customer_need, visit_date
+    FROM company_graph
+    WHERE rel_name LIKE ? OR focal_co LIKE ?
+    ORDER BY visit_date DESC
+    LIMIT 20
+  `).bind(pat, pat).all();
+
+  const raw = graphRes.results || [];
+  if (!raw.length) return jsonRes({ hints: [], insight: null });
+
+  // 去重（同一組關係只留最新一筆）
+  const seen = new Set();
+  const hints = raw.filter(h => {
+    const key = `${h.rel_type}|${h.focal_co}|${h.rel_name}`;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  }).slice(0, 8);
+
+  // ── 組成 Claude prompt
+  const lines = hints.map(h => {
+    if (h.rel_type === 'buyer')
+      return `・「${h.focal_co}」的主要買方為「${h.rel_name}」，收款條件：${h.terms || '未記錄'}${h.customer_need ? `，顧客需求：${h.customer_need}` : ''}`;
+    if (h.rel_type === 'supplier')
+      return `・「${h.focal_co}」的主要供應商為「${h.rel_name}」，付款條件：${h.terms || '未記錄'}`;
+    if (h.rel_type === 'group')
+      return `・「${h.focal_co}」屬於「${h.rel_name}」集團`;
+    return '';
+  }).filter(Boolean).join('\n');
+
+  const prompt = `你是玉山銀行企業金融部的RM業務助手。\n以下是行內資料庫中與「${name}」相關的供應鏈紀錄：\n\n${lines}\n\n請用繁體中文，在150字以內提供業務洞察，聚焦於：\n1. 此公司在供應鏈中的角色與位置\n2. 潛在的跨客戶金融商機（如金流串聯、貿融、TMU、跨境轉介）\n3. 建議的業務切入角度\n\n請直接輸出洞察內容，不需標題或編號。`;
+
+  let insight = null;
+  if (env.CLAUDE_API_KEY) {
+    try {
+      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': env.CLAUDE_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5',
+          max_tokens: 250,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const aiData = await aiRes.json();
+      insight = aiData.content?.[0]?.text || null;
+    } catch (e) {
+      insight = null; // 靜默失敗，仍回傳關聯資料
+    }
+  }
+
+  return jsonRes({ hints, insight });
+}
+
+/* ──────────────────────────────────────────
+   GET /api/stats
 ────────────────────────────────────────── */
 async function handleStats(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
@@ -87,7 +185,6 @@ async function handleStats(request, env) {
   const since = daysAgo(days);
   const prev  = daysAgo(days * 2);
 
-  // ── 總覽
   const totals = await env.DB.prepare(`
     SELECT COUNT(*) as total,
            COUNT(DISTINCT user_name) as users,
@@ -96,7 +193,6 @@ async function handleStats(request, env) {
     FROM records WHERE visit_date >= ?
   `).bind(since).first();
 
-  // ── 每人本期拜訪數
   const perUser = await env.DB.prepare(`
     SELECT user_name, COUNT(*) as count,
            SUM(is_8_plus_e) as e8_count,
@@ -105,7 +201,6 @@ async function handleStats(request, env) {
     GROUP BY user_name ORDER BY count DESC
   `).bind(since).all();
 
-  // ── 每人上期拜訪數（用於計算動能）
   const prevPeriod = await env.DB.prepare(`
     SELECT user_name, COUNT(*) as count
     FROM records WHERE visit_date >= ? AND visit_date < ?
@@ -113,26 +208,22 @@ async function handleStats(request, env) {
   `).bind(prev, since).all();
   const prevMap = Object.fromEntries((prevPeriod.results || []).map(r => [r.user_name, r.count]));
 
-  // ── 每日趨勢
   const dailyTrend = await env.DB.prepare(`
     SELECT visit_date, COUNT(*) as count
     FROM records WHERE visit_date >= ?
     GROUP BY visit_date ORDER BY visit_date ASC
   `).bind(since).all();
 
-  // ── 類型分佈
   const typeBreakdown = await env.DB.prepare(`
     SELECT type, COUNT(*) as count
     FROM records WHERE visit_date >= ? GROUP BY type
   `).bind(since).all();
 
-  // ── 拜訪目的
   const purposeBreakdown = await env.DB.prepare(`
     SELECT purpose, COUNT(*) as count
     FROM records WHERE visit_date >= ? AND purpose IS NOT NULL GROUP BY purpose
   `).bind(since).all();
 
-  // ── 沉睡客戶（超過 N 天沒被拜訪的客戶）
   const sleepingClients = await env.DB.prepare(`
     SELECT client_name,
            MAX(visit_date) as last_visit,
@@ -146,13 +237,11 @@ async function handleStats(request, env) {
     LIMIT 20
   `).bind(sleep).all();
 
-  // ── 最後拜訪時間（各人）
   const lastVisit = await env.DB.prepare(`
     SELECT user_name, MAX(visit_date) as last_date, COUNT(*) as total_all
     FROM records GROUP BY user_name ORDER BY last_date DESC
   `).all();
 
-  // ── 計算管理雷達（加入動能、8+E比率、平均值）
   const users = perUser.results || [];
   const avg   = users.length > 0 ? users.reduce((s, u) => s + u.count, 0) / users.length : 0;
   const radar = users.map(u => ({
@@ -169,8 +258,7 @@ async function handleStats(request, env) {
 
   return jsonRes({
     range: days, since, sleep,
-    totals,
-    radar,
+    totals, radar,
     avg_visits: Math.round(avg * 10) / 10,
     dailyTrend:       dailyTrend.results,
     typeBreakdown:    typeBreakdown.results,
@@ -181,7 +269,7 @@ async function handleStats(request, env) {
 }
 
 /* ──────────────────────────────────────────
-   GET /api/records?password=&user=&limit=50&offset=0
+   GET /api/records
 ────────────────────────────────────────── */
 async function handleRecords(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
@@ -212,7 +300,7 @@ async function handleGetTargets(request, env) {
 }
 
 /* ──────────────────────────────────────────
-   POST /api/targets  body: { monthly_visits, sleep_days }
+   POST /api/targets
 ────────────────────────────────────────── */
 async function handleSetTargets(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
@@ -225,7 +313,7 @@ async function handleSetTargets(request, env) {
 }
 
 /* ──────────────────────────────────────────
-   GET /api/export?password=&range=30  → CSV
+   GET /api/export → CSV
 ────────────────────────────────────────── */
 async function handleExport(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
@@ -235,14 +323,14 @@ async function handleExport(request, env) {
 
   const result = await env.DB.prepare(`
     SELECT user_name, type, client_name, meeting_name, rm_group,
-           visit_date, purpose, city, is_8_plus_e, created_at
+           visit_date, purpose, city, is_8_plus_e, follow_up, hq_leader, created_at
     FROM records WHERE visit_date >= ?
     ORDER BY visit_date DESC
   `).bind(since).all();
 
-  const rows  = result.results || [];
-  const TYPE  = { report:'訪談報告', meeting:'會議記錄', site:'現場記錄' };
-  const header = '姓名,類型,客戶/會議,RM組別,拜訪日期,目的,地點,8+E,建立時間';
+  const rows   = result.results || [];
+  const TYPE   = { report:'訪談報告', meeting:'會議記錄', site:'現場記錄' };
+  const header = '姓名,類型,客戶/會議,RM組別,拜訪日期,目的,地點,8+E,下次跟進,總行領導,建立時間';
   const lines  = rows.map(r => [
     r.user_name,
     TYPE[r.type] || r.type,
@@ -252,6 +340,8 @@ async function handleExport(request, env) {
     r.purpose || '',
     r.city || '',
     r.is_8_plus_e ? '是' : '否',
+    r.follow_up || '',
+    r.hq_leader ? '是' : '否',
     (r.created_at || '').slice(0, 16),
   ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
 
@@ -266,7 +356,7 @@ async function handleExport(request, env) {
 }
 
 /* ──────────────────────────────────────────
-   POST /api/setup  — 初始化（第一次部署）
+   POST /api/setup — 初始化（第一次部署）
 ────────────────────────────────────────── */
 async function handleSetup(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
@@ -286,6 +376,9 @@ async function handleSetup(request, env) {
       city           TEXT,
       branch         TEXT,
       is_8_plus_e    INTEGER DEFAULT 0,
+      tmpl_json      TEXT,
+      follow_up      TEXT,
+      hq_leader      INTEGER DEFAULT 0,
       created_at     TEXT DEFAULT (datetime('now'))
     )
   `).run();
@@ -297,7 +390,22 @@ async function handleSetup(request, env) {
       updated_at     TEXT DEFAULT (datetime('now'))
     )
   `).run();
-  return jsonRes({ success: true, message: '資料表建立完成' });
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS company_graph (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      record_id     TEXT NOT NULL,
+      focal_co      TEXT NOT NULL,
+      rel_type      TEXT NOT NULL,
+      rel_name      TEXT NOT NULL,
+      terms         TEXT,
+      customer_need TEXT,
+      visit_date    TEXT,
+      created_at    TEXT DEFAULT (datetime('now'))
+    )
+  `).run();
+  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_graph_rel  ON company_graph(rel_name)`).run();
+  await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_graph_focal ON company_graph(focal_co)`).run();
+  return jsonRes({ success: true, message: '資料表建立完成（含 company_graph）' });
 }
 
 /* ──────────────────────────────────────────
@@ -307,6 +415,7 @@ async function handleMigrate(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
   const results = [];
   const ops = [
+    // v1 → v2
     `ALTER TABLE records ADD COLUMN is_8_plus_e INTEGER DEFAULT 0`,
     `CREATE TABLE IF NOT EXISTS targets (
        id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -314,10 +423,31 @@ async function handleMigrate(request, env) {
        sleep_days INTEGER DEFAULT 30,
        updated_at TEXT DEFAULT (datetime('now'))
      )`,
+    // v2 → v3（tmpl + followUp + hqLeader + company_graph）
+    `ALTER TABLE records ADD COLUMN tmpl_json TEXT`,
+    `ALTER TABLE records ADD COLUMN follow_up TEXT`,
+    `ALTER TABLE records ADD COLUMN hq_leader INTEGER DEFAULT 0`,
+    `CREATE TABLE IF NOT EXISTS company_graph (
+       id            INTEGER PRIMARY KEY AUTOINCREMENT,
+       record_id     TEXT NOT NULL,
+       focal_co      TEXT NOT NULL,
+       rel_type      TEXT NOT NULL,
+       rel_name      TEXT NOT NULL,
+       terms         TEXT,
+       customer_need TEXT,
+       visit_date    TEXT,
+       created_at    TEXT DEFAULT (datetime('now'))
+     )`,
+    `CREATE INDEX IF NOT EXISTS idx_graph_rel   ON company_graph(rel_name)`,
+    `CREATE INDEX IF NOT EXISTS idx_graph_focal ON company_graph(focal_co)`,
   ];
   for (const sql of ops) {
-    try { await env.DB.prepare(sql).run(); results.push({ sql: sql.slice(0,40), ok: true }); }
-    catch(e) { results.push({ sql: sql.slice(0,40), ok: false, msg: e.message }); }
+    try {
+      await env.DB.prepare(sql).run();
+      results.push({ sql: sql.slice(0, 50), ok: true });
+    } catch(e) {
+      results.push({ sql: sql.slice(0, 50), ok: false, msg: e.message });
+    }
   }
   return jsonRes({ success: true, results });
 }
