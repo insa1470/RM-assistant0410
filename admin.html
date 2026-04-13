@@ -43,6 +43,7 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
           onkeydown="if(event.key==='Enter') login()">
       </div>
       <p id="login-error" class="text-red-500 text-sm hidden">密碼錯誤，請再試一次</p>
+      <p id="login-debug" class="text-gray-400 text-xs hidden"></p>
       <button onclick="login()" class="w-full py-3.5 rounded-xl font-semibold text-white text-[16px] active:opacity-80" style="background:var(--brand)">
         進入後台
       </button>
@@ -209,11 +210,16 @@ const RECORDS_LIMIT = 30;
 async function login() {
   const pwd = document.getElementById('password-input').value.trim();
   if (!pwd) return;
-  // ── 只對驗證請求做錯誤捕捉，避免 loadData() 的例外誤觸密碼錯誤提示
+  const dbg = document.getElementById('login-debug');
+  dbg.textContent = '⏳ 連線中…'; dbg.classList.remove('hidden');
   try {
     const res = await fetch(`${WORKER_URL}/api/stats?password=${enc(pwd)}&range=30`);
+    dbg.textContent = `HTTP ${res.status}`;
     if (!res.ok) { showLoginError(); return; }
-  } catch { showLoginError(); return; }
+  } catch(e) {
+    dbg.textContent = `❌ fetch 失敗：${e.message}`;
+    showLoginError(); return;
+  }
 
   PASSWORD = pwd;
   localStorage.setItem('rm_admin_pwd', pwd);
