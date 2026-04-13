@@ -939,10 +939,43 @@
                 <div class="space-y-2">
                     <p class="form-section-label">访谈记录摘要</p>
                     <div class="ios-group">
+
+                        <!-- 第 1 點：結構化填空 -->
+                        <div style="padding:14px 16px;border-bottom:0.5px solid var(--separator);">
+                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+                                <span style="font-size:15px;font-weight:600;color:var(--label-secondary);">1.</span>
+                                <span style="font-size:12px;color:var(--ios-gray);background:var(--ios-gray6);padding:2px 8px;border-radius:99px;">基本财务摘要</span>
+                            </div>
+                            <div style="font-size:14px;line-height:2.2;color:var(--label);">
+                                該公司，主要(客戶)買方是
+                                <input oninput="updateTmpl('buyer',this.value)" value="${(draft.tmpl||{}).buyer||''}" placeholder="買方名稱" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:90px;text-align:center;padding:0 2px;color:var(--label);">
+                                ，收款條件是
+                                <input oninput="updateTmpl('buyerTerms',this.value)" value="${(draft.tmpl||{}).buyerTerms||''}" placeholder="如 T/T 30天" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:90px;text-align:center;padding:0 2px;color:var(--label);">
+                                。<br>
+                                主要供應商是
+                                <input oninput="updateTmpl('supplier',this.value)" value="${(draft.tmpl||{}).supplier||''}" placeholder="供應商名稱" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:90px;text-align:center;padding:0 2px;color:var(--label);">
+                                ，付款條件是
+                                <input oninput="updateTmpl('supplierTerms',this.value)" value="${(draft.tmpl||{}).supplierTerms||''}" placeholder="如月結60天" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:90px;text-align:center;padding:0 2px;color:var(--label);">
+                                。<br>
+                                年營收約人民幣
+                                <input oninput="updateTmpl('revenue',this.value)" value="${(draft.tmpl||{}).revenue||''}" placeholder="如 5,000萬" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:80px;text-align:center;padding:0 2px;color:var(--label);">
+                                ，毛利約
+                                <input oninput="updateTmpl('grossMargin',this.value)" value="${(draft.tmpl||{}).grossMargin||''}" placeholder="如 15%" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:60px;text-align:center;padding:0 2px;color:var(--label);">
+                                ，員工人數約
+                                <input oninput="updateTmpl('headcount',this.value)" value="${(draft.tmpl||{}).headcount||''}" placeholder="如 200人" style="display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;width:65px;text-align:center;padding:0 2px;color:var(--label);">
+                                ，<br>本次爭取業務為
+                                <span style="display:inline-block;background:rgba(0,125,80,0.08);border:1px solid rgba(0,125,80,0.3);border-radius:6px;padding:1px 8px;font-size:13px;font-weight:600;color:var(--brand);vertical-align:middle;">
+                                    ${Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '（未勾選）'}
+                                </span>
+                                。
+                            </div>
+                        </div>
+
+                        <!-- 第 2 點起：自由輸入 -->
                         ${draft.contentList.map((item,index)=>`
                         <div class="ios-row items-start py-3">
-                            <span class="text-[15px] font-medium text-[color:var(--label-secondary)] mt-0.5 w-5 flex-shrink-0">${index+1}.</span>
-                            <textarea oninput="updateListItem('contentList',${index},this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[60px] leading-relaxed" placeholder="访谈要点...">${item}</textarea>
+                            <span class="text-[15px] font-medium text-[color:var(--label-secondary)] mt-0.5 w-5 flex-shrink-0">${index+2}.</span>
+                            <textarea oninput="updateListItem('contentList',${index},this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[60px] leading-relaxed" placeholder="其他访谈要点...">${item}</textarea>
                             ${index>0?`<button onclick="removeListItem('contentList',${index})" class="text-[color:var(--ios-red)] ml-2 mt-1 flex-shrink-0"><i data-lucide="minus-circle" class="w-5 h-5"></i></button>`:'<div class="w-7"></div>'}
                         </div>`).join('')}
                         <button onclick="addListItem('contentList')" class="add-item-btn">
@@ -1250,7 +1283,11 @@
                     <div style="font-weight:bold;margin:12px 0 5px;">四、综合评述</div><div style="padding:8px;border:0.5pt solid #eee;min-height:50px;line-height:1.5;">${(draft.summary||'无内容').replace(/\n/g,'<br>')}</div>
                 </div>`;
             } else if (type === 'report') {
-                const cHtml = draft.contentList.filter(i=>i.trim()!=='').map((i,idx)=>`<div style="margin-bottom:3px;">${idx+1}. ${i}</div>`).join('');
+                const t = draft.tmpl || {};
+                const bizStr = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '-';
+                const tmplSentence = `1. 該公司，主要(客戶)買方是${t.buyer||'__'}，收款條件是${t.buyerTerms||'__'}。主要供應商是${t.supplier||'__'}，付款條件是${t.supplierTerms||'__'}，年營收約人民幣${t.revenue||'__'}，毛利約${t.grossMargin||'__'}，員工人數約${t.headcount||'__'}，本次爭取業務為${bizStr}。`;
+                const extraHtml = draft.contentList.filter(i=>i.trim()!=='').map((i,idx)=>`<div style="margin-bottom:3px;">${idx+2}. ${i}</div>`).join('');
+                const cHtml = `<div style="margin-bottom:5px;">${tmplSentence}</div>${extraHtml}`;
                 const tHtml = draft.todoList.filter(i=>i.trim()!=='').map((i,idx)=>`<div style="margin-bottom:3px;">${idx+1}. ${i}</div>`).join('');
                 previewHtml = `<div id="word-content" style="font-family:'SimSun',serif;font-size:12px;line-height:1.3;color:black;">
                     <h2 style="text-align:center;color:#007d50;border-bottom:2.5px solid #007d50;padding-bottom:8px;font-weight:bold;font-size:15px;margin-bottom:12px;">玉山銀行(中國)對公業務出差報告</h2>
@@ -1431,7 +1468,7 @@
             const id  = now.getTime();
             const base = { id, type, visitDate: now.toISOString().split('T')[0], timestamp: id };
             if (type === 'report') {
-                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:[], followUp:'', hqLeader:false, customerStaff:'', contentList:[''], todoList:[''], bankStaff:'' };
+                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:[], followUp:'', hqLeader:false, customerStaff:'', contentList:[''], todoList:[''], bankStaff:'', tmpl:{ buyer:'', buyerTerms:'', supplier:'', supplierTerms:'', revenue:'', grossMargin:'', headcount:'' } };
             } else if (type === 'meeting') {
                 draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, branch:'', meetingName:'主管会议', chairman:'', recorder:'', city:'', attendeeText:'', discussions:{}, todoQuadrants:{ urgentImportant:'', importantNotUrgent:'', urgentNotImportant:'', notUrgentNotImportant:'' }, dailySections:[{dept:'',content:''}] };
             } else if (type === 'site') {
@@ -1513,6 +1550,12 @@
         function restoreDraft() { if (drafts.length > 0) loadDraft(drafts[0].id); }
         function saveHistory()  { localStorage.setItem(STORAGE_KEY, JSON.stringify(reports)); }
         function updateDraft(k, v) { draft[k] = v; saveDraft(); }
+
+        function updateTmpl(k, v) {
+            if (!draft.tmpl) draft.tmpl = {};
+            draft.tmpl[k] = v;
+            saveDraft();
+        }
 
         function toggleBusiness(biz, checked) {
             if (!Array.isArray(draft.targetBusiness)) {
@@ -1665,7 +1708,11 @@
                 ${meetingBody}</body></html>`;
             } else {
                 fileName = `${draft.rmGroup||'RM'}-CallReport-${draft.clientName}-${datePure}.doc`;
-                const cHtml = draft.contentList.filter(i=>i.trim()!=='').map((i,idx)=>`<p style="margin:0 0 3pt;">${idx+1}. ${i}</p>`).join('');
+                const tw = draft.tmpl || {};
+                const wBiz = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '-';
+                const wTmpl = `<p style="margin:0 0 3pt;">1. 該公司，主要(客戶)買方是${tw.buyer||'__'}，收款條件是${tw.buyerTerms||'__'}。主要供應商是${tw.supplier||'__'}，付款條件是${tw.supplierTerms||'__'}，年營收約人民幣${tw.revenue||'__'}，毛利約${tw.grossMargin||'__'}，員工人數約${tw.headcount||'__'}，本次爭取業務為${wBiz}。</p>`;
+                const wExtra = draft.contentList.filter(i=>i.trim()!=='').map((i,idx)=>`<p style="margin:0 0 3pt;">${idx+2}. ${i}</p>`).join('');
+                const cHtml = wTmpl + wExtra;
                 const tHtml = draft.todoList.filter(i=>i.trim()!=='').map((i,idx)=>`<p style="margin:0 0 3pt;">${idx+1}. ${i}</p>`).join('');
                 html = `<html><head><meta charset="utf-8"><style>table{border-collapse:collapse;width:100%;table-layout:fixed;}td{border:0.5pt solid windowtext;padding:3pt 6pt;font-family:SimSun;font-size:10pt;line-height:1.2;word-break:break-all;}.lb{background:#F2F2F2;font-weight:bold;width:18%;}.ca{padding:9pt;vertical-align:top;line-height:1.5;font-size:10.5pt;}</style></head>
                 <body><h2 style="text-align:center;color:#007d50;font-family:SimHei;font-size:15pt;margin-bottom:9pt;">玉山银行(中国) 对公业务出差报告</h2>
