@@ -1305,9 +1305,9 @@
                 </div>`;
             } else if (type === 'report') {
                 const t = draft.tmpl || {};
-                const bizStr = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '-';
-                const followStr = draft.followUp || '-';
-                const tmplSentence = `1. 該公司屬於${t.group||'__'}集團，主要(客戶)買方是${t.buyer||'__'}，收款條件是${t.buyerTerms||'__'}。主要供應商是${t.supplier||'__'}，付款條件是${t.supplierTerms||'__'}。年營收約人民幣${t.revenue||'__'}，毛利約${t.grossMargin||'__'}，員工人數約${t.headcount||'__'}。顧客的主要需求為${t.customerNeed||'__'}，本次RM爭取業務為${bizStr}，RM將${followStr}。`;
+                const bizStr = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '';
+                const followStr = draft.followUp || '';
+                const tmplSentence = buildTmplText(t, bizStr, followStr);
                 const extraHtml = draft.contentList.filter(i=>i.trim()!=='').map((i,idx)=>`<div style="margin-bottom:3px;">${idx+2}. ${i}</div>`).join('');
                 const cHtml = `<div style="margin-bottom:5px;">${tmplSentence}</div>${extraHtml}`;
                 const tHtml = draft.todoList.filter(i=>i.trim()!=='').map((i,idx)=>`<div style="margin-bottom:3px;">${idx+1}. ${i}</div>`).join('');
@@ -1573,6 +1573,33 @@
         function saveHistory()  { localStorage.setItem(STORAGE_KEY, JSON.stringify(reports)); }
         function updateDraft(k, v) { draft[k] = v; saveDraft(); }
 
+        function buildTmplText(t, bizStr, followStr) {
+            const clauses = [];
+            if (t.group)    clauses.push(`該公司屬於${t.group}集團`);
+            if (t.buyer) {
+                let c = `主要(客戶)買方是${t.buyer}`;
+                if (t.buyerTerms) c += `，收款條件是${t.buyerTerms}`;
+                clauses.push(c);
+            }
+            if (t.supplier) {
+                let c = `主要供應商是${t.supplier}`;
+                if (t.supplierTerms) c += `，付款條件是${t.supplierTerms}`;
+                clauses.push(c);
+            }
+            const fin = [];
+            if (t.revenue)     fin.push(`年營收約人民幣${t.revenue}`);
+            if (t.grossMargin) fin.push(`毛利約${t.grossMargin}`);
+            if (t.headcount)   fin.push(`員工人數約${t.headcount}`);
+            if (fin.length)    clauses.push(fin.join('，'));
+            if (t.customerNeed) clauses.push(`顧客的主要需求為${t.customerNeed}`);
+            const hasBiz    = bizStr    && bizStr    !== '-';
+            const hasFollow = followStr && followStr !== '-';
+            if (hasBiz)    clauses.push(`本次RM爭取業務為${bizStr}`);
+            if (hasFollow) clauses.push(`RM將${followStr}`);
+            if (!clauses.length) return '';
+            return '1. ' + clauses.join('。') + '。';
+        }
+
         function updateTmpl(k, v) {
             if (!draft.tmpl) draft.tmpl = {};
             draft.tmpl[k] = v;
@@ -1764,9 +1791,10 @@
             } else {
                 fileName = `${draft.rmGroup||'RM'}-CallReport-${draft.clientName}-${datePure}.doc`;
                 const tw = draft.tmpl || {};
-                const wBiz = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '-';
-                const wFollow = draft.followUp || '-';
-                const wTmpl = `<p style="margin:0 0 3pt;">1. 該公司屬於${tw.group||'__'}集團，主要(客戶)買方是${tw.buyer||'__'}，收款條件是${tw.buyerTerms||'__'}。主要供應商是${tw.supplier||'__'}，付款條件是${tw.supplierTerms||'__'}。年營收約人民幣${tw.revenue||'__'}，毛利約${tw.grossMargin||'__'}，員工人數約${tw.headcount||'__'}。顧客的主要需求為${tw.customerNeed||'__'}，本次RM爭取業務為${wBiz}，RM將${wFollow}。</p>`;
+                const wBiz = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '';
+                const wFollow = draft.followUp || '';
+                const wTmplText = buildTmplText(tw, wBiz, wFollow);
+                const wTmpl = wTmplText ? `<p style="margin:0 0 3pt;">${wTmplText}</p>` : '';
                 const wExtra = draft.contentList.filter(i=>i.trim()!=='').map((i,idx)=>`<p style="margin:0 0 3pt;">${idx+2}. ${i}</p>`).join('');
                 const cHtml = wTmpl + wExtra;
                 const tHtml = draft.todoList.filter(i=>i.trim()!=='').map((i,idx)=>`<p style="margin:0 0 3pt;">${idx+1}. ${i}</p>`).join('');
