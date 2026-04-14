@@ -665,17 +665,20 @@
                 <div class="w-14 h-14 bg-[color:var(--brand-light)] rounded-full flex items-center justify-center mb-3">
                     <i data-lucide="user-circle" class="w-7 h-7 text-[color:var(--brand)]"></i>
                 </div>
-                <h3 class="ios-alert-title">你好，請輸入你的名字</h3>
-                <p class="ios-alert-desc">方便管理者識別紀錄來源，可隨時更改</p>
+                <h3 id="name-modal-title" class="ios-alert-title">你好，請輸入你的名字</h3>
+                <p id="name-modal-desc" class="ios-alert-desc">方便管理者識別紀錄來源，可隨時更改</p>
                 <input id="name-input" type="text" maxlength="20" placeholder="例：王小明"
                     class="w-full mt-3 mb-1 px-4 py-3 rounded-xl bg-[color:var(--fill)] text-[17px] outline-none border border-transparent focus:border-[color:var(--brand)] transition-colors text-center"
-                    oninput="document.getElementById('name-save-btn').disabled=this.value.trim().length===0">
+                    oninput="document.getElementById('name-save-btn').disabled=this.value.trim().length===0"
+                    onkeydown="if(event.key==='Enter'&&!document.getElementById('name-save-btn').disabled)saveUserName()">
             </div>
             <div class="ios-alert-sep"></div>
-            <button id="name-save-btn" disabled onclick="saveUserName()"
-                class="w-full ios-alert-btn text-[color:var(--brand)] font-semibold disabled:opacity-40">
-                確定
-            </button>
+            <div id="name-modal-btns" class="flex">
+                <button id="name-save-btn" disabled onclick="saveUserName()"
+                    class="flex-1 ios-alert-btn text-[color:var(--brand)] font-semibold disabled:opacity-40">
+                    確定
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1971,11 +1974,33 @@
             const modal = document.getElementById('name-modal');
             const input = document.getElementById('name-input');
             const btn   = document.getElementById('name-save-btn');
-            input.value = isEdit ? currentUserName : '';
+            const btns  = document.getElementById('name-modal-btns');
+            const title = document.getElementById('name-modal-title');
+            const desc  = document.getElementById('name-modal-desc');
+            input.value  = isEdit ? currentUserName : '';
             btn.disabled = isEdit ? false : true;
+            // 編輯模式：顯示取消鍵 + 更新標題
+            if (isEdit) {
+                title.textContent = '修改你的名字';
+                desc.textContent  = '更改後所有新紀錄將使用新名字';
+                btns.innerHTML = `
+                    <button onclick="hideNamePrompt()" class="flex-1 ios-alert-btn cancel" style="border-right:0.5px solid var(--separator-opaque)">取消</button>
+                    <button id="name-save-btn" onclick="saveUserName()" class="flex-1 ios-alert-btn text-[color:var(--brand)] font-semibold">確定</button>`;
+            } else {
+                title.textContent = '你好，請輸入你的名字';
+                desc.textContent  = '方便管理者識別紀錄來源，可隨時更改';
+                btns.innerHTML = `<button id="name-save-btn" disabled onclick="saveUserName()" class="flex-1 ios-alert-btn text-[color:var(--brand)] font-semibold disabled:opacity-40">確定</button>`;
+                // 重新綁定 oninput（因為 innerHTML 重建了元素）
+                document.getElementById('name-input').oninput = function() {
+                    document.getElementById('name-save-btn').disabled = this.value.trim().length === 0;
+                };
+            }
             modal.classList.remove('hidden');
-            modal._isEdit = isEdit;
             setTimeout(() => input.focus(), 100);
+        }
+
+        function hideNamePrompt() {
+            document.getElementById('name-modal').classList.add('hidden');
         }
 
         function saveUserName() {
@@ -1985,9 +2010,9 @@
             currentUserName = name;
             localStorage.setItem(USER_NAME_KEY, name);
             document.getElementById('name-modal').classList.add('hidden');
-            switchView('home'); // 刷新首頁顯示名字
-            // 儲存名字後檢查是否為管理者
+            switchView('home');
             checkAdminUser();
+            showToast('✅ 名字已更新');
         }
 
         function checkAdminUser() {
