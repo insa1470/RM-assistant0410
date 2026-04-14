@@ -69,7 +69,8 @@ async function handleUpload(request, env) {
   `).bind(
     recordId,
     userName.trim(), type,
-    clientName || null, meetingName || null,
+    clientName ? normalize(clientName) : null,
+    meetingName ? normalize(meetingName) : null,
     rmGroup || null, owner || null,
     visitDate || null,
     visitHour  != null ? parseInt(visitHour)    : null,
