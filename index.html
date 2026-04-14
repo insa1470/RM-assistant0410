@@ -1275,7 +1275,7 @@
                     <div class="ios-group">
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">客户名称</span>
-                            <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value)" placeholder="客户全称">
+                            <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value);triggerHint(this.value)" placeholder="客户全称">
                         </div>
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">RM 组别</span>
@@ -1705,18 +1705,17 @@
                 const res = await fetch(`${WORKER_URL}/api/hint?name=${encodeURIComponent(name)}`);
                 if (!res.ok) { card.innerHTML = ''; return; }
                 const data = await res.json();
-                if (!data.hint && (!data.edges || !data.edges.length)) { card.innerHTML = ''; return; }
-                let edgeHtml = '';
-                if (data.edges && data.edges.length) {
-                    edgeHtml = data.edges.map(e => {
-                        const label = e.rel_type === 'buyer' ? '買方' : e.rel_type === 'supplier' ? '供應商' : '集團';
-                        return `<span style="display:inline-block;background:#f0f9f5;border:1px solid #c3e6d8;border-radius:12px;padding:2px 8px;margin:2px;font-size:11px;color:#007d50;">${label}: ${e.rel_name}</span>`;
-                    }).join('');
-                }
+                const hints   = data.hints   || [];
+                const insight = data.insight || '';
+                if (!hints.length && !insight) { card.innerHTML = ''; return; }
+                const edgeHtml = hints.map(h => {
+                    const label = h.rel_type === 'buyer' ? '買方' : h.rel_type === 'supplier' ? '供應商' : '集團';
+                    return `<span style="display:inline-block;background:#f0f9f5;border:1px solid #c3e6d8;border-radius:12px;padding:2px 8px;margin:2px;font-size:11px;color:#007d50;">${label}: ${h.rel_name}</span>`;
+                }).join('');
                 card.innerHTML = `<div style="margin:6px 0;padding:10px 14px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12.5px;line-height:1.6;">
-                    <div style="font-weight:600;color:var(--brand);margin-bottom:4px;">🤖 AI 業務提示 · ${name}</div>
+                    <div style="font-weight:600;color:var(--brand);margin-bottom:4px;">🤖 RM 助手提示 · ${name}</div>
                     ${edgeHtml ? `<div style="margin-bottom:6px;">${edgeHtml}</div>` : ''}
-                    ${data.hint ? `<div style="color:#333;">${data.hint}</div>` : ''}
+                    ${insight ? `<div style="color:#333;line-height:1.7;">${insight}</div>` : ''}
                 </div>`;
             } catch(e) { card.innerHTML = ''; }
         }
