@@ -65,6 +65,10 @@
             -webkit-appearance: none;
             appearance: none;
         }
+        .tmpl-input {
+            font-size: 11px !important;
+            -webkit-text-size-adjust: 100%;
+        }
         input[type="checkbox"] {
             -webkit-appearance: checkbox !important;
             appearance: checkbox !important;
@@ -905,15 +909,15 @@
                                 </select>
                             </div>
                         </div>
-                        <!-- ③ 爭取業務：6×1 單行 -->
-                        <div style="padding:10px 16px;border-bottom:0.5px solid var(--separator);">
-                            <div style="font-size:12px;color:var(--ios-gray);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;">爭取業務</div>
-                            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px;">
+                        <!-- ③ 爭取業務：全部同一行 -->
+                        <div style="padding:8px 16px;border-bottom:0.5px solid var(--separator);display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
+                            <span style="font-size:11px;color:var(--label);white-space:nowrap;flex-shrink:0;">爭取業務</span>
+                            <div style="display:flex;gap:5px;flex:1;justify-content:space-between;">
                                 ${[['放款','放款'],['金流存款','金流'],['TMU','TMU'],['跨境轉介','跨境'],['網銀自動化','網銀'],['貿融','貿融']].map(([biz,label])=>{
                                     const checked = Array.isArray(draft.targetBusiness) ? draft.targetBusiness.includes(biz) : (draft.targetBusiness||'').includes(biz);
-                                    return `<label style="display:flex;flex-direction:column;align-items:center;gap:2px;background:${checked?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};border:1.5px solid ${checked?'var(--brand)':'transparent'};border-radius:7px;padding:4px 2px;cursor:pointer;text-align:center;">
-                                        <input type="checkbox" ${checked?'checked':''} onchange="toggleBusiness('${biz}',this.checked)" style="width:11px;height:11px;accent-color:var(--brand);cursor:pointer;">
-                                        <span style="font-size:9px;font-weight:${checked?'600':'400'};color:${checked?'var(--brand)':'var(--label)'};line-height:1.2;white-space:nowrap;">${label}</span>
+                                    return `<label style="display:flex;align-items:center;gap:3px;background:${checked?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};border:1.5px solid ${checked?'var(--brand)':'transparent'};border-radius:6px;padding:3px 6px;cursor:pointer;white-space:nowrap;">
+                                        <input type="checkbox" ${checked?'checked':''} onchange="toggleBusiness('${biz}',this.checked)" style="width:11px;height:11px;accent-color:var(--brand);cursor:pointer;flex-shrink:0;">
+                                        <span style="font-size:10px;font-weight:${checked?'600':'400'};color:${checked?'var(--brand)':'var(--label)'};">${label}</span>
                                     </label>`;
                                 }).join('')}
                             </div>
@@ -951,7 +955,7 @@
                             </div>
                             ${(()=>{
                                 const T = draft.tmpl||{};
-                                const inStyle = `display:inline-block;border:none;border-bottom:1px solid var(--brand);background:transparent;outline:none;font-size:11px;text-align:center;padding:0 2px;color:var(--label);vertical-align:baseline;`;
+                                const inStyle = `display:inline-block;border:none;border-bottom:1px solid var(--brand);background:transparent;outline:none;font-size:11px;text-align:center;padding:0 2px;color:var(--label);vertical-align:baseline;" class="tmpl-input`;
                                 const bizStr = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '（未勾選）';
                                 const followStr = draft.followUp||'（未設定）';
                                 return `<div style="font-size:11px;line-height:2.2;color:var(--label);background:rgba(0,125,80,0.03);border-radius:10px;padding:10px 12px;">
