@@ -991,40 +991,40 @@
                                 const bizStr = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '（未勾選）';
                                 const followStr = draft.followUp||'（未設定）';
                                 return `<div style="display:flex;flex-direction:column;gap:12px;padding:12px;background:rgba(0,125,80,0.03);border-radius:10px;">
-                                  <!-- Row 1: 集團 + 主要買方 -->
+                                  <!-- Row 1: 所屬集團 | 已成立 -->
                                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                                     <div>
                                       <div class="tmpl-field-label">所屬集團</div>
                                       <input class="tmpl-field-input" oninput="updateTmpl('group',this.value)" value="${T.group||''}" placeholder="集團名稱">
                                     </div>
                                     <div>
+                                      <div class="tmpl-field-label">已成立</div>
+                                      <input class="tmpl-field-input" oninput="updateTmpl('founded',this.value)" value="${T.founded||''}" placeholder="如 2005年">
+                                    </div>
+                                  </div>
+                                  <!-- Row 2: 主要買方 | 買方收款條件 -->
+                                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                                    <div>
                                       <div class="tmpl-field-label">主要買方</div>
                                       <input class="tmpl-field-input" oninput="updateTmpl('buyer',this.value)" value="${T.buyer||''}" placeholder="買方名稱">
                                     </div>
-                                  </div>
-                                  <!-- Row 2: 收款條件 + 主要供應商 -->
-                                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                                     <div>
                                       <div class="tmpl-field-label">買方收款條件</div>
                                       <input class="tmpl-field-input" oninput="updateTmpl('buyerTerms',this.value)" value="${T.buyerTerms||''}" placeholder="T/T 30天">
                                     </div>
+                                  </div>
+                                  <!-- Row 3: 主要供應商 | 供應商付款條件 -->
+                                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                                     <div>
                                       <div class="tmpl-field-label">主要供應商</div>
-                                      <input class="tmpl-field-input" oninput="updateTmpl('supplier',this.value)" value="${T.supplier||''}" placeholder="供應商">
+                                      <input class="tmpl-field-input" oninput="updateTmpl('supplier',this.value)" value="${T.supplier||''}" placeholder="供應商名稱">
                                     </div>
-                                  </div>
-                                  <!-- Row 3: 付款條件 + 顧客需求 -->
-                                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                                     <div>
                                       <div class="tmpl-field-label">供應商付款條件</div>
                                       <input class="tmpl-field-input" oninput="updateTmpl('supplierTerms',this.value)" value="${T.supplierTerms||''}" placeholder="月結60天">
                                     </div>
-                                    <div>
-                                      <div class="tmpl-field-label">顧客需求</div>
-                                      <input class="tmpl-field-input" oninput="updateTmpl('customerNeed',this.value)" value="${T.customerNeed||''}" placeholder="如融資需求">
-                                    </div>
                                   </div>
-                                  <!-- Row 4: 年營收 + 毛利 + 員工 -->
+                                  <!-- Row 4: 年營收 | 毛利 | 員工 -->
                                   <div style="display:grid;grid-template-columns:1.4fr 0.8fr 0.9fr;gap:8px;">
                                     <div>
                                       <div class="tmpl-field-label">年營收（人民幣）</div>
@@ -1039,12 +1039,17 @@
                                       <input class="tmpl-field-input" oninput="updateTmpl('headcount',this.value)" value="${T.headcount||''}" placeholder="200人">
                                     </div>
                                   </div>
+                                  <!-- Row 5: 顧客需求（全寬） -->
+                                  <div>
+                                    <div class="tmpl-field-label">顧客需求</div>
+                                    <input class="tmpl-field-input" oninput="updateTmpl('customerNeed',this.value)" value="${T.customerNeed||''}" placeholder="如融資需求、供應鏈金融…">
+                                  </div>
                                   <!-- 爭取業務 + 追蹤 tags -->
-                                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:2px;border-top:0.5px solid rgba(0,125,80,0.12);">
+                                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:4px;border-top:0.5px solid rgba(0,125,80,0.12);">
                                     <span style="font-size:10px;color:var(--label-secondary);">爭取：</span>
                                     <span style="background:rgba(0,125,80,0.08);border:1px solid rgba(0,125,80,0.25);border-radius:5px;padding:1px 7px;font-size:11px;font-weight:600;color:var(--brand);">${bizStr}</span>
                                     <span style="font-size:10px;color:var(--label-secondary);margin-left:4px;">追蹤：</span>
-                                    <span style="background:rgba(255,149,0,0.10);border:1px solid rgba(255,149,0,0.35);border-radius:5px;padding:1px 7px;font-size:11px;font-weight:600;color:var(--ios-orange);">${followStr}</span>
+                                    <span id="tmpl-follow-tag" style="background:rgba(255,149,0,0.10);border:1px solid rgba(255,149,0,0.35);border-radius:5px;padding:1px 7px;font-size:11px;font-weight:600;color:var(--ios-orange);">${followStr}</span>
                                   </div>
                                 </div>`;
                             })()}
@@ -1555,7 +1560,7 @@
             const id  = now.getTime();
             const base = { id, type, visitDate: now.toISOString().split('T')[0], timestamp: id };
             if (type === 'report') {
-                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:[], followUp:'', hqLeader:false, customerStaff:'', contentList:[''], todoList:[''], bankStaff:'', tmpl:{ group:'', buyer:'', buyerTerms:'', supplier:'', supplierTerms:'', revenue:'', grossMargin:'', headcount:'', customerNeed:'' } };
+                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:[], followUp:'', hqLeader:false, customerStaff:'', contentList:[''], todoList:[''], bankStaff:'', tmpl:{ group:'', founded:'', buyer:'', buyerTerms:'', supplier:'', supplierTerms:'', revenue:'', grossMargin:'', headcount:'', customerNeed:'' } };
             } else if (type === 'meeting') {
                 draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, branch:'', meetingName:'主管会议', chairman:'', recorder:'', city:'', attendeeText:'', discussions:{}, todoQuadrants:{ urgentImportant:'', importantNotUrgent:'', urgentNotImportant:'', notUrgentNotImportant:'' }, dailySections:[{dept:'',content:''}] };
             } else if (type === 'site') {
@@ -1636,11 +1641,19 @@
 
         function restoreDraft() { if (drafts.length > 0) loadDraft(drafts[0].id); }
         function saveHistory()  { localStorage.setItem(STORAGE_KEY, JSON.stringify(reports)); }
-        function updateDraft(k, v) { draft[k] = v; saveDraft(); }
+        function updateDraft(k, v) {
+            draft[k] = v;
+            saveDraft();
+            // 即時同步「追蹤狀態」tag（不需整頁重渲染）
+            if (k === 'followUp') {
+                const tag = document.getElementById('tmpl-follow-tag');
+                if (tag) tag.textContent = v || '（未設定）';
+            }
+        }
 
         function buildTmplText(t, bizStr, followStr) {
             const clauses = [];
-            if (t.group)    clauses.push(`該公司屬於${t.group}集團`);
+            if (t.group)    clauses.push(`該公司屬於${t.group}集團${t.founded?'，成立於'+t.founded:''}`);
             if (t.buyer) {
                 let c = `主要(客戶)買方是${t.buyer}`;
                 if (t.buyerTerms) c += `，收款條件是${t.buyerTerms}`;
