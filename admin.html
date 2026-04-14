@@ -197,10 +197,25 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
 
 </div><!-- /dashboard -->
 
+<!-- ── 紀錄詳情 Modal ── -->
+<div id="detail-modal" class="fixed inset-0 z-50 hidden" style="background:rgba(0,0,0,0.45);" onclick="if(event.target===this)hideDetail()">
+  <div style="position:absolute;right:0;top:0;bottom:0;width:min(480px,100%);background:#fff;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.12);">
+    <div style="position:sticky;top:0;background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;z-index:1;">
+      <div>
+        <p id="detail-title" style="font-size:16px;font-weight:700;color:#111;margin:0;"></p>
+        <p id="detail-sub"   style="font-size:12px;color:#9ca3af;margin:4px 0 0;"></p>
+      </div>
+      <button onclick="hideDetail()" style="font-size:22px;color:#9ca3af;background:none;border:none;cursor:pointer;padding:4px 8px;">✕</button>
+    </div>
+    <div id="detail-body" style="padding:16px 20px;font-size:13px;line-height:1.7;color:#374151;"></div>
+  </div>
+</div>
+
 <script>
 const WORKER_URL = 'https://rm-api.deepmystic.net';
 let PASSWORD = '';
 let charts = {};
+let _recordMap = {}; // id → record
 let statsData = null;
 let recordsOffset = 0;
 const RECORDS_LIMIT = 30;
@@ -421,14 +436,15 @@ async function fetchRecords() {
     recordsSeenKeys.add(key);
     return true;
   });
+  rows.forEach(r => { _recordMap[r.id] = r; });
   const html = rows.map(r => `
-    <div class="flex items-center gap-3 px-5 py-3">
+    <div class="flex items-center gap-3 px-5 py-3 cursor-pointer active:bg-gray-50 hover:bg-gray-50 transition-colors" onclick="showDetail('${r.id}')">
       <span class="badge ${TYPE_CLASS[r.type]||'badge-report'} flex-shrink-0">${TYPE_LABEL[r.type]||r.type}</span>
       <div class="flex-1 min-w-0">
         <p class="text-[14px] font-semibold text-gray-800 truncate">${r.client_name||r.meeting_name||'—'}</p>
         <p class="text-[12px] text-gray-400">${r.user_name} · ${r.visit_date||'-'} · ${r.city||r.branch||'-'}${r.is_8_plus_e ? ' · <span style="color:#007d50;font-weight:600">8+E</span>' : ''}</p>
       </div>
-      ${r.purpose ? `<span class="text-[12px] text-gray-400 flex-shrink-0">${r.purpose}</span>` : ''}
+      <span style="color:#d1d5db;font-size:16px;">›</span>
     </div>`).join('');
   document.getElementById('records-body').insertAdjacentHTML('beforeend', html || (recordsOffset===0 ? '<div class="px-5 py-8 text-center text-gray-400 text-sm">此區間無紀錄</div>' : ''));
   recordsOffset += rows.length;
@@ -455,6 +471,74 @@ async function exportCSV() {
 
 /* ── 工具 ── */
 function enc(s) { return encodeURIComponent(s); }
+
+/* ── 紀錄詳情 ── */
+function showDetail(id) {
+  const r = _recordMap[id];
+  if (!r) return;
+  const TYPE_FULL = { report:'访谈报告', meeting:'会议记录', site:'现场记录' };
+  const tmpl = (() => { try { return r.tmpl_json ? JSON.parse(r.tmpl_json) : {}; } catch { return {}; } })();
+
+  document.getElementById('detail-title').textContent = r.client_name || r.meeting_name || '—';
+  document.getElementById('detail-sub').textContent =
+    `${r.user_name} · ${TYPE_FULL[r.type]||r.type} · ${r.visit_date||'-'}`;
+
+  const row = (label, val) => val
+    ? `<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #f3f4f6;">
+         <span style="color:#6b7280;min-width:72px;flex-shrink:0;">${label}</span>
+         <span style="color:#111;font-weight:500;">${val}</span>
+       </div>`
+    : '';
+  const section = (title, content) =>
+    `<div style="margin-top:14px;">
+       <p style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">${title}</p>
+       ${content}
+     </div>`;
+  const block = (val) =>
+    `<div style="background:#f9fafb;border-radius:8px;padding:10px 12px;color:#111;white-space:pre-wrap;line-height:1.7;">${val}</div>`;
+
+  let html = '';
+
+  // 基本資訊
+  html += section('基本信息',
+    row('负责人', r.owner) +
+    row('RM组别', r.rm_group) +
+    row('访谈目的', r.purpose) +
+    row('地点', r.city || r.branch) +
+    row('类型/8+E', r.company_type ? `${r.company_type}${r.is_8_plus_e?'（8+E）':''}` : (r.is_8_plus_e?'8+E':'')) +
+    row('总行领导', r.hq_leader ? '是' : '') +
+    row('参与人员', [r.customer_staff ? '顾客: '+r.customer_staff : '', r.bank_staff ? '我行: '+r.bank_staff : ''].filter(Boolean).join(' / '))
+  );
+
+  // 供应链 / 财务
+  if (tmpl.group || tmpl.buyer || tmpl.supplier || tmpl.revenue) {
+    html += section('供应链 & 财务',
+      row('集团', tmpl.group ? `${tmpl.group}${tmpl.founded ? '（成立'+tmpl.founded+'）' : ''}` : '') +
+      row('买方', tmpl.buyer ? `${tmpl.buyer}${tmpl.buyerTerms ? '，'+tmpl.buyerTerms : ''}` : '') +
+      row('供应商', tmpl.supplier ? `${tmpl.supplier}${tmpl.supplierTerms ? '，'+tmpl.supplierTerms : ''}` : '') +
+      row('年营收', tmpl.revenue) +
+      row('毛利', tmpl.grossMargin) +
+      row('员工人数', tmpl.headcount)
+    );
+  }
+
+  // 顾客需求 / 访谈摘要
+  if (tmpl.customerNeed) {
+    html += section('访谈摘要', block(tmpl.customerNeed));
+  }
+
+  // 跟进
+  if (r.follow_up) {
+    html += section('跟进状态', row('跟进', r.follow_up));
+  }
+
+  document.getElementById('detail-body').innerHTML = html;
+  document.getElementById('detail-modal').classList.remove('hidden');
+}
+
+function hideDetail() {
+  document.getElementById('detail-modal').classList.add('hidden');
+}
 
 window.onload = function() {
   lucide.createIcons();
