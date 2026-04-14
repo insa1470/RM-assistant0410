@@ -69,6 +69,14 @@
             font-size: 11px !important;
             -webkit-text-size-adjust: 100%;
         }
+        input.biz-check {
+            -webkit-appearance: checkbox !important;
+            appearance: checkbox !important;
+            width: 12px !important;
+            height: 12px !important;
+            margin: 0 !important;
+            flex-shrink: 0;
+        }
         input[type="checkbox"] {
             -webkit-appearance: checkbox !important;
             appearance: checkbox !important;
@@ -915,8 +923,8 @@
                             <div style="display:flex;gap:5px;flex:1;justify-content:space-between;">
                                 ${[['放款','放款'],['金流存款','金流'],['TMU','TMU'],['跨境轉介','跨境'],['網銀自動化','網銀'],['貿融','貿融']].map(([biz,label])=>{
                                     const checked = Array.isArray(draft.targetBusiness) ? draft.targetBusiness.includes(biz) : (draft.targetBusiness||'').includes(biz);
-                                    return `<label style="display:flex;align-items:center;gap:3px;background:${checked?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};border:1.5px solid ${checked?'var(--brand)':'transparent'};border-radius:6px;padding:3px 6px;cursor:pointer;white-space:nowrap;">
-                                        <input type="checkbox" ${checked?'checked':''} onchange="toggleBusiness('${biz}',this.checked)" style="width:11px;height:11px;accent-color:var(--brand);cursor:pointer;flex-shrink:0;">
+                                    return `<label style="display:flex;align-items:center;gap:2px;background:${checked?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};border:1.5px solid ${checked?'var(--brand)':'transparent'};border-radius:6px;padding:3px 5px;cursor:pointer;white-space:nowrap;">
+                                        <input type="checkbox" class="biz-check" ${checked?'checked':''} onchange="toggleBusiness('${biz}',this.checked)" style="accent-color:var(--brand);cursor:pointer;">
                                         <span style="font-size:10px;font-weight:${checked?'600':'400'};color:${checked?'var(--brand)':'var(--label)'};">${label}</span>
                                     </label>`;
                                 }).join('')}
