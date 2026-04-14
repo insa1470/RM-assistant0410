@@ -66,8 +66,30 @@
             appearance: none;
         }
         .tmpl-input {
-            font-size: 11px !important;
+            font-size: 16px !important;
             -webkit-text-size-adjust: 100%;
+        }
+        .tmpl-field-label {
+            font-size: 10px;
+            color: var(--label-secondary);
+            margin-bottom: 2px;
+            letter-spacing: 0.2px;
+        }
+        .tmpl-field-input {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            border: none;
+            border-bottom: 1.5px dashed rgba(0,125,80,0.4);
+            background: transparent;
+            font-size: 14px;
+            color: var(--label);
+            outline: none;
+            padding: 2px 0 3px;
+        }
+        .tmpl-field-input::placeholder {
+            color: var(--label-secondary);
+            font-size: 13px;
         }
         input.biz-check {
             -webkit-appearance: checkbox !important;
@@ -966,36 +988,64 @@
                             </div>
                             ${(()=>{
                                 const T = draft.tmpl||{};
-                                const inStyle = `display:inline-block;border:none;border-bottom:1px solid var(--brand);background:transparent;outline:none;font-size:11px;text-align:center;padding:0 2px;color:var(--label);vertical-align:baseline;" class="tmpl-input`;
                                 const bizStr = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '（未勾選）';
                                 const followStr = draft.followUp||'（未設定）';
-                                return `<div style="font-size:11px;line-height:2.2;color:var(--label);background:rgba(0,125,80,0.03);border-radius:10px;padding:10px 12px;">
-                                該公司屬於
-                                <input oninput="updateTmpl('group',this.value)" value="${T.group||''}" placeholder="集團名稱" style="${inStyle}width:75px;">
-                                集團，主要買方是
-                                <input oninput="updateTmpl('buyer',this.value)" value="${T.buyer||''}" placeholder="買方" style="${inStyle}width:80px;">
-                                ，收款條件
-                                <input oninput="updateTmpl('buyerTerms',this.value)" value="${T.buyerTerms||''}" placeholder="T/T 30天" style="${inStyle}width:80px;">
-                                。<br>
-                                主要供應商
-                                <input oninput="updateTmpl('supplier',this.value)" value="${T.supplier||''}" placeholder="供應商" style="${inStyle}width:80px;">
-                                ，付款條件
-                                <input oninput="updateTmpl('supplierTerms',this.value)" value="${T.supplierTerms||''}" placeholder="月結60天" style="${inStyle}width:80px;">
-                                。<br>
-                                年營收人民幣
-                                <input oninput="updateTmpl('revenue',this.value)" value="${T.revenue||''}" placeholder="5,000萬" style="${inStyle}width:70px;">
-                                ，毛利
-                                <input oninput="updateTmpl('grossMargin',this.value)" value="${T.grossMargin||''}" placeholder="15%" style="${inStyle}width:50px;">
-                                ，員工
-                                <input oninput="updateTmpl('headcount',this.value)" value="${T.headcount||''}" placeholder="200人" style="${inStyle}width:55px;">
-                                。<br>
-                                顧客需求
-                                <input oninput="updateTmpl('customerNeed',this.value)" value="${T.customerNeed||''}" placeholder="如融資需求" style="${inStyle}width:100px;">
-                                ，爭取
-                                <span style="display:inline-block;background:rgba(0,125,80,0.08);border:1px solid rgba(0,125,80,0.25);border-radius:5px;padding:0 6px;font-size:11px;font-weight:600;color:var(--brand);vertical-align:middle;">${bizStr}</span>
-                                ，RM將
-                                <span style="display:inline-block;background:rgba(255,149,0,0.10);border:1px solid rgba(255,149,0,0.35);border-radius:5px;padding:0 6px;font-size:11px;font-weight:600;color:var(--ios-orange);vertical-align:middle;">${followStr}</span>
-                                。
+                                return `<div style="display:flex;flex-direction:column;gap:12px;padding:12px;background:rgba(0,125,80,0.03);border-radius:10px;">
+                                  <!-- Row 1: 集團 + 主要買方 -->
+                                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                                    <div>
+                                      <div class="tmpl-field-label">所屬集團</div>
+                                      <input class="tmpl-field-input" oninput="updateTmpl('group',this.value)" value="${T.group||''}" placeholder="集團名稱">
+                                    </div>
+                                    <div>
+                                      <div class="tmpl-field-label">主要買方</div>
+                                      <input class="tmpl-field-input" oninput="updateTmpl('buyer',this.value)" value="${T.buyer||''}" placeholder="買方名稱">
+                                    </div>
+                                  </div>
+                                  <!-- Row 2: 收款條件 + 主要供應商 -->
+                                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                                    <div>
+                                      <div class="tmpl-field-label">買方收款條件</div>
+                                      <input class="tmpl-field-input" oninput="updateTmpl('buyerTerms',this.value)" value="${T.buyerTerms||''}" placeholder="T/T 30天">
+                                    </div>
+                                    <div>
+                                      <div class="tmpl-field-label">主要供應商</div>
+                                      <input class="tmpl-field-input" oninput="updateTmpl('supplier',this.value)" value="${T.supplier||''}" placeholder="供應商">
+                                    </div>
+                                  </div>
+                                  <!-- Row 3: 付款條件 + 顧客需求 -->
+                                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                                    <div>
+                                      <div class="tmpl-field-label">供應商付款條件</div>
+                                      <input class="tmpl-field-input" oninput="updateTmpl('supplierTerms',this.value)" value="${T.supplierTerms||''}" placeholder="月結60天">
+                                    </div>
+                                    <div>
+                                      <div class="tmpl-field-label">顧客需求</div>
+                                      <input class="tmpl-field-input" oninput="updateTmpl('customerNeed',this.value)" value="${T.customerNeed||''}" placeholder="如融資需求">
+                                    </div>
+                                  </div>
+                                  <!-- Row 4: 年營收 + 毛利 + 員工 -->
+                                  <div style="display:grid;grid-template-columns:1.4fr 0.8fr 0.9fr;gap:8px;">
+                                    <div>
+                                      <div class="tmpl-field-label">年營收（人民幣）</div>
+                                      <input class="tmpl-field-input" oninput="updateTmpl('revenue',this.value)" value="${T.revenue||''}" placeholder="5,000萬">
+                                    </div>
+                                    <div>
+                                      <div class="tmpl-field-label">毛利</div>
+                                      <input class="tmpl-field-input" oninput="updateTmpl('grossMargin',this.value)" value="${T.grossMargin||''}" placeholder="15%">
+                                    </div>
+                                    <div>
+                                      <div class="tmpl-field-label">員工人數</div>
+                                      <input class="tmpl-field-input" oninput="updateTmpl('headcount',this.value)" value="${T.headcount||''}" placeholder="200人">
+                                    </div>
+                                  </div>
+                                  <!-- 爭取業務 + 追蹤 tags -->
+                                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:2px;border-top:0.5px solid rgba(0,125,80,0.12);">
+                                    <span style="font-size:10px;color:var(--label-secondary);">爭取：</span>
+                                    <span style="background:rgba(0,125,80,0.08);border:1px solid rgba(0,125,80,0.25);border-radius:5px;padding:1px 7px;font-size:11px;font-weight:600;color:var(--brand);">${bizStr}</span>
+                                    <span style="font-size:10px;color:var(--label-secondary);margin-left:4px;">追蹤：</span>
+                                    <span style="background:rgba(255,149,0,0.10);border:1px solid rgba(255,149,0,0.35);border-radius:5px;padding:1px 7px;font-size:11px;font-weight:600;color:var(--ios-orange);">${followStr}</span>
+                                  </div>
                                 </div>`;
                             })()}
                         </div>
