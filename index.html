@@ -951,35 +951,35 @@
                             </div>
                             ${(()=>{
                                 const T = draft.tmpl||{};
-                                const inStyle = `display:inline-block;border:none;border-bottom:1.5px solid var(--brand);background:transparent;outline:none;font-size:14px;text-align:center;padding:0 2px;color:var(--label);`;
+                                const inStyle = `display:inline-block;border:none;border-bottom:1px solid var(--brand);background:transparent;outline:none;font-size:12px;text-align:center;padding:0 2px;color:var(--label);vertical-align:baseline;`;
                                 const bizStr = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '（未勾選）';
                                 const followStr = draft.followUp||'（未設定）';
-                                return `<div style="font-size:14px;line-height:2.4;color:var(--label);">
+                                return `<div style="font-size:12px;line-height:2.2;color:var(--label);background:rgba(0,125,80,0.03);border-radius:10px;padding:10px 12px;">
                                 該公司屬於
-                                <input oninput="updateTmpl('group',this.value)" value="${T.group||''}" placeholder="集團名稱" style="${inStyle}width:90px;">
-                                集團，主要(客戶)買方是
-                                <input oninput="updateTmpl('buyer',this.value)" value="${T.buyer||''}" placeholder="買方名稱" style="${inStyle}width:90px;">
-                                ，收款條件是
-                                <input oninput="updateTmpl('buyerTerms',this.value)" value="${T.buyerTerms||''}" placeholder="如 T/T 30天" style="${inStyle}width:95px;">
+                                <input oninput="updateTmpl('group',this.value)" value="${T.group||''}" placeholder="集團名稱" style="${inStyle}width:75px;">
+                                集團，主要買方是
+                                <input oninput="updateTmpl('buyer',this.value)" value="${T.buyer||''}" placeholder="買方" style="${inStyle}width:80px;">
+                                ，收款條件
+                                <input oninput="updateTmpl('buyerTerms',this.value)" value="${T.buyerTerms||''}" placeholder="T/T 30天" style="${inStyle}width:80px;">
                                 。<br>
-                                主要供應商是
-                                <input oninput="updateTmpl('supplier',this.value)" value="${T.supplier||''}" placeholder="供應商名稱" style="${inStyle}width:90px;">
-                                ，付款條件是
-                                <input oninput="updateTmpl('supplierTerms',this.value)" value="${T.supplierTerms||''}" placeholder="如月結60天" style="${inStyle}width:90px;">
+                                主要供應商
+                                <input oninput="updateTmpl('supplier',this.value)" value="${T.supplier||''}" placeholder="供應商" style="${inStyle}width:80px;">
+                                ，付款條件
+                                <input oninput="updateTmpl('supplierTerms',this.value)" value="${T.supplierTerms||''}" placeholder="月結60天" style="${inStyle}width:80px;">
                                 。<br>
-                                年營收約人民幣
-                                <input oninput="updateTmpl('revenue',this.value)" value="${T.revenue||''}" placeholder="如 5,000萬" style="${inStyle}width:80px;">
-                                ，毛利約
-                                <input oninput="updateTmpl('grossMargin',this.value)" value="${T.grossMargin||''}" placeholder="如 15%" style="${inStyle}width:60px;">
-                                ，員工人數約
-                                <input oninput="updateTmpl('headcount',this.value)" value="${T.headcount||''}" placeholder="如 200人" style="${inStyle}width:65px;">
+                                年營收人民幣
+                                <input oninput="updateTmpl('revenue',this.value)" value="${T.revenue||''}" placeholder="5,000萬" style="${inStyle}width:70px;">
+                                ，毛利
+                                <input oninput="updateTmpl('grossMargin',this.value)" value="${T.grossMargin||''}" placeholder="15%" style="${inStyle}width:50px;">
+                                ，員工
+                                <input oninput="updateTmpl('headcount',this.value)" value="${T.headcount||''}" placeholder="200人" style="${inStyle}width:55px;">
                                 。<br>
-                                顧客的主要需求為
-                                <input oninput="updateTmpl('customerNeed',this.value)" value="${T.customerNeed||''}" placeholder="如 融資需求" style="${inStyle}width:110px;">
-                                ，本次RM爭取業務為
-                                <span style="display:inline-block;background:rgba(0,125,80,0.08);border:1px solid rgba(0,125,80,0.3);border-radius:6px;padding:1px 8px;font-size:13px;font-weight:600;color:var(--brand);vertical-align:middle;">${bizStr}</span>
+                                顧客需求
+                                <input oninput="updateTmpl('customerNeed',this.value)" value="${T.customerNeed||''}" placeholder="如融資需求" style="${inStyle}width:100px;">
+                                ，爭取
+                                <span style="display:inline-block;background:rgba(0,125,80,0.08);border:1px solid rgba(0,125,80,0.25);border-radius:5px;padding:0 6px;font-size:11px;font-weight:600;color:var(--brand);vertical-align:middle;">${bizStr}</span>
                                 ，RM將
-                                <span style="display:inline-block;background:rgba(255,149,0,0.10);border:1px solid rgba(255,149,0,0.4);border-radius:6px;padding:1px 8px;font-size:13px;font-weight:600;color:var(--ios-orange);vertical-align:middle;">${followStr}</span>
+                                <span style="display:inline-block;background:rgba(255,149,0,0.10);border:1px solid rgba(255,149,0,0.35);border-radius:5px;padding:0 6px;font-size:11px;font-weight:600;color:var(--ios-orange);vertical-align:middle;">${followStr}</span>
                                 。
                                 </div>`;
                             })()}
@@ -989,7 +989,7 @@
                         ${draft.contentList.map((item,index)=>`
                         <div class="ios-row items-start py-3">
                             <span class="text-[15px] font-medium text-[color:var(--label-secondary)] mt-0.5 w-5 flex-shrink-0">${index+2}.</span>
-                            <textarea oninput="updateListItem('contentList',${index},this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[60px] leading-relaxed" placeholder="其他访谈要点...">${item}</textarea>
+                            <textarea oninput="updateListItem('contentList',${index},this.value)" class="flex-1 bg-transparent border-none outline-none text-[13px] resize-none min-h-[52px] leading-relaxed" placeholder="其他访谈要点...">${item}</textarea>
                             ${index>0?`<button onclick="removeListItem('contentList',${index})" class="text-[color:var(--ios-red)] ml-2 mt-1 flex-shrink-0"><i data-lucide="minus-circle" class="w-5 h-5"></i></button>`:'<div class="w-7"></div>'}
                         </div>`).join('')}
                         <button onclick="addListItem('contentList')" class="add-item-btn">
@@ -1006,7 +1006,7 @@
                         ${draft.todoList.map((item,index)=>`
                         <div class="ios-row items-start py-3">
                             <span class="text-[15px] font-medium text-[color:var(--label-secondary)] mt-0.5 w-5 flex-shrink-0">${index+1}.</span>
-                            <textarea oninput="updateListItem('todoList',${index},this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[60px] leading-relaxed" placeholder="待办事项...">${item}</textarea>
+                            <textarea oninput="updateListItem('todoList',${index},this.value)" class="flex-1 bg-transparent border-none outline-none text-[13px] resize-none min-h-[52px] leading-relaxed" placeholder="待办事项...">${item}</textarea>
                             ${index>0?`<button onclick="removeListItem('todoList',${index})" class="text-[color:var(--ios-red)] ml-2 mt-1 flex-shrink-0"><i data-lucide="minus-circle" class="w-5 h-5"></i></button>`:'<div class="w-7"></div>'}
                         </div>`).join('')}
                         <button onclick="addListItem('todoList')" class="add-item-btn">
