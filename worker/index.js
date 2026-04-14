@@ -135,18 +135,18 @@ async function handleHint(request, env) {
     seen.add(key); return true;
   }).slice(0, 8);
 
-  // ── 組成 Claude prompt
+  // ── 組成 prompt（嚴格限制只根據資料庫內容）
   const lines = hints.map(h => {
     if (h.rel_type === 'buyer')
-      return `・「${h.focal_co}」的主要買方為「${h.rel_name}」，收款條件：${h.terms || '未記錄'}${h.customer_need ? `，顧客需求：${h.customer_need}` : ''}`;
+      return `・「${h.focal_co}」買方：${h.rel_name}${h.terms ? `（收款 ${h.terms}）` : ''}`;
     if (h.rel_type === 'supplier')
-      return `・「${h.focal_co}」的主要供應商為「${h.rel_name}」，付款條件：${h.terms || '未記錄'}`;
+      return `・「${h.focal_co}」供應商：${h.rel_name}${h.terms ? `（付款 ${h.terms}）` : ''}`;
     if (h.rel_type === 'group')
-      return `・「${h.focal_co}」屬於「${h.rel_name}」集團`;
+      return `・「${h.focal_co}」所屬集團：${h.rel_name}`;
     return '';
   }).filter(Boolean).join('\n');
 
-  const prompt = `你是玉山銀行企業金融部的RM業務助手。\n以下是行內資料庫中與「${name}」相關的供應鏈紀錄：\n\n${lines}\n\n請用繁體中文，在150字以內提供業務洞察，聚焦於：\n1. 此公司在供應鏈中的角色與位置\n2. 潛在的跨客戶金融商機（如金流串聯、貿融、TMU、跨境轉介）\n3. 建議的業務切入角度\n\n請直接輸出洞察內容，不需標題或編號。`;
+  const prompt = `你是玉山銀行RM業務助手。以下是行內資料庫關於「${name}」的全部供應鏈紀錄，這是全部資料，不得推測或補充任何資料庫以外的信息：\n\n${lines}\n\n請用繁體中文在60字以內，只根據以上紀錄提供最關鍵的業務切入建議一句話，不可添加資料庫沒有的內容。`;
 
   let insight = null;
   if (env.DEEPSEEK_API_KEY) {
@@ -162,8 +162,8 @@ async function handleHint(request, env) {
           body: JSON.stringify({
             model: 'deepseek-chat',
             messages: [{ role: 'user', content: prompt }],
-            max_tokens: 300,
-            temperature: 0.4,
+            max_tokens: 120,
+            temperature: 0.2,
           })
         }
       );
