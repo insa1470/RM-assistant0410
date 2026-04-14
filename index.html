@@ -1763,17 +1763,28 @@
             navigator.geolocation.getCurrentPosition(async pos => {
                 const { latitude, longitude } = pos.coords;
                 try {
-                    const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=zh-CN`);
+                    // BigDataCloud：比 Nominatim 快、免費、無需 API Key
+                    const res  = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=zh`);
                     const data = await res.json();
-                    if (data?.address) {
-                        const parts = [data.address.country, data.address.city||data.address.province||data.address.state, data.address.suburb||data.address.district||data.address.county||data.address.town].filter(Boolean);
-                        updateDraft('city', parts.join('/'));
+                    const parts = [data.countryName, data.principalSubdivision, data.city||data.locality].filter(Boolean);
+                    const label = parts.length ? parts.join('/') : `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+                    updateDraft('city', label);
+                    switchView(`edit-${draft.type}`);
+                    showToast('✅ 位置已更新');
+                } catch {
+                    // 定位成功但解析失敗 → 用 IP 粗估城市兜底
+                    try {
+                        const ip = await fetch('https://ipapi.co/json/').then(r=>r.json());
+                        const fb = [ip.country_name, ip.region, ip.city].filter(Boolean).join('/');
+                        updateDraft('city', fb || '未知');
                         switchView(`edit-${draft.type}`);
-                        showToast('✅ 位置已更新');
-                    }
-                } catch { showToast('❌ 解析失败'); }
+                        showToast('⚠️ 已用網路位置估算');
+                    } catch { showToast('❌ 位置解析失败'); }
+                }
                 finally { document.getElementById('gps-indicator').classList.add('hidden'); }
-            }, () => { showToast('❌ 定位失败'); document.getElementById('gps-indicator').classList.add('hidden'); });
+            },
+            () => { showToast('❌ 定位失败'); document.getElementById('gps-indicator').classList.add('hidden'); },
+            { maximumAge: 60000, timeout: 8000, enableHighAccuracy: false });
         }
 
         function confirmDelete(ts) {
