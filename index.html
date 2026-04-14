@@ -1385,17 +1385,17 @@
                 const cHtml = `<div style="margin-bottom:5px;">${tmplSentence}</div>${extraHtml}`;
                 const tHtml = draft.todoList.filter(i=>i.trim()!=='').map((i,idx)=>`<div style="margin-bottom:3px;">${idx+1}. ${i}</div>`).join('');
                 previewHtml = `<div id="word-content" style="font-family:'SimSun',serif;font-size:12px;line-height:1.3;color:black;">
-                    <h2 style="text-align:center;color:#007d50;border-bottom:2.5px solid #007d50;padding-bottom:8px;font-weight:bold;font-size:15px;margin-bottom:12px;">玉山銀行(中國)對公業務出差報告</h2>
+                    <h2 style="text-align:center;color:#007d50;border-bottom:2.5px solid #007d50;padding-bottom:8px;font-weight:bold;font-size:15px;margin-bottom:12px;">玉山银行(中国)对公业务出差报告</h2>
                     <table style="width:100%;border-collapse:collapse;border:1px solid black;">
-                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;width:18%;font-weight:bold;">客戶名稱</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${draft.clientName}</td></tr>
-                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">實際負責人</td><td style="border:1px solid black;padding:4px 7px;width:32%;">${draft.owner||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;width:18%;font-weight:bold;">RM組別</td><td style="border:1px solid black;padding:4px 7px;">${draft.rmGroup||'-'}</td></tr>
-                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">訪談時間</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${dateStr} ${timeStr}</td></tr>
-                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">產業描述</td><td style="border:1px solid black;padding:4px 7px;">${draft.industryDesc||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">型態/8+E</td><td style="border:1px solid black;padding:4px 7px;">${draft.companyType}${draft.is8PlusE?'(8+E)':''}</td></tr>
-                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">訪談目的</td><td style="border:1px solid black;padding:4px 7px;">${draft.purpose}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">地點</td><td style="border:1px solid black;padding:4px 7px;">${draft.city||'-'}</td></tr>
-                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">參與人員</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">顧客: ${draft.customerStaff||'-'} / 我行: ${draft.bankStaff||'-'}</td></tr>
-                        <tr><td colspan="4" style="background:#f5f5f5;border:1px solid black;padding:5px;text-align:center;font-weight:bold;border-top:1.5px solid black;">訪談紀錄摘要</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;width:18%;font-weight:bold;">客户名称</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${draft.clientName}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">实际负责人</td><td style="border:1px solid black;padding:4px 7px;width:32%;">${draft.owner||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;width:18%;font-weight:bold;">RM组别</td><td style="border:1px solid black;padding:4px 7px;">${draft.rmGroup||'-'}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">访谈时间</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${dateStr} ${timeStr}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">产业描述</td><td style="border:1px solid black;padding:4px 7px;">${draft.industryDesc||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">类型/8+E</td><td style="border:1px solid black;padding:4px 7px;">${draft.companyType}${draft.is8PlusE?'(8+E)':''}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">访谈目的</td><td style="border:1px solid black;padding:4px 7px;">${draft.purpose}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">地点</td><td style="border:1px solid black;padding:4px 7px;">${draft.city||'-'}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">参与人员</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">顾客: ${draft.customerStaff||'-'} / 我行: ${draft.bankStaff||'-'}</td></tr>
+                        <tr><td colspan="4" style="background:#f5f5f5;border:1px solid black;padding:5px;text-align:center;font-weight:bold;border-top:1.5px solid black;">访谈记录摘要</td></tr>
                         <tr><td colspan="4" style="border:1px solid black;padding:10px;min-height:150px;vertical-align:top;line-height:1.5;">${cHtml||'-'}</td></tr>
-                        <tr><td colspan="4" style="background:#f5f5f5;border:1px solid black;padding:5px;text-align:center;font-weight:bold;border-top:1.5px solid black;">待辦與後續規劃</td></tr>
+                        <tr><td colspan="4" style="background:#f5f5f5;border:1px solid black;padding:5px;text-align:center;font-weight:bold;border-top:1.5px solid black;">待办与后续规划</td></tr>
                         <tr><td colspan="4" style="border:1px solid black;padding:10px;min-height:120px;vertical-align:top;line-height:1.5;">${tHtml||'-'}</td></tr>
                     </table>
                 </div>`;
@@ -1657,27 +1657,27 @@
 
         function buildTmplText(t, bizStr, followStr) {
             const clauses = [];
-            if (t.group)    clauses.push(`該公司屬於${t.group}集團${t.founded?'，成立於'+t.founded:''}`);
+            if (t.group)    clauses.push(`该公司属于${t.group}集团${t.founded?'，成立于'+t.founded:''}`);
             if (t.buyer) {
-                let c = `主要(客戶)買方是${t.buyer}`;
-                if (t.buyerTerms) c += `，收款條件是${t.buyerTerms}`;
+                let c = `主要(客户)买方是${t.buyer}`;
+                if (t.buyerTerms) c += `，收款条件是${t.buyerTerms}`;
                 clauses.push(c);
             }
             if (t.supplier) {
-                let c = `主要供應商是${t.supplier}`;
-                if (t.supplierTerms) c += `，付款條件是${t.supplierTerms}`;
+                let c = `主要供应商是${t.supplier}`;
+                if (t.supplierTerms) c += `，付款条件是${t.supplierTerms}`;
                 clauses.push(c);
             }
             const fin = [];
-            if (t.revenue)     fin.push(`年營收約人民幣${t.revenue}`);
-            if (t.grossMargin) fin.push(`毛利約${t.grossMargin}`);
-            if (t.headcount)   fin.push(`員工人數約${t.headcount}`);
+            if (t.revenue)     fin.push(`年营收约人民币${t.revenue}`);
+            if (t.grossMargin) fin.push(`毛利约${t.grossMargin}`);
+            if (t.headcount)   fin.push(`员工人数约${t.headcount}`);
             if (fin.length)    clauses.push(fin.join('，'));
             if (t.customerNeed) clauses.push(t.customerNeed);
             const hasBiz    = bizStr    && bizStr    !== '-';
             const hasFollow = followStr && followStr !== '-';
-            if (hasBiz)    clauses.push(`本次RM爭取業務為${bizStr}`);
-            if (hasFollow) clauses.push(`RM將${followStr}`);
+            if (hasBiz)    clauses.push(`本次RM争取业务为${bizStr}`);
+            if (hasFollow) clauses.push(`RM将${followStr}`);
             if (!clauses.length) return '';
             return '1. ' + clauses.join('。') + '。';
         }
