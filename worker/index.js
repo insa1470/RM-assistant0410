@@ -129,11 +129,26 @@ async function handleHint(request, env) {
 
   // 去重（同一組關係只留最新一筆）
   const seen = new Set();
-  const hints = raw.filter(h => {
+  const deduped = raw.filter(h => {
     const key = `${h.rel_type}|${h.focal_co}|${h.rel_name}`;
     if (seen.has(key)) return false;
     seen.add(key); return true;
   }).slice(0, 8);
+
+  // 統一以「被搜尋公司」為視角：
+  // 若搜尋詞命中 rel_name 而非 focal_co，翻轉關係方向
+  // 例如：DB 存「深圳信隆 → supplier → 鑫福铝业」
+  //       搜尋「鑫福铝業」時，應改為「鑫福铝業 → buyer → 深圳信隆」
+  const searchNorm = normalize(name);
+  const hints = deduped.map(h => {
+    const focalMatch = normalize(h.focal_co || '').includes(searchNorm);
+    const relMatch   = normalize(h.rel_name || '').includes(searchNorm);
+    if (relMatch && !focalMatch && h.rel_type !== 'group') {
+      const flippedType = h.rel_type === 'supplier' ? 'buyer' : 'supplier';
+      return { ...h, focal_co: h.rel_name, rel_type: flippedType, rel_name: h.focal_co };
+    }
+    return h;
+  });
 
   // ── 組成 prompt（嚴格限制只根據資料庫內容）
   const lines = hints.map(h => {
