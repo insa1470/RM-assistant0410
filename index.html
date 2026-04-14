@@ -1670,7 +1670,7 @@
             if (t.grossMargin) fin.push(`毛利約${t.grossMargin}`);
             if (t.headcount)   fin.push(`員工人數約${t.headcount}`);
             if (fin.length)    clauses.push(fin.join('，'));
-            if (t.customerNeed) clauses.push(`顧客的主要需求為${t.customerNeed}`);
+            if (t.customerNeed) clauses.push(t.customerNeed);
             const hasBiz    = bizStr    && bizStr    !== '-';
             const hasFollow = followStr && followStr !== '-';
             if (hasBiz)    clauses.push(`本次RM爭取業務為${bizStr}`);
