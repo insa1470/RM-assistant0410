@@ -2044,7 +2044,14 @@
                 else detail = `【各部门摘要】\n${Object.keys(draft.discussions).map(d=>`[${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(d)]}]: ${draft.discussions[d]}`).join('\n')}`;
                 text = `玉山银行 ${draft.branch||''} 会议记录\n──────────────────\n【会议名称】${draft.meetingName}\n【时间】${dateStr} ${timeStr}\n【出席】${draft.attendeeText||'-'}\n\n${detail}\n──────────────────\nRM 随行助手生成`;
             } else {
-                text = `玉山银行(中国) 访谈报告\n──────────────────\n【客户】${draft.clientName}\n【负责人】${draft.owner||'-'}\n【时间】${dateStr} ${timeStr}\n\n【访谈摘要】\n${draft.contentList.join('\n')}\n\n【待办规划】\n${draft.todoList.join('\n')}\n──────────────────\nRM 随行助手生成`;
+                const t = draft.tmpl || {};
+                const bizStr    = Array.isArray(draft.targetBusiness) && draft.targetBusiness.length ? draft.targetBusiness.join('、') : '';
+                const followStr = draft.followUp || '';
+                const tmplSentence = buildTmplText(t, bizStr, followStr);
+                const extraLines   = (draft.contentList || []).filter(i => i.trim() !== '').map((i, idx) => `${idx + 2}. ${i}`).join('\n');
+                const summaryText  = [tmplSentence, extraLines].filter(Boolean).join('\n');
+                const todoText     = (draft.todoList || []).filter(i => i.trim() !== '').map((i, idx) => `${idx + 1}. ${i}`).join('\n');
+                text = `玉山銀行(中國) 訪談報告\n──────────────────\n【客戶】${draft.clientName}\n【負責人】${draft.owner || '-'}\n【RM組別】${draft.rmGroup || '-'}\n【訪談時間】${dateStr} ${timeStr}\n【產業描述】${draft.industryDesc || '-'}\n【型態/8+E】${draft.companyType || '-'}${draft.is8PlusE ? '(8+E)' : ''}\n【訪談目的】${draft.purpose || '-'}\n【地點】${draft.city || '-'}\n【參與人員】顧客: ${draft.customerStaff || '-'} / 我行: ${draft.bankStaff || '-'}\n\n【訪談紀錄摘要】\n${summaryText || '-'}\n\n【待辦與後續規劃】\n${todoText || '-'}\n──────────────────\nRM 隨行助手生成`;
             }
             const el = document.createElement('textarea');
             el.value = text; document.body.appendChild(el); el.select();
