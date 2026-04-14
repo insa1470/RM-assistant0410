@@ -14,6 +14,4 @@ database_id = "65b8196b-a1b5-4507-b77f-056179809023"
 [vars]
 # ⚠️ 後台管理員密碼（可自訂）
 ADMIN_PASSWORD = "esun1313"
-# ⚠️ Gemini API Key — 請執行：wrangler secret put GEMINI_API_KEY
-# 或直接填入（僅限本地測試）
-GEMINI_API_KEY = ""
+# GEMINI_API_KEY 已設為 secret，請勿在此填入
