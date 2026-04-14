@@ -204,6 +204,7 @@ let charts = {};
 let statsData = null;
 let recordsOffset = 0;
 const RECORDS_LIMIT = 30;
+let recordsSeenKeys = new Set(); // 跨分頁去重
 
 /* ── 登入 ── */
 async function login() {
@@ -404,7 +405,7 @@ function redraw(id, type, data, options) {
 const TYPE_LABEL = { report:'訪談', meeting:'會議', site:'現場' };
 const TYPE_CLASS = { report:'badge-report', meeting:'badge-meeting', site:'badge-site' };
 
-async function loadRecords() { recordsOffset=0; document.getElementById('records-body').innerHTML=''; await fetchRecords(); }
+async function loadRecords() { recordsOffset=0; recordsSeenKeys.clear(); document.getElementById('records-body').innerHTML=''; await fetchRecords(); }
 async function loadMoreRecords() { await fetchRecords(); }
 async function fetchRecords() {
   const user = document.getElementById('user-filter').value;
@@ -412,7 +413,14 @@ async function fetchRecords() {
   if (user) url += `&user=${enc(user)}`;
   const res  = await fetch(url);
   const data = await res.json();
-  const rows = data.records || [];
+  const allRows = data.records || [];
+  // 去重：同用戶 + 同客戶/會議 + 同日期 + 同類型，只保留第一筆（API 已按 created_at DESC，即最新）
+  const rows = allRows.filter(r => {
+    const key = `${r.user_name}|${r.type}|${r.client_name||r.meeting_name||''}|${r.visit_date||''}`;
+    if (recordsSeenKeys.has(key)) return false;
+    recordsSeenKeys.add(key);
+    return true;
+  });
   const html = rows.map(r => `
     <div class="flex items-center gap-3 px-5 py-3">
       <span class="badge ${TYPE_CLASS[r.type]||'badge-report'} flex-shrink-0">${TYPE_LABEL[r.type]||r.type}</span>
