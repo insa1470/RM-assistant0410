@@ -989,7 +989,7 @@
                             ${(()=>{
                                 const T = draft.tmpl||{};
                                 const bizStr = Array.isArray(draft.targetBusiness)&&draft.targetBusiness.length ? draft.targetBusiness.join('、') : '（未勾選）';
-                                const followStr = draft.followUp||'（未設定）';
+                                const followStr = (draft.followUp==='強追蹤'?'高頻追蹤':draft.followUp)||'（未設定）';
                                 return `<div style="display:flex;flex-direction:column;gap:12px;padding:12px;background:rgba(0,125,80,0.03);border-radius:10px;">
                                   <!-- Row 1: 所屬集團 | 已成立 -->
                                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -1041,7 +1041,7 @@
                                   </div>
                                   <!-- Row 5: 顧客需求（全寬） -->
                                   <div>
-                                    <div class="tmpl-field-label">顧客需求</div>
+                                    <div class="tmpl-field-label">顧客需求是</div>
                                     <input class="tmpl-field-input" oninput="updateTmpl('customerNeed',this.value)" value="${T.customerNeed||''}" placeholder="如融資需求、供應鏈金融…">
                                   </div>
                                   <!-- 爭取業務 + 追蹤 tags -->
@@ -1647,7 +1647,8 @@
             // 即時同步「追蹤狀態」tag（不需整頁重渲染）
             if (k === 'followUp') {
                 const tag = document.getElementById('tmpl-follow-tag');
-                if (tag) tag.textContent = v || '（未設定）';
+                const display = (v === '強追蹤' ? '高頻追蹤' : v) || '（未設定）';
+                if (tag) tag.textContent = display;
             }
         }
 
