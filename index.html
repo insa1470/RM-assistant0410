@@ -1766,8 +1766,17 @@
                     // BigDataCloud：比 Nominatim 快、免費、無需 API Key
                     const res  = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=zh`);
                     const data = await res.json();
-                    const parts = [data.countryName, data.principalSubdivision, data.city||data.locality].filter(Boolean);
-                    const label = parts.length ? parts.join('/') : `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+                    // 省／市／區，直接串接成「廣東省深圳市福田區」格式
+                    const province = data.principalSubdivision || '';
+                    const city     = data.city || '';
+                    const district = data.locality || '';
+                    // 更具體的街道／社區（取 informative 裡最細一層）
+                    const infoArr  = data.localityInfo?.informative || [];
+                    const suburb   = [...infoArr].sort((a,b)=>(b.order||0)-(a.order||0))
+                                       .find(i => i.name && !['Asia','China','华南','华东','华北'].includes(i.name));
+                    const specific = suburb?.name || '';
+                    const parts    = [province, city, district, specific].filter(Boolean);
+                    const label    = parts.join('') || `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
                     updateDraft('city', label);
                     switchView(`edit-${draft.type}`);
                     showToast('✅ 位置已更新');
