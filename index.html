@@ -1763,28 +1763,31 @@
             navigator.geolocation.getCurrentPosition(async pos => {
                 const { latitude, longitude } = pos.coords;
                 try {
-                    // BigDataCloud：比 Nominatim 快、免費、無需 API Key
-                    const res  = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=zh`);
+                    // 高德地圖逆地理編碼（Web 服務 API）
+                    const AMAP_KEY = '22a9a282bd271abfa78b8cc0642bda8b';
+                    const res  = await fetch(`https://restapi.amap.com/v3/geocode/regeo?location=${longitude},${latitude}&key=${AMAP_KEY}&radius=100&extensions=base`);
                     const data = await res.json();
-                    // 省／市／區，直接串接成「廣東省深圳市福田區」格式
-                    const province = data.principalSubdivision || '';
-                    const city     = data.city || '';
-                    const district = data.locality || '';
-                    // 更具體的街道／社區（取 informative 裡最細一層）
-                    const infoArr  = data.localityInfo?.informative || [];
-                    const suburb   = [...infoArr].sort((a,b)=>(b.order||0)-(a.order||0))
-                                       .find(i => i.name && !['Asia','China','华南','华东','华北'].includes(i.name));
-                    const specific = suburb?.name || '';
-                    const parts    = [province, city, district, specific].filter(Boolean);
-                    const label    = parts.join('') || `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
-                    updateDraft('city', label);
-                    switchView(`edit-${draft.type}`);
-                    showToast('✅ 位置已更新');
+                    if (data.status === '1' && data.regeocode) {
+                        const addr = data.regeocode.addressComponent;
+                        const province = typeof addr.province === 'string' ? addr.province : '';
+                        const city     = typeof addr.city     === 'string' ? addr.city     : (typeof addr.province === 'string' ? addr.province : '');
+                        const district = typeof addr.district === 'string' ? addr.district : '';
+                        const township = typeof addr.township === 'string' ? addr.township : '';
+                        const parts    = [province, city, district, township].filter(Boolean);
+                        // 去掉重複（直轄市 province === city）
+                        const unique   = parts.filter((v, i, a) => a.indexOf(v) === i);
+                        const label    = unique.join('') || data.regeocode.formatted_address || `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+                        updateDraft('city', label);
+                        switchView(`edit-${draft.type}`);
+                        showToast('✅ 位置已更新');
+                    } else {
+                        throw new Error('amap no result');
+                    }
                 } catch {
-                    // 定位成功但解析失敗 → 用 IP 粗估城市兜底
+                    // 解析失敗 → 用 IP 粗估城市兜底
                     try {
                         const ip = await fetch('https://ipapi.co/json/').then(r=>r.json());
-                        const fb = [ip.country_name, ip.region, ip.city].filter(Boolean).join('/');
+                        const fb = [ip.region, ip.city].filter(Boolean).join('');
                         updateDraft('city', fb || '未知');
                         switchView(`edit-${draft.type}`);
                         showToast('⚠️ 已用網路位置估算');
