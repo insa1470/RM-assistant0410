@@ -1715,19 +1715,21 @@
                 const groups    = hints.filter(h => h.rel_type === 'group');
 
                 // ── 無買方資訊 ──
-                if (!buyers.length) {
+                // ── 完全無紀錄 ──
+                if (!hints.length) {
                     card.innerHTML = `<div style="margin:4px 0;padding:8px 12px;background:#f9f9f9;border-left:3px solid var(--ios-gray3);border-radius:8px;font-size:12px;color:var(--ios-gray);">📭 資料庫尚無「${name}」的買方資訊</div>`;
                     return;
                 }
-                const groupName = groups.length ? groups[0].rel_name : '';
 
+                const groupName  = groups.length ? groups[0].rel_name : '';
+                const unknownStyle = 'display:inline-block;background:#f3f4f6;border:1px dashed #d1d5db;border-radius:8px;padding:2px 8px;font-size:11.5px;color:#9ca3af;font-weight:500;white-space:nowrap;';
                 const nodeStyle  = 'display:inline-block;background:#e8f5ee;border:1px solid #b7deca;border-radius:8px;padding:2px 8px;font-size:11.5px;color:#007d50;font-weight:600;white-space:nowrap;';
                 const focalStyle = 'display:inline-block;background:#007d50;border-radius:8px;padding:3px 10px;font-size:12px;color:#fff;font-weight:700;white-space:nowrap;';
                 const arrowStyle = 'font-size:11px;color:var(--ios-gray);margin:0 3px;white-space:nowrap;align-self:center;';
                 const termsStyle = 'display:block;font-size:10px;color:var(--ios-gray);text-align:center;margin-top:2px;';
 
                 // 金流方向：買方 ──金流──▶ 客戶 ──金流──▶ 供應商
-                // 每個節點：名稱在上、條件在下；箭頭獨立居中
+                // 無買方時顯示「不詳」佔位節點
                 const buyHtml = buyers.length
                     ? buyers.map(h => `
                         <div style="display:flex;flex-direction:column;align-items:center;">
@@ -1735,7 +1737,11 @@
                             ${h.terms ? `<span style="${termsStyle}">收款 ${h.terms}</span>` : ''}
                         </div>
                         <span style="${arrowStyle}">──金流──▶</span>`).join('')
-                    : '';
+                    : `<div style="display:flex;flex-direction:column;align-items:center;">
+                          <span style="${unknownStyle}">買方不詳</span>
+                       </div>
+                       <span style="${arrowStyle}">──金流──▶</span>`;
+
                 const suppHtml = suppliers.length
                     ? suppliers.map(h => `
                         <span style="${arrowStyle}">──金流──▶</span>
@@ -1745,15 +1751,20 @@
                         </div>`).join('')
                     : '';
 
+                const noBuyerNote = !buyers.length
+                    ? `<div style="font-size:11px;color:#f59e0b;margin-top:4px;">⚠️ 資料庫尚無「${name}」的買方資訊</div>`
+                    : '';
+
                 const graphHtml = `
-                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
                         ${buyHtml}
                         <div style="display:flex;flex-direction:column;align-items:center;">
                             <span style="${focalStyle}">${name}</span>
                             ${groupName ? `<span style="${termsStyle}">${groupName}集團</span>` : ''}
                         </div>
                         ${suppHtml}
-                    </div>`;
+                    </div>
+                    ${noBuyerNote}`;
 
                 card.innerHTML = `<div style="margin:6px 0;padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
                     <div style="font-weight:600;color:var(--brand);margin-bottom:6px;">🤖 RM 助手提示 · ${name}</div>
