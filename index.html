@@ -713,6 +713,7 @@
         let activePhotoIdx   = -1;
         let historySearchTerm = '';
         let currentUserName  = localStorage.getItem(USER_NAME_KEY) || '';
+        let _pendingCopyAfterName = false;
 
         // 舊版單一草稿遷移至新版多草稿
         (function migrateLegacyDraft() {
@@ -2037,9 +2038,14 @@
             currentUserName = name;
             localStorage.setItem(USER_NAME_KEY, name);
             document.getElementById('name-modal').classList.add('hidden');
-            switchView('home');
             checkAdminUser();
             showToast('✅ 名字已更新');
+            if (_pendingCopyAfterName) {
+                _pendingCopyAfterName = false;
+                copyFullContent();
+                return;
+            }
+            switchView('home');
         }
 
         function checkAdminUser() {
@@ -2083,6 +2089,13 @@
         }
 
         function copyFullContent() {
+            if (!currentUserName) {
+                _pendingCopyAfterName = true;
+                showNamePrompt(false);
+                document.getElementById('name-modal-title').textContent = '請先設定你的名字';
+                document.getElementById('name-modal-desc').textContent  = '名字用於後台紀錄，設定後自動繼續複製';
+                return;
+            }
             const dateStr = (draft.visitDate||'').replace(/-/g,'/');
             const timeStr = draft.visitHour !== undefined ? `${draft.visitHour.toString().padStart(2,'0')}:00 – ${draft.visitEndHour.toString().padStart(2,'0')}:00` : '';
             let text = '';
