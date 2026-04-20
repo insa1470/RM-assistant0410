@@ -1721,24 +1721,38 @@
                 const groups    = hints.filter(h => h.rel_type === 'group');
                 const groupName = groups.length ? groups[0].rel_name : '';
 
-                const nodeStyle  = 'display:inline-block;background:#e8f5ee;border:1px solid #b7deca;border-radius:8px;padding:2px 8px;font-size:11.5px;color:#007d50;font-weight:600;';
-                const focalStyle = 'display:inline-block;background:#007d50;border-radius:8px;padding:3px 10px;font-size:12px;color:#fff;font-weight:700;';
-                const arrowStyle = 'font-size:11px;color:var(--ios-gray);margin:0 2px;';
-                const termsStyle = 'font-size:10px;color:var(--ios-gray);margin-left:4px;';
+                const nodeStyle  = 'display:inline-block;background:#e8f5ee;border:1px solid #b7deca;border-radius:8px;padding:2px 8px;font-size:11.5px;color:#007d50;font-weight:600;white-space:nowrap;';
+                const focalStyle = 'display:inline-block;background:#007d50;border-radius:8px;padding:3px 10px;font-size:12px;color:#fff;font-weight:700;white-space:nowrap;';
+                const arrowStyle = 'font-size:11px;color:var(--ios-gray);margin:0 3px;white-space:nowrap;align-self:center;';
+                const termsStyle = 'display:block;font-size:10px;color:var(--ios-gray);text-align:center;margin-top:2px;';
 
                 // 金流方向：買方 ──金流──▶ 客戶 ──金流──▶ 供應商
+                // 每個節點：名稱在上、條件在下；箭頭獨立居中
                 const buyHtml = buyers.length
-                    ? buyers.map(h => `<div style="margin:2px 0;"><span style="${nodeStyle}">${h.rel_name}</span><span style="${termsStyle}">${h.terms ? '收款'+h.terms : ''}</span><span style="${arrowStyle}"> ──金流──▶</span></div>`).join('')
+                    ? buyers.map(h => `
+                        <div style="display:flex;flex-direction:column;align-items:center;">
+                            <span style="${nodeStyle}">${h.rel_name}</span>
+                            ${h.terms ? `<span style="${termsStyle}">收款 ${h.terms}</span>` : ''}
+                        </div>
+                        <span style="${arrowStyle}">──金流──▶</span>`).join('')
                     : '';
                 const suppHtml = suppliers.length
-                    ? suppliers.map(h => `<div style="margin:2px 0;"><span style="${arrowStyle}">──金流──▶ </span><span style="${nodeStyle}">${h.rel_name}</span><span style="${termsStyle}">${h.terms ? '付款'+h.terms : ''}</span></div>`).join('')
+                    ? suppliers.map(h => `
+                        <span style="${arrowStyle}">──金流──▶</span>
+                        <div style="display:flex;flex-direction:column;align-items:center;">
+                            <span style="${nodeStyle}">${h.rel_name}</span>
+                            ${h.terms ? `<span style="${termsStyle}">付款 ${h.terms}</span>` : ''}
+                        </div>`).join('')
                     : '';
 
                 const graphHtml = `
-                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
-                        ${buyHtml ? `<div>${buyHtml}</div>` : ''}
-                        <div><span style="${focalStyle}">${name}</span>${groupName ? `<div style="font-size:10px;color:var(--ios-gray);text-align:center;margin-top:2px;">${groupName}集團</div>` : ''}</div>
-                        ${suppHtml ? `<div>${suppHtml}</div>` : ''}
+                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+                        ${buyHtml}
+                        <div style="display:flex;flex-direction:column;align-items:center;">
+                            <span style="${focalStyle}">${name}</span>
+                            ${groupName ? `<span style="${termsStyle}">${groupName}集團</span>` : ''}
+                        </div>
+                        ${suppHtml}
                     </div>`;
 
                 card.innerHTML = `<div style="margin:6px 0;padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
