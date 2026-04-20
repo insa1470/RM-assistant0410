@@ -512,10 +512,36 @@ function showDetail(id) {
 
   // 供应链 / 财务
   if (tmpl.group || tmpl.buyer || tmpl.supplier || tmpl.revenue) {
+    // 金流圖（買方 ──金流──▶ 客戶 ──金流──▶ 供應商）
+    const focalName = r.client_name || r.meeting_name || '—';
+    const nodeStyle   = 'display:inline-block;background:#e8f5ee;border:1px solid #b7deca;border-radius:7px;padding:2px 9px;font-size:12px;color:#007d50;font-weight:600;white-space:nowrap;';
+    const focalStyle  = 'display:inline-block;background:#007d50;border-radius:7px;padding:3px 10px;font-size:12px;color:#fff;font-weight:700;white-space:nowrap;';
+    const arrowStyle  = 'font-size:12px;color:#9ca3af;margin:0 3px;white-space:nowrap;';
+    const termsStyle  = 'display:block;font-size:10px;color:#9ca3af;text-align:center;margin-top:2px;';
+
+    let graphHtml = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:10px 4px 6px;">';
+    if (tmpl.buyer) {
+      graphHtml += `<div style="display:flex;flex-direction:column;align-items:center;">
+        <span style="${nodeStyle}">${tmpl.buyer}</span>
+        ${tmpl.buyerTerms ? `<span style="${termsStyle}">收款 ${tmpl.buyerTerms}</span>` : ''}
+      </div>`;
+      graphHtml += `<span style="${arrowStyle}">──金流──▶</span>`;
+    }
+    graphHtml += `<div style="display:flex;flex-direction:column;align-items:center;">
+      <span style="${focalStyle}">${focalName}</span>
+      ${tmpl.group ? `<span style="${termsStyle}">${tmpl.group}集团</span>` : ''}
+    </div>`;
+    if (tmpl.supplier) {
+      graphHtml += `<span style="${arrowStyle}">──金流──▶</span>`;
+      graphHtml += `<div style="display:flex;flex-direction:column;align-items:center;">
+        <span style="${nodeStyle}">${tmpl.supplier}</span>
+        ${tmpl.supplierTerms ? `<span style="${termsStyle}">付款 ${tmpl.supplierTerms}</span>` : ''}
+      </div>`;
+    }
+    graphHtml += '</div>';
+
     html += section('供应链 & 财务',
-      row('集团', tmpl.group ? `${tmpl.group}${tmpl.founded ? '（成立'+tmpl.founded+'）' : ''}` : '') +
-      row('买方', tmpl.buyer ? `${tmpl.buyer}${tmpl.buyerTerms ? '，'+tmpl.buyerTerms : ''}` : '') +
-      row('供应商', tmpl.supplier ? `${tmpl.supplier}${tmpl.supplierTerms ? '，'+tmpl.supplierTerms : ''}` : '') +
+      graphHtml +
       row('年营收', tmpl.revenue) +
       row('毛利', tmpl.grossMargin) +
       row('员工人数', tmpl.headcount)
