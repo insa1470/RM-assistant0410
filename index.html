@@ -1093,7 +1093,7 @@
                 <!-- RM 助手提示 -->
                 <div class="space-y-2">
                     <button onclick="showRMHint()" class="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-white text-[15px] active:opacity-80" style="background:linear-gradient(135deg,#007d50,#00a86b);">
-                        <i data-lucide="bot" class="w-5 h-5"></i> RM 助手提示
+                        <i data-lucide="bot" class="w-5 h-5"></i> RM AI助手
                     </button>
                 </div>
 
@@ -1767,7 +1767,7 @@
                     ${noBuyerNote}`;
 
                 card.innerHTML = `<div style="margin:6px 0;padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
-                    <div style="font-weight:600;color:var(--brand);margin-bottom:6px;">🤖 RM 助手提示 · ${name}</div>
+                    <div style="font-weight:600;color:var(--brand);margin-bottom:6px;">🤖 RM AI助手 · ${name}</div>
                     ${graphHtml}
                     ${insight ? `<div style="color:#444;font-size:12px;line-height:1.7;border-top:1px solid #c3e6d8;padding-top:6px;margin-top:4px;">${insight}</div>` : ''}
                 </div>`;
@@ -2107,7 +2107,7 @@
                 if (!msg) {
                     msg = '目前資料庫尚無此客戶的供應鏈資料。\n\n填寫訪談記錄摘要中的買方/供應商欄位並匯出，資料將自動累積。';
                 }
-                showConfirm(`RM 助手提示 · ${name}`, msg, () => {});
+                showConfirm(`RM AI助手 · ${name}`, msg, () => {});
             } catch(e) {
                 showToast('❌ 查詢失敗，請檢查網路');
             }
