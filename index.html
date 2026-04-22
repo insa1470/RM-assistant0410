@@ -856,7 +856,7 @@
                         <div class="ios-row-split">
                             <div class="ios-row-half" style="flex:1.6;">
                                 <span class="ios-row-label">客户名称</span>
-                                <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value);triggerHint(this.value)" placeholder="客户全称">
+                                <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value)" placeholder="客户全称">
                             </div>
                             <div class="ios-row-half">
                                 <span class="ios-row-label">RM 组别</span>
@@ -902,9 +902,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- AI Hint Card -->
-                <div id="hint-card"></div>
 
                 <!-- Section 2：拜访详情 -->
                 <div class="space-y-2">
@@ -1090,11 +1087,12 @@
                     </div>
                 </div>
 
-                <!-- RM 助手提示 -->
+                <!-- RM AI助手按鈕 + 結果卡 -->
                 <div class="space-y-2">
                     <button onclick="showRMHint()" class="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-white text-[15px] active:opacity-80" style="background:linear-gradient(135deg,#007d50,#00a86b);">
                         <i data-lucide="bot" class="w-5 h-5"></i> RM AI助手
                     </button>
+                    <div id="hint-card"></div>
                 </div>
 
                 <!-- Actions -->
@@ -1276,7 +1274,7 @@
                     <div class="ios-group">
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">客户名称</span>
-                            <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value);triggerHint(this.value)" placeholder="客户全称">
+                            <input type="text" value="${draft.clientName||''}" oninput="updateDraft('clientName',this.value)" placeholder="客户全称">
                         </div>
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">RM 组别</span>
@@ -1687,16 +1685,48 @@
             if (!draft.tmpl) draft.tmpl = {};
             draft.tmpl[k] = v;
             saveDraft();
-            if (k === 'buyer' || k === 'supplier') triggerHint(v);
         }
 
-        let _hintTimer = null;
-        function triggerHint(name) {
-            clearTimeout(_hintTimer);
+        function showRMHint() {
             const card = document.getElementById('hint-card');
             if (!card) return;
-            if (!name || name.trim().length < 2) { card.innerHTML = ''; return; }
-            _hintTimer = setTimeout(() => fetchHint(name.trim()), 700);
+
+            // 收集所有已填的公司名稱
+            const companies = [];
+            if (draft.clientName && draft.clientName.trim().length >= 2)
+                companies.push({ label: '客戶', name: draft.clientName.trim() });
+            if (draft.tmpl?.buyer && draft.tmpl.buyer.trim().length >= 2)
+                companies.push({ label: '買方', name: draft.tmpl.buyer.trim() });
+            if (draft.tmpl?.supplier && draft.tmpl.supplier.trim().length >= 2)
+                companies.push({ label: '供應商', name: draft.tmpl.supplier.trim() });
+
+            if (!companies.length) {
+                card.innerHTML = `<div style="margin:4px 0;padding:8px 12px;background:#f9f9f9;border-left:3px solid var(--ios-gray3);border-radius:8px;font-size:12px;color:var(--ios-gray);">請先填寫客戶名稱或買方／供應商欄位</div>`;
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                return;
+            }
+
+            // 只有一間公司，直接查詢
+            if (companies.length === 1) {
+                fetchHint(companies[0].name);
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                return;
+            }
+
+            // 多間公司，顯示選擇器
+            const pillStyle = 'display:inline-flex;flex-direction:column;align-items:center;background:#fff;border:1.5px solid #b7deca;border-radius:12px;padding:6px 14px;cursor:pointer;gap:2px;active:opacity-80;';
+            const pillsHtml = companies.map(c =>
+                `<button onclick="fetchHint('${c.name.replace(/'/g,"\\'")}');this.closest('#hint-card').querySelector('.pill-bar').style.display='none';" style="${pillStyle}">
+                    <span style="font-size:10px;color:#9ca3af;">${c.label}</span>
+                    <span style="font-size:13px;font-weight:600;color:#007d50;">${c.name}</span>
+                </button>`
+            ).join('');
+
+            card.innerHTML = `<div style="margin:4px 0;padding:10px 12px;background:#f0faf5;border-left:3px solid var(--brand);border-radius:10px;">
+                <div style="font-size:12px;color:var(--ios-gray);margin-bottom:8px;">查詢哪間公司的情報？</div>
+                <div class="pill-bar" style="display:flex;gap:8px;flex-wrap:wrap;">${pillsHtml}</div>
+            </div>`;
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
         async function fetchHint(name) {
             const card = document.getElementById('hint-card');
