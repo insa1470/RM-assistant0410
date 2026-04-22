@@ -2012,7 +2012,12 @@
                         city:         record.city         || null,
                         branch:       record.branch       || null,
                         is8PlusE:     record.is8PlusE     ? true : false,
-                        tmpl:         record.tmpl         || null,
+                        tmpl:         record.tmpl ? {
+                                          ...record.tmpl,
+                                          contentList:    record.contentList    || [],
+                                          todoList:       record.todoList       || [],
+                                          targetBusiness: record.targetBusiness || [],
+                                      } : null,
                         followUp:     record.followUp     || null,
                         hqLeader:     record.hqLeader     ? true : false,
                     })

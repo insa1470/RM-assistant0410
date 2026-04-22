@@ -548,9 +548,30 @@ function showDetail(id) {
     );
   }
 
-  // 顾客需求 / 访谈摘要
-  if (tmpl.customerNeed) {
-    html += section('访谈摘要', block(tmpl.customerNeed));
+  // 完整访谈摘要（含第2点之后的 contentList）
+  const summaryLines = [];
+  if (tmpl.customerNeed) summaryLines.push(`1. ${tmpl.customerNeed}`);
+  if (Array.isArray(tmpl.contentList)) {
+    tmpl.contentList.filter(i => i && i.trim()).forEach((i, idx) => {
+      summaryLines.push(`${idx + 2}. ${i}`);
+    });
+  }
+  if (summaryLines.length) {
+    html += section('访谈摘要', block(summaryLines.join('\n')));
+  }
+
+  // 待办与后续规划
+  const todoLines = Array.isArray(tmpl.todoList)
+    ? tmpl.todoList.filter(i => i && i.trim()).map((i, idx) => `${idx + 1}. ${i}`)
+    : [];
+  if (todoLines.length) {
+    html += section('待办与后续规划', block(todoLines.join('\n')));
+  }
+
+  // 爭取業務
+  const bizList = Array.isArray(tmpl.targetBusiness) ? tmpl.targetBusiness.filter(Boolean) : [];
+  if (bizList.length) {
+    html += section('争取业务', row('业务项目', bizList.join('、')));
   }
 
   // 跟进
