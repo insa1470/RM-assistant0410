@@ -176,17 +176,34 @@ async function handleHint(request, env) {
     `・${h.visit_date} ${h.user_name}（${h.rm_group||''}）曾拜訪，目的：${h.purpose||'未填'}，跟進：${h.follow_up||'未填'}`
   ).join('\n');
 
-  const prompt = `你是玉山銀行RM業務助手。以下是行內資料庫關於「${name}」的全部資料，不得推測或補充任何資料庫以外的信息：
+  const prompt = `你是玉山銀行RM業務助手。請完成以下兩個任務，以合法JSON格式回覆，不要加任何markdown或說明文字。
 
-【行內拜訪紀錄】
+【任務一：行內資料分析】
+嚴格根據以下行內資料庫內容，不得推測或補充：
+
+行內拜訪紀錄：
 ${histLines || '無'}
 
-【供應鏈紀錄】
+供應鏈紀錄：
 ${lines || '無'}
 
-請用繁體中文在80字以內，根據以上資料提供最關鍵的業務切入建議，不可添加資料庫沒有的內容。`;
+請根據以上資料，用繁體中文在80字以內給出最關鍵的業務切入建議。若資料不足則說明原因。
+
+【任務二：外部知識補充】
+根據你對「${name}」這間公司的通用知識（與行內資料無關），用繁體中文補充：
+- 行業描述（15字以內）
+- 行業前景（20字以內，一句話）
+- 可能的主要上游（2～3種類型，每項10字以內）
+- 可能的主要下游客戶或品牌（2～3項，每項10字以內）
+
+若不確定這間公司的資訊，external 各欄位回覆 null。
+
+請嚴格以此JSON格式回覆：
+{"insight":"...","external":{"industry":"...","outlook":"...","upstream":["...","..."],"downstream":["...","..."]}}`;
+
 
   let insight = null;
+  let external = null;
   if (env.DEEPSEEK_API_KEY) {
     try {
       const aiRes = await fetch(
@@ -200,19 +217,28 @@ ${lines || '無'}
           body: JSON.stringify({
             model: 'deepseek-chat',
             messages: [{ role: 'user', content: prompt }],
-            max_tokens: 120,
-            temperature: 0.2,
+            max_tokens: 300,
+            temperature: 0.3,
           })
         }
       );
       const aiData = await aiRes.json();
-      insight = aiData.choices?.[0]?.message?.content || null;
+      const raw = aiData.choices?.[0]?.message?.content || '';
+      try {
+        // 解析 JSON 回覆
+        const parsed = JSON.parse(raw.trim());
+        insight  = parsed.insight  || null;
+        external = parsed.external || null;
+      } catch {
+        // 若 JSON 解析失敗，整段當作 insight
+        insight = raw.slice(0, 150) || null;
+      }
     } catch (e) {
-      insight = null; // 靜默失敗，仍回傳關聯資料
+      insight = null;
     }
   }
 
-  return jsonRes({ hints, history, insight });
+  return jsonRes({ hints, history, insight, external });
 }
 
 /* ──────────────────────────────────────────

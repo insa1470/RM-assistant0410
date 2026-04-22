@@ -1706,9 +1706,10 @@
                 const res = await fetch(`${WORKER_URL}/api/hint?name=${encodeURIComponent(name)}`);
                 if (!res.ok) { card.innerHTML = ''; return; }
                 const data    = await res.json();
-                const hints   = data.hints   || [];
-                const history = data.history || [];
-                const insight = data.insight || '';
+                const hints    = data.hints    || [];
+                const history  = data.history  || [];
+                const insight  = data.insight  || '';
+                const external = data.external || null;
 
                 // ── 完全無資料 ──
                 if (!hints.length && !history.length) {
@@ -1790,11 +1791,26 @@
                     </div>
                     ${noBuyerNote}`;
 
+                // ── 外部知識區塊 ──
+                const extHtml = external ? (() => {
+                    const rows = [];
+                    if (external.industry) rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">行業</span><span style="color:#374151;font-weight:500;">${external.industry}</span></div>`);
+                    if (external.outlook)  rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">前景</span><span style="color:#374151;">${external.outlook}</span></div>`);
+                    if (external.upstream?.length)   rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">上游</span><span style="color:#374151;">${external.upstream.join('、')}</span></div>`);
+                    if (external.downstream?.length) rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">下游</span><span style="color:#374151;">${external.downstream.join('、')}</span></div>`);
+                    if (!rows.length) return '';
+                    return `<div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.6);border-radius:8px;border-top:1px solid #c3e6d8;">
+                        <div style="font-size:10.5px;font-weight:700;color:#9ca3af;letter-spacing:.05em;margin-bottom:4px;">🌐 AI 外部知識（僅供參考）</div>
+                        ${rows.join('')}
+                    </div>`;
+                })() : '';
+
                 card.innerHTML = `<div style="margin:6px 0;padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
                     <div style="font-weight:600;color:var(--brand);margin-bottom:6px;">🤖 RM AI助手 · ${name}</div>
                     ${histHtml}
                     ${graphHtml}
                     ${insight ? `<div style="color:#444;font-size:12px;line-height:1.7;border-top:1px solid #c3e6d8;padding-top:6px;margin-top:4px;">${insight}</div>` : ''}
+                    ${extHtml}
                 </div>`;
             } catch(e) { card.innerHTML = ''; }
         }
