@@ -36,6 +36,7 @@ export default {
       if (path === '/api/hint'    && request.method === 'GET')  return await handleHint(request, env);
       if (path === '/api/setup'   && request.method === 'POST') return await handleSetup(request, env);
       if (path === '/api/migrate') return await handleMigrate(request, env);
+      if (path === '/api/admin/purge-user' && request.method === 'POST') return await handlePurgeUser(request, env);
       return jsonRes({ error: '找不到路由' }, 404);
     } catch (e) {
       return jsonRes({ error: e.message }, 500);
@@ -111,9 +112,19 @@ async function handleUpload(request, env) {
 async function handleHint(request, env) {
   const url  = new URL(request.url);
   const name = (url.searchParams.get('name') || '').trim();
-  if (name.length < 2) return jsonRes({ hints: [], insight: null });
+  if (name.length < 2) return jsonRes({ hints: [], history: [], insight: null });
 
   const pat = `%${normalize(name)}%`;
+
+  // ── 搜尋行內歷史拜訪紀錄
+  const histRes = await env.DB.prepare(`
+    SELECT user_name, rm_group, visit_date, purpose, follow_up, type
+    FROM records
+    WHERE client_name LIKE ?
+    ORDER BY visit_date DESC
+    LIMIT 10
+  `).bind(pat).all();
+  const history = histRes.results || [];
 
   // 搜尋 company_graph
   const graphRes = await env.DB.prepare(`
@@ -125,7 +136,7 @@ async function handleHint(request, env) {
   `).bind(pat, pat).all();
 
   const raw = graphRes.results || [];
-  if (!raw.length) return jsonRes({ hints: [], insight: null });
+  if (!raw.length && !history.length) return jsonRes({ hints: [], history, insight: null });
 
   // 去重（同一組關係只留最新一筆）
   const seen = new Set();
@@ -161,7 +172,19 @@ async function handleHint(request, env) {
     return '';
   }).filter(Boolean).join('\n');
 
-  const prompt = `你是玉山銀行RM業務助手。以下是行內資料庫關於「${name}」的全部供應鏈紀錄，這是全部資料，不得推測或補充任何資料庫以外的信息：\n\n${lines}\n\n請用繁體中文在60字以內，只根據以上紀錄提供最關鍵的業務切入建議一句話，不可添加資料庫沒有的內容。`;
+  const histLines = history.map(h =>
+    `・${h.visit_date} ${h.user_name}（${h.rm_group||''}）曾拜訪，目的：${h.purpose||'未填'}，跟進：${h.follow_up||'未填'}`
+  ).join('\n');
+
+  const prompt = `你是玉山銀行RM業務助手。以下是行內資料庫關於「${name}」的全部資料，不得推測或補充任何資料庫以外的信息：
+
+【行內拜訪紀錄】
+${histLines || '無'}
+
+【供應鏈紀錄】
+${lines || '無'}
+
+請用繁體中文在80字以內，根據以上資料提供最關鍵的業務切入建議，不可添加資料庫沒有的內容。`;
 
   let insight = null;
   if (env.DEEPSEEK_API_KEY) {
@@ -189,7 +212,7 @@ async function handleHint(request, env) {
     }
   }
 
-  return jsonRes({ hints, insight });
+  return jsonRes({ hints, history, insight });
 }
 
 /* ──────────────────────────────────────────
@@ -469,6 +492,34 @@ async function handleMigrate(request, env) {
     }
   }
   return jsonRes({ success: true, results });
+}
+
+/* ──────────────────────────────────────────
+   POST /api/admin/purge-user — 刪除指定用戶全部紀錄（管理員）
+   Body: { password, userName }
+────────────────────────────────────────── */
+async function handlePurgeUser(request, env) {
+  if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
+  const { userName } = await request.json();
+  if (!userName) return jsonRes({ error: '缺少 userName' }, 400);
+
+  // 先取得該用戶所有 record id，用於清 company_graph
+  const rows = await env.DB.prepare(
+    `SELECT id FROM records WHERE user_name = ?`
+  ).bind(userName).all();
+  const ids = (rows.results || []).map(r => r.id);
+
+  // 刪除 company_graph
+  for (const id of ids) {
+    await env.DB.prepare(`DELETE FROM company_graph WHERE record_id = ?`).bind(id).run();
+  }
+
+  // 刪除 records
+  const del = await env.DB.prepare(
+    `DELETE FROM records WHERE user_name = ?`
+  ).bind(userName).run();
+
+  return jsonRes({ success: true, deleted: ids.length, userName });
 }
 
 /* ── 工具 ── */

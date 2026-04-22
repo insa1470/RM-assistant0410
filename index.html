@@ -1707,17 +1707,41 @@
                 if (!res.ok) { card.innerHTML = ''; return; }
                 const data    = await res.json();
                 const hints   = data.hints   || [];
+                const history = data.history || [];
                 const insight = data.insight || '';
+
+                // ── 完全無資料 ──
+                if (!hints.length && !history.length) {
+                    card.innerHTML = `<div style="margin:4px 0;padding:8px 12px;background:#f9f9f9;border-left:3px solid var(--ios-gray3);border-radius:8px;font-size:12px;color:var(--ios-gray);">📭 資料庫尚無「${name}」的相關紀錄</div>`;
+                    return;
+                }
+
+                // ── 行內歷史拜訪紀錄 ──
+                const TYPE_LABEL = { report:'訪談報告', site:'現場記錄', meeting:'會議記錄' };
+                const histHtml = history.length ? `
+                    <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #c3e6d8;">
+                        <div style="font-size:11px;font-weight:700;color:#007d50;letter-spacing:.05em;margin-bottom:4px;">📋 行內拜訪紀錄</div>
+                        ${history.map(h => `
+                        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;padding:3px 0;border-bottom:0.5px solid #e5f5ee;">
+                            <span style="color:#111;font-weight:600;">${h.user_name}<span style="color:#9ca3af;font-weight:400;"> ${h.rm_group ? '·'+h.rm_group : ''}</span></span>
+                            <span style="color:#6b7280;font-size:10.5px;">${h.visit_date||''} &nbsp;${TYPE_LABEL[h.type]||''}</span>
+                        </div>
+                        ${h.follow_up ? `<div style="font-size:10.5px;color:#f59e0b;margin-top:2px;">跟進：${h.follow_up}</div>` : ''}
+                        `).join('')}
+                    </div>` : '';
 
                 // ── 建立圖譜 ──
                 const suppliers = hints.filter(h => h.rel_type === 'supplier');
                 const buyers    = hints.filter(h => h.rel_type === 'buyer');
                 const groups    = hints.filter(h => h.rel_type === 'group');
 
-                // ── 無買方資訊 ──
-                // ── 完全無紀錄 ──
+                // ── 無買方資訊（但可能有歷史紀錄）──
                 if (!hints.length) {
-                    card.innerHTML = `<div style="margin:4px 0;padding:8px 12px;background:#f9f9f9;border-left:3px solid var(--ios-gray3);border-radius:8px;font-size:12px;color:var(--ios-gray);">📭 資料庫尚無「${name}」的買方資訊</div>`;
+                    card.innerHTML = `<div style="margin:6px 0;padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
+                        <div style="font-weight:600;color:var(--brand);margin-bottom:6px;">🤖 RM AI助手 · ${name}</div>
+                        ${histHtml}
+                        <div style="font-size:11px;color:var(--ios-gray);">📭 資料庫尚無「${name}」的買方資訊</div>
+                    </div>`;
                     return;
                 }
 
@@ -1768,6 +1792,7 @@
 
                 card.innerHTML = `<div style="margin:6px 0;padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
                     <div style="font-weight:600;color:var(--brand);margin-bottom:6px;">🤖 RM AI助手 · ${name}</div>
+                    ${histHtml}
                     ${graphHtml}
                     ${insight ? `<div style="color:#444;font-size:12px;line-height:1.7;border-top:1px solid #c3e6d8;padding-top:6px;margin-top:4px;">${insight}</div>` : ''}
                 </div>`;
