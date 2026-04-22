@@ -1687,6 +1687,8 @@
             saveDraft();
         }
 
+        let _rmHintCandidates = [];
+
         function showRMHint() {
             const card = document.getElementById('hint-card');
             if (!card) return;
@@ -1708,141 +1710,170 @@
 
             // 只有一間公司，直接查詢
             if (companies.length === 1) {
-                fetchHint(companies[0].name);
+                fetchMultiHint(companies);
                 card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 return;
             }
 
-            // 多間公司，顯示選擇器
-            const pillStyle = 'display:inline-flex;flex-direction:column;align-items:center;background:#fff;border:1.5px solid #b7deca;border-radius:12px;padding:6px 14px;cursor:pointer;gap:2px;active:opacity-80;';
-            const pillsHtml = companies.map(c =>
-                `<button onclick="fetchHint('${c.name.replace(/'/g,"\\'")}');this.closest('#hint-card').querySelector('.pill-bar').style.display='none';" style="${pillStyle}">
+            // 多間公司：顯示勾選器（預設全選）
+            _rmHintCandidates = companies;
+            const pillsHtml = companies.map((c, i) =>
+                `<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:6px 12px;background:#fff;border:1.5px solid #b7deca;border-radius:12px;">
+                    <input type="checkbox" id="rmhint-cb-${i}" checked style="width:14px;height:14px;accent-color:#007d50;">
                     <span style="font-size:10px;color:#9ca3af;">${c.label}</span>
                     <span style="font-size:13px;font-weight:600;color:#007d50;">${c.name}</span>
-                </button>`
+                </label>`
             ).join('');
 
             card.innerHTML = `<div style="margin:4px 0;padding:10px 12px;background:#f0faf5;border-left:3px solid var(--brand);border-radius:10px;">
-                <div style="font-size:12px;color:var(--ios-gray);margin-bottom:8px;">查詢哪間公司的情報？</div>
-                <div class="pill-bar" style="display:flex;gap:8px;flex-wrap:wrap;">${pillsHtml}</div>
+                <div style="font-size:12px;color:var(--ios-gray);margin-bottom:8px;">選擇要查詢的公司（可複選）：</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${pillsHtml}</div>
+                <button onclick="submitRMHintSelection()" style="background:var(--brand);color:#fff;border:none;border-radius:10px;padding:8px 0;font-size:13px;font-weight:600;cursor:pointer;width:100%;">查詢選取</button>
             </div>`;
             card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
-        async function fetchHint(name) {
+
+        function submitRMHintSelection() {
+            const selected = _rmHintCandidates.filter((_, i) => {
+                const cb = document.getElementById(`rmhint-cb-${i}`);
+                return cb && cb.checked;
+            });
+            if (!selected.length) { showToast('請至少選擇一間公司'); return; }
+            fetchMultiHint(selected);
+        }
+
+        async function fetchMultiHint(companies) {
             const card = document.getElementById('hint-card');
             if (!card) return;
-            card.innerHTML = `<div style="padding:8px 12px;font-size:12px;color:var(--ios-gray);">🔍 查詢 <b>${name}</b> 的供應鏈資料…</div>`;
+            const names = companies.map(c => c.name).join('、');
+            card.innerHTML = `<div style="padding:8px 12px;font-size:12px;color:var(--ios-gray);">🔍 查詢 <b>${names}</b> 的資料…</div>`;
             try {
-                const res = await fetch(`${WORKER_URL}/api/hint?name=${encodeURIComponent(name)}`);
-                if (!res.ok) { card.innerHTML = ''; return; }
-                const data    = await res.json();
-                const hints    = data.hints    || [];
-                const history  = data.history  || [];
-                const insight  = data.insight  || '';
-                const external = data.external || null;
-
-                // ── 完全無資料 ──
-                if (!hints.length && !history.length) {
-                    card.innerHTML = `<div style="margin:4px 0;padding:8px 12px;background:#f9f9f9;border-left:3px solid var(--ios-gray3);border-radius:8px;font-size:12px;color:var(--ios-gray);">📭 資料庫尚無「${name}」的相關紀錄</div>`;
-                    return;
-                }
-
-                // ── 行內歷史拜訪紀錄 ──
-                const TYPE_LABEL = { report:'訪談報告', site:'現場記錄', meeting:'會議記錄' };
-                const histHtml = history.length ? `
-                    <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #c3e6d8;">
-                        <div style="font-size:11px;font-weight:700;color:#007d50;letter-spacing:.05em;margin-bottom:4px;">📋 行內拜訪紀錄</div>
-                        ${history.map(h => `
-                        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;padding:3px 0;border-bottom:0.5px solid #e5f5ee;">
-                            <span style="color:#111;font-weight:600;">${h.user_name}<span style="color:#9ca3af;font-weight:400;"> ${h.rm_group ? '·'+h.rm_group : ''}</span></span>
-                            <span style="color:#6b7280;font-size:10.5px;">${h.visit_date||''} &nbsp;${TYPE_LABEL[h.type]||''}</span>
-                        </div>
-                        ${h.follow_up ? `<div style="font-size:10.5px;color:#f59e0b;margin-top:2px;">跟進：${h.follow_up}</div>` : ''}
-                        `).join('')}
-                    </div>` : '';
-
-                // ── 建立圖譜 ──
-                const suppliers = hints.filter(h => h.rel_type === 'supplier');
-                const buyers    = hints.filter(h => h.rel_type === 'buyer');
-                const groups    = hints.filter(h => h.rel_type === 'group');
-
-                // ── 無買方資訊（但可能有歷史紀錄）──
-                if (!hints.length) {
-                    card.innerHTML = `<div style="margin:6px 0;padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
-                        <div style="font-weight:600;color:var(--brand);margin-bottom:6px;">🤖 RM AI助手 · ${name}</div>
-                        ${histHtml}
-                        <div style="font-size:11px;color:var(--ios-gray);">📭 資料庫尚無「${name}」的買方資訊</div>
-                    </div>`;
-                    return;
-                }
-
-                const groupName  = groups.length ? groups[0].rel_name : '';
-                const unknownStyle = 'display:inline-block;background:#f3f4f6;border:1px dashed #d1d5db;border-radius:8px;padding:2px 8px;font-size:11.5px;color:#9ca3af;font-weight:500;white-space:nowrap;';
-                const nodeStyle  = 'display:inline-block;background:#e8f5ee;border:1px solid #b7deca;border-radius:8px;padding:2px 8px;font-size:11.5px;color:#007d50;font-weight:600;white-space:nowrap;';
-                const focalStyle = 'display:inline-block;background:#007d50;border-radius:8px;padding:3px 10px;font-size:12px;color:#fff;font-weight:700;white-space:nowrap;';
-                const arrowStyle = 'font-size:11px;color:var(--ios-gray);margin:0 3px;white-space:nowrap;align-self:center;';
-                const termsStyle = 'display:block;font-size:10px;color:var(--ios-gray);text-align:center;margin-top:2px;';
-
-                // 金流方向：買方 ──金流──▶ 客戶 ──金流──▶ 供應商
-                // 無買方時顯示「不詳」佔位節點
-                const buyHtml = buyers.length
-                    ? buyers.map(h => `
-                        <div style="display:flex;flex-direction:column;align-items:center;">
-                            <span style="${nodeStyle}">${h.rel_name}</span>
-                            ${h.terms ? `<span style="${termsStyle}">收款 ${h.terms}</span>` : ''}
-                        </div>
-                        <span style="${arrowStyle}">──金流──▶</span>`).join('')
-                    : `<div style="display:flex;flex-direction:column;align-items:center;">
-                          <span style="${unknownStyle}">買方不詳</span>
-                       </div>
-                       <span style="${arrowStyle}">──金流──▶</span>`;
-
-                const suppHtml = suppliers.length
-                    ? suppliers.map(h => `
-                        <span style="${arrowStyle}">──金流──▶</span>
-                        <div style="display:flex;flex-direction:column;align-items:center;">
-                            <span style="${nodeStyle}">${h.rel_name}</span>
-                            ${h.terms ? `<span style="${termsStyle}">付款 ${h.terms}</span>` : ''}
-                        </div>`).join('')
-                    : '';
-
-                const noBuyerNote = !buyers.length
-                    ? `<div style="font-size:11px;color:#f59e0b;margin-top:4px;">⚠️ 資料庫尚無「${name}」的買方資訊</div>`
-                    : '';
-
-                const graphHtml = `
-                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
-                        ${buyHtml}
-                        <div style="display:flex;flex-direction:column;align-items:center;">
-                            <span style="${focalStyle}">${name}</span>
-                            ${groupName ? `<span style="${termsStyle}">${groupName}集團</span>` : ''}
-                        </div>
-                        ${suppHtml}
-                    </div>
-                    ${noBuyerNote}`;
-
-                // ── 外部知識區塊 ──
-                const extHtml = external ? (() => {
-                    const rows = [];
-                    if (external.industry) rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">行業</span><span style="color:#374151;font-weight:500;">${external.industry}</span></div>`);
-                    if (external.outlook)  rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">前景</span><span style="color:#374151;">${external.outlook}</span></div>`);
-                    if (external.upstream?.length)   rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">上游</span><span style="color:#374151;">${external.upstream.join('、')}</span></div>`);
-                    if (external.downstream?.length) rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">下游</span><span style="color:#374151;">${external.downstream.join('、')}</span></div>`);
-                    if (!rows.length) return '';
-                    return `<div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.6);border-radius:8px;border-top:1px solid #c3e6d8;">
-                        <div style="font-size:10.5px;font-weight:700;color:#9ca3af;letter-spacing:.05em;margin-bottom:4px;">🌐 AI 外部知識（僅供參考）</div>
-                        ${rows.join('')}
-                    </div>`;
-                })() : '';
-
-                card.innerHTML = `<div style="margin:6px 0;padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
-                    <div style="font-weight:600;color:var(--brand);margin-bottom:6px;">🤖 RM AI助手 · ${name}</div>
-                    ${histHtml}
-                    ${graphHtml}
-                    ${insight ? `<div style="color:#444;font-size:12px;line-height:1.7;border-top:1px solid #c3e6d8;padding-top:6px;margin-top:4px;">${insight}</div>` : ''}
-                    ${extHtml}
-                </div>`;
+                const results = await Promise.all(
+                    companies.map(async c => {
+                        try {
+                            const res = await fetch(`${WORKER_URL}/api/hint?name=${encodeURIComponent(c.name)}`);
+                            return { company: c, data: res.ok ? await res.json() : null };
+                        } catch(e) { return { company: c, data: null }; }
+                    })
+                );
+                const sections = results.map(r => buildHintSection(r.company, r.data)).join('');
+                card.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;margin:4px 0;">${sections}</div>`;
             } catch(e) { card.innerHTML = ''; }
+        }
+
+        function buildHintSection({ label, name }, data) {
+            const TYPE_LABEL = { report:'訪談報告', site:'現場記錄', meeting:'會議記錄' };
+            const sectionHeader = `<div style="font-size:10.5px;font-weight:700;color:#9ca3af;letter-spacing:.08em;margin-bottom:6px;">【${label}】${name}</div>`;
+
+            if (!data) {
+                return `<div style="padding:10px 12px;background:#f9f9f9;border-left:3px solid var(--ios-gray3);border-radius:10px;font-size:12px;color:var(--ios-gray);">${sectionHeader}❌ 查詢失敗，請稍後再試</div>`;
+            }
+
+            const hints    = data.hints    || [];
+            const history  = data.history  || [];
+            const insight  = data.insight  || '';
+            const external = data.external || null;
+
+            // ── 行內歷史拜訪紀錄 ──
+            const histHtml = history.length ? `
+                <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #c3e6d8;">
+                    <div style="font-size:11px;font-weight:700;color:#007d50;letter-spacing:.05em;margin-bottom:4px;">📋 行內拜訪紀錄</div>
+                    ${history.map(h => `
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;padding:3px 0;border-bottom:0.5px solid #e5f5ee;">
+                        <span style="color:#111;font-weight:600;">${h.user_name}<span style="color:#9ca3af;font-weight:400;"> ${h.rm_group ? '·'+h.rm_group : ''}</span></span>
+                        <span style="color:#6b7280;font-size:10.5px;">${h.visit_date||''} &nbsp;${TYPE_LABEL[h.type]||''}</span>
+                    </div>
+                    ${h.follow_up ? `<div style="font-size:10.5px;color:#f59e0b;margin-top:2px;">跟進：${h.follow_up}</div>` : ''}
+                    `).join('')}
+                </div>` : '';
+
+            // ── 完全無資料 ──
+            if (!hints.length && !history.length) {
+                return `<div style="padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
+                    ${sectionHeader}
+                    <div style="font-size:11px;color:var(--ios-gray);">📭 資料庫尚無「${name}」的相關紀錄</div>
+                </div>`;
+            }
+
+            // ── 無供應鏈圖譜（但有歷史紀錄）──
+            if (!hints.length) {
+                return `<div style="padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
+                    ${sectionHeader}
+                    ${histHtml}
+                    <div style="font-size:11px;color:var(--ios-gray);">📭 資料庫尚無「${name}」的買方資訊</div>
+                </div>`;
+            }
+
+            // ── 供應鏈圖譜 ──
+            const suppliers = hints.filter(h => h.rel_type === 'supplier');
+            const buyers    = hints.filter(h => h.rel_type === 'buyer');
+            const groups    = hints.filter(h => h.rel_type === 'group');
+            const groupName = groups.length ? groups[0].rel_name : '';
+
+            const unknownStyle = 'display:inline-block;background:#f3f4f6;border:1px dashed #d1d5db;border-radius:8px;padding:2px 8px;font-size:11.5px;color:#9ca3af;font-weight:500;white-space:nowrap;';
+            const nodeStyle    = 'display:inline-block;background:#e8f5ee;border:1px solid #b7deca;border-radius:8px;padding:2px 8px;font-size:11.5px;color:#007d50;font-weight:600;white-space:nowrap;';
+            const focalStyle   = 'display:inline-block;background:#007d50;border-radius:8px;padding:3px 10px;font-size:12px;color:#fff;font-weight:700;white-space:nowrap;';
+            const arrowStyle   = 'font-size:11px;color:var(--ios-gray);margin:0 3px;white-space:nowrap;align-self:center;';
+            const termsStyle   = 'display:block;font-size:10px;color:var(--ios-gray);text-align:center;margin-top:2px;';
+
+            // 金流方向：買方 ──金流──▶ 客戶 ──金流──▶ 供應商
+            const buyHtml = buyers.length
+                ? buyers.map(h => `
+                    <div style="display:flex;flex-direction:column;align-items:center;">
+                        <span style="${nodeStyle}">${h.rel_name}</span>
+                        ${h.terms ? `<span style="${termsStyle}">收款 ${h.terms}</span>` : ''}
+                    </div>
+                    <span style="${arrowStyle}">──金流──▶</span>`).join('')
+                : `<div style="display:flex;flex-direction:column;align-items:center;">
+                      <span style="${unknownStyle}">買方不詳</span>
+                   </div>
+                   <span style="${arrowStyle}">──金流──▶</span>`;
+
+            const suppHtml = suppliers.length
+                ? suppliers.map(h => `
+                    <span style="${arrowStyle}">──金流──▶</span>
+                    <div style="display:flex;flex-direction:column;align-items:center;">
+                        <span style="${nodeStyle}">${h.rel_name}</span>
+                        ${h.terms ? `<span style="${termsStyle}">付款 ${h.terms}</span>` : ''}
+                    </div>`).join('')
+                : '';
+
+            const noBuyerNote = !buyers.length
+                ? `<div style="font-size:11px;color:#f59e0b;margin-top:4px;">⚠️ 資料庫尚無「${name}」的買方資訊</div>`
+                : '';
+
+            const graphHtml = `
+                <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
+                    ${buyHtml}
+                    <div style="display:flex;flex-direction:column;align-items:center;">
+                        <span style="${focalStyle}">${name}</span>
+                        ${groupName ? `<span style="${termsStyle}">${groupName}集團</span>` : ''}
+                    </div>
+                    ${suppHtml}
+                </div>
+                ${noBuyerNote}`;
+
+            // ── 外部知識 ──
+            const extHtml = external ? (() => {
+                const rows = [];
+                if (external.industry) rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">行業</span><span style="color:#374151;font-weight:500;">${external.industry}</span></div>`);
+                if (external.outlook)  rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">前景</span><span style="color:#374151;">${external.outlook}</span></div>`);
+                if (external.upstream?.length)   rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">上游</span><span style="color:#374151;">${external.upstream.join('、')}</span></div>`);
+                if (external.downstream?.length) rows.push(`<div style="display:flex;gap:6px;padding:3px 0;"><span style="color:#9ca3af;min-width:44px;flex-shrink:0;">下游</span><span style="color:#374151;">${external.downstream.join('、')}</span></div>`);
+                if (!rows.length) return '';
+                return `<div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.6);border-radius:8px;border-top:1px solid #c3e6d8;">
+                    <div style="font-size:10.5px;font-weight:700;color:#9ca3af;letter-spacing:.05em;margin-bottom:4px;">🌐 AI 外部知識（僅供參考）</div>
+                    ${rows.join('')}
+                </div>`;
+            })() : '';
+
+            return `<div style="padding:10px 12px;background:linear-gradient(135deg,#f0faf5,#e8f5ee);border-left:3px solid var(--brand);border-radius:10px;font-size:12px;line-height:1.6;">
+                ${sectionHeader}
+                ${histHtml}
+                ${graphHtml}
+                ${insight ? `<div style="color:#444;font-size:12px;line-height:1.7;border-top:1px solid #c3e6d8;padding-top:6px;margin-top:4px;">${insight}</div>` : ''}
+                ${extHtml}
+            </div>`;
         }
 
         function toggleBusiness(biz, checked) {
