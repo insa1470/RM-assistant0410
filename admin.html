@@ -538,6 +538,36 @@ function redraw(id, type, data, options) {
 const TYPE_LABEL = { report:'訪談', meeting:'會議', site:'現場' };
 const TYPE_CLASS = { report:'badge-report', meeting:'badge-meeting', site:'badge-site' };
 
+/* 提醒日計算 */
+function calcReminder(visitDate, followUp) {
+  if (!visitDate || !followUp) return null;
+  const isHigh    = followUp === '高頻追蹤' || followUp === '強追蹤';
+  const isRegular = followUp === '定期追蹤';
+  if (!isHigh && !isRegular) return null;
+
+  const base = new Date(visitDate);
+  if (isHigh) {
+    base.setDate(base.getDate() + 7);       // +7 日
+  } else {
+    base.setMonth(base.getMonth() + 1);     // +1 個月
+  }
+  return base.toISOString().split('T')[0];  // YYYY-MM-DD
+}
+
+function reminderBadge(visitDate, followUp) {
+  const due = calcReminder(visitDate, followUp);
+  if (!due) return '';
+  const today = new Date().toISOString().split('T')[0];
+  const diffDays = Math.round((new Date(due) - new Date(today)) / 86400000);
+  const label  = followUp === '定期追蹤' ? '定期' : '高頻';
+  let color, text;
+  if (diffDays < 0)      { color = '#ef4444'; text = `${label} 逾期${Math.abs(diffDays)}天`; }
+  else if (diffDays === 0){ color = '#ef4444'; text = `${label} 今天提醒`; }
+  else if (diffDays <= 3) { color = '#f59e0b'; text = `${label} 還有${diffDays}天`; }
+  else                    { color = '#9ca3af'; text = `${label} ${due}`; }
+  return `<span style="font-size:10px;font-weight:600;color:${color};white-space:nowrap;">${text}</span>`;
+}
+
 async function loadRecords() { recordsOffset=0; recordsSeenKeys.clear(); document.getElementById('records-body').innerHTML=''; await fetchRecords(); }
 async function loadMoreRecords() { await fetchRecords(); }
 async function fetchRecords() {
@@ -555,15 +585,21 @@ async function fetchRecords() {
     return true;
   });
   rows.forEach(r => { _recordMap[r.id] = r; });
-  const html = rows.map(r => `
+  const html = rows.map(r => {
+    const remind = reminderBadge(r.visit_date, r.follow_up);
+    return `
     <div class="flex items-center gap-3 px-5 py-3 cursor-pointer active:bg-gray-50 hover:bg-gray-50 transition-colors" onclick="showDetail('${r.id}')">
       <span class="badge ${TYPE_CLASS[r.type]||'badge-report'} flex-shrink-0">${TYPE_LABEL[r.type]||r.type}</span>
       <div class="flex-1 min-w-0">
         <p class="text-[14px] font-semibold text-gray-800 truncate">${r.client_name||r.meeting_name||'—'}</p>
         <p class="text-[12px] text-gray-400">${r.user_name} · ${r.visit_date||'-'} · ${r.city||r.branch||'-'}${r.is_8_plus_e ? ' · <span style="color:#007d50;font-weight:600">8+E</span>' : ''}</p>
       </div>
-      <span style="color:#d1d5db;font-size:16px;">›</span>
-    </div>`).join('');
+      <div class="flex flex-col items-end gap-1 flex-shrink-0">
+        ${remind}
+        <span style="color:#d1d5db;font-size:16px;">›</span>
+      </div>
+    </div>`;
+  }).join('');
   document.getElementById('records-body').insertAdjacentHTML('beforeend', html || (recordsOffset===0 ? '<div class="px-5 py-8 text-center text-gray-400 text-sm">此區間無紀錄</div>' : ''));
   recordsOffset += rows.length;
   document.getElementById('records-more').classList.toggle('hidden', rows.length < RECORDS_LIMIT);
