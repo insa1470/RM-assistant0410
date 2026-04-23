@@ -548,6 +548,14 @@ function showDetail(id) {
     );
   }
 
+  // 現場紀錄 — 訪查內容（site 專用）
+  if (r.type === 'site') {
+    if (tmpl.mgmtTalk)     html += section('与公司高管面谈情形', block(tmpl.mgmtTalk));
+    if (tmpl.factoryEnv)   html += section('访厂情况（产线及库存）', block(tmpl.factoryEnv));
+    if (tmpl.businessPerf) html += section('最新接单与营收获利表现', block(tmpl.businessPerf));
+    if (tmpl.summary)      html += section('综合评述', block(tmpl.summary));
+  }
+
   // 完整访谈摘要（含第2点之后的 contentList）
   const summaryLines = [];
   if (tmpl.customerNeed) summaryLines.push(`1. ${tmpl.customerNeed}`);

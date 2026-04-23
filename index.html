@@ -1320,6 +1320,12 @@
                         <p class="form-section-label mb-0">现场照片</p>
                         <span class="text-[12px] text-[color:var(--brand)] font-medium">最多 4 张 · 高清存证</span>
                     </div>
+                    <div class="ios-group px-4 py-3 flex items-center gap-3">
+                        <label class="text-[13px] text-[color:var(--ios-gray)] font-medium whitespace-nowrap">照片日期</label>
+                        <input type="date" oninput="updateDraft('photoDate',this.value)"
+                            value="${draft.photoDate || draft.visitDate || ''}"
+                            class="flex-1 bg-transparent border-none outline-none text-[15px] text-right">
+                    </div>
                     <div class="grid grid-cols-2 gap-3">
                         ${[0,1,2,3].map(i=>`
                         <div class="photo-slot" onclick="triggerUpload(${i})">
@@ -1357,10 +1363,11 @@
             /* ── preview HTML content ── */
             let previewHtml = '';
             if (type === 'site') {
+                const photoDateStr = (draft.photoDate || draft.visitDate || '').replace(/-/g,'/');
                 previewHtml = `<div id="word-content" style="font-family:'SimSun',serif;font-size:12px;line-height:1.4;color:black;">
                     <div style="text-align:center;margin-bottom:20px;">
                         <p style="font-weight:bold;font-size:18px;margin:0 0 6px;">${draft.clientName}－现场检查照片</p>
-                        <p style="font-size:12px;color:#666;margin:0;">日期：${dateStr}</p>
+                        <p style="font-size:12px;color:#666;margin:0;">日期：${photoDateStr}</p>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
                         ${draft.photos.map((p,idx)=>p?`<img src="${p}" style="width:100%;border:0.5pt solid #ddd;aspect-ratio:4/3;object-fit:cover;">`:`<div style="aspect-ratio:4/3;background:#f9fafb;border:1px dashed #e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:10px;">照片 ${idx+1} 未上传</div>`).join('')}
@@ -1566,7 +1573,7 @@
             } else if (type === 'meeting') {
                 draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, branch:'', meetingName:'主管会议', chairman:'', recorder:'', city:'', attendeeText:'', discussions:{}, todoQuadrants:{ urgentImportant:'', importantNotUrgent:'', urgentNotImportant:'', notUrgentNotImportant:'' }, dailySections:[{dept:'',content:''}] };
             } else if (type === 'site') {
-                draft = { ...base, clientName:'', rmGroup:'', owner:'', mgmtTalk:'', factoryEnv:'', businessPerf:'', summary:'', photos:[null,null,null,null] };
+                draft = { ...base, clientName:'', rmGroup:'', owner:'', mgmtTalk:'', factoryEnv:'', businessPerf:'', summary:'', photoDate:'', photos:[null,null,null,null] };
             }
             saveDraft();
             switchView(`edit-${type}`);
@@ -2119,7 +2126,13 @@
                                           contentList:    record.contentList    || [],
                                           todoList:       record.todoList       || [],
                                           targetBusiness: record.targetBusiness || [],
-                                      } : null,
+                                      } : (record.type === 'site' ? {
+                                          mgmtTalk:     record.mgmtTalk     || null,
+                                          factoryEnv:   record.factoryEnv   || null,
+                                          businessPerf: record.businessPerf || null,
+                                          summary:      record.summary      || null,
+                                          photoDate:    record.photoDate    || null,
+                                      } : null),
                         followUp:     record.followUp     || null,
                         hqLeader:     record.hqLeader     ? true : false,
                     })
