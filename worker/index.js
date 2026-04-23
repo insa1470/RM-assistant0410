@@ -274,7 +274,8 @@ async function handleStats(request, env) {
     SELECT COUNT(*) as total,
            COUNT(DISTINCT user_name) as users,
            COUNT(DISTINCT client_name) as clients,
-           SUM(is_8_plus_e) as total_8e
+           SUM(is_8_plus_e) as total_8e,
+           SUM(hq_leader) as total_hq
     FROM records WHERE type = 'report' AND ${dateWhere()}
   `).first();
 
