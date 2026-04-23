@@ -53,13 +53,18 @@ async function handleUpload(request, env) {
     id, userName, type, clientName, meetingName,
     rmGroup, owner, visitDate, visitHour, visitEndHour,
     purpose, city, branch, is8PlusE,
-    tmpl, followUp, hqLeader
+    tmpl, followUp, hqLeader,
+    companyType, industryDesc
   } = b;
 
   if (!userName || !type) return jsonRes({ error: '缺少必填欄位' }, 400);
 
   const recordId = id || crypto.randomUUID();
-  const tmplJson = tmpl ? JSON.stringify(tmpl) : null;
+  // 合併 companyType / industryDesc 進 tmpl_json（不需額外 DB 欄位）
+  const tmplMerged = tmpl
+    ? { ...tmpl, companyType: companyType || null, industryDesc: industryDesc || null }
+    : null;
+  const tmplJson = tmplMerged ? JSON.stringify(tmplMerged) : null;
 
   await env.DB.prepare(`
     INSERT OR REPLACE INTO records
