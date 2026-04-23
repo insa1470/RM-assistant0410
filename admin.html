@@ -65,11 +65,22 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
       </div>
     </div>
     <div class="flex items-center gap-2 flex-wrap">
-      <select id="range-select" onchange="loadData()" class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
+      <select id="range-select" onchange="onRangeChange()" class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
         <option value="7">近 7 天</option>
         <option value="30" selected>近 30 天</option>
         <option value="90">近 90 天</option>
         <option value="365">近一年</option>
+      </select>
+      <select id="week-month-select" onchange="onWeekMonthChange()" class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
+        <option value="">── 週別 ──</option>
+      </select>
+      <select id="week-num-select" onchange="loadData()" disabled class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none disabled:opacity-40">
+        <option value="">第幾週</option>
+        <option value="1">第一週</option>
+        <option value="2">第二週</option>
+        <option value="3">第三週</option>
+        <option value="4">第四週</option>
+        <option value="5">第五週</option>
       </select>
       <button onclick="exportCSV()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-white border border-gray-200 text-gray-600">
         <i data-lucide="download" class="w-4 h-4"></i> 匯出 CSV
@@ -117,7 +128,8 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
             <th class="px-4 py-3 text-center">本期拜訪</th>
             <th class="px-4 py-3 text-center">動能</th>
             <th class="px-4 py-3 text-center">8+E 比率</th>
-            <th class="px-4 py-3 text-center">客戶多樣性</th>
+            <th class="px-4 py-3 text-center">業務多樣性</th>
+            <th class="px-4 py-3 text-center">跟進頻率</th>
             <th class="px-4 py-3 text-center">月度目標</th>
             <th class="px-4 py-3 text-center">最後拜訪</th>
           </tr>
@@ -234,6 +246,7 @@ async function login() {
   localStorage.setItem('rm_admin_pwd', pwd);
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
+  initWeekMonthSelect();
   try { await loadTargets(); } catch(e) { console.warn('loadTargets error', e); }
   try { await loadData();    } catch(e) { console.warn('loadData error', e); }
 }
@@ -273,14 +286,74 @@ async function saveTargets() {
   await loadData();
 }
 
+/* ── 週別選單初始化 ── */
+function initWeekMonthSelect() {
+  const sel = document.getElementById('week-month-select');
+  const now = new Date();
+  for (let i = 0; i < 4; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = `${d.getFullYear()}年${d.getMonth()+1}月`;
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = label;
+    sel.appendChild(opt);
+  }
+}
+
+function onRangeChange() {
+  // 切換到「近N天」模式時清除週別
+  document.getElementById('week-month-select').value = '';
+  document.getElementById('week-num-select').value   = '';
+  document.getElementById('week-num-select').disabled = true;
+  loadData();
+}
+
+function onWeekMonthChange() {
+  const hasMonth = !!document.getElementById('week-month-select').value;
+  document.getElementById('week-num-select').disabled = !hasMonth;
+  if (!hasMonth) {
+    document.getElementById('week-num-select').value = '';
+    loadData();
+  }
+}
+
+// 計算自然週（週一到週日）的 from/to
+function getWeekRange(yearMonth, weekNum) {
+  const [y, m] = yearMonth.split('-').map(Number);
+  const d1 = new Date(y, m - 1, 1);
+  const dow = d1.getDay(); // 0=Sun
+  // 找本月第一天所在週的週一
+  const diffToMon = dow === 0 ? -6 : 1 - dow;
+  const weekStart = new Date(y, m - 1, 1 + diffToMon + (weekNum - 1) * 7);
+  const weekEnd   = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const fmt = d => d.toISOString().split('T')[0];
+  return { from: fmt(weekStart), to: fmt(weekEnd) };
+}
+
 /* ── 主資料載入 ── */
 async function loadData() {
-  const range = document.getElementById('range-select').value;
-  const sleep = document.getElementById('target-sleep').value || 30;
-  const res   = await fetch(`${WORKER_URL}/api/stats?password=${enc(PASSWORD)}&range=${range}&sleep=${sleep}`);
-  statsData   = await res.json();
+  const sleep      = document.getElementById('target-sleep').value || 30;
+  const weekMonth  = document.getElementById('week-month-select')?.value || '';
+  const weekNum    = parseInt(document.getElementById('week-num-select')?.value || '0');
 
-  document.getElementById('header-since').textContent = `${statsData.since} 至今`;
+  let url;
+  let headerText;
+  if (weekMonth && weekNum) {
+    const { from, to } = getWeekRange(weekMonth, weekNum);
+    url = `${WORKER_URL}/api/stats?password=${enc(PASSWORD)}&from=${from}&to=${to}&sleep=${sleep}`;
+    headerText = `${weekMonth.replace('-','年')}月 第${weekNum}週（${from} ～ ${to}）`;
+  } else {
+    const range = document.getElementById('range-select').value;
+    url = `${WORKER_URL}/api/stats?password=${enc(PASSWORD)}&range=${range}&sleep=${sleep}`;
+    headerText = null;
+  }
+
+  const res = await fetch(url);
+  statsData  = await res.json();
+
+  document.getElementById('header-since').textContent =
+    headerText || `${statsData.since} 至今`;
 
   const t = statsData.totals || {};
   document.getElementById('stat-total').textContent   = t.total   || 0;
@@ -325,6 +398,11 @@ function renderRadar(radar, lastVisit, target) {
                   : daysSince <= 14 ? `<span class="text-yellow-500 text-xs">${lastD}</span>`
                   :                   `<span class="text-red-400 text-xs">${lastD}</span>`;
 
+    const bizLabel = r.biz_diversity > 0 ? `${r.biz_diversity} 種` : `<span class="text-gray-300">—</span>`;
+    const followLabel = (r.high_freq || r.regular)
+      ? `<span class="text-red-400 font-semibold">高頻 ${r.high_freq}</span><span class="text-gray-300 mx-1">/</span><span class="text-yellow-500 font-semibold">定期 ${r.regular}</span>`
+      : `<span class="text-gray-300">—</span>`;
+
     return `<tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
       <td class="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap">
         ${r.user_name}
@@ -339,7 +417,8 @@ function renderRadar(radar, lastVisit, target) {
         <span class="${r.e8_ratio >= 30 ? 'text-green-600' : 'text-gray-500'} font-semibold">${r.e8_ratio}%</span>
         <span class="text-xs text-gray-300 ml-1">(${r.e8_count}次)</span>
       </td>
-      <td class="px-4 py-3 text-center text-[13px] text-gray-500">${r.unique_clients} 位</td>
+      <td class="px-4 py-3 text-center text-[13px] text-gray-600">${bizLabel}</td>
+      <td class="px-4 py-3 text-center text-[12px]">${followLabel}</td>
       <td class="px-4 py-3" style="min-width:120px">
         <div class="flex items-center gap-2">
           <div class="progress-bg flex-1">
@@ -352,7 +431,7 @@ function renderRadar(radar, lastVisit, target) {
     </tr>`;
   }).join('');
 
-  document.getElementById('radar-body').innerHTML = rows || '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400 text-sm">此區間無資料</td></tr>';
+  document.getElementById('radar-body').innerHTML = rows || '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400 text-sm">此區間無資料</td></tr>';
 }
 
 /* ── 沉睡客戶 ── */

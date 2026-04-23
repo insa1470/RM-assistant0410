@@ -250,48 +250,89 @@ async function handleStats(request, env) {
   const url   = new URL(request.url);
   const days  = parseInt(url.searchParams.get('range') || '30');
   const sleep = parseInt(url.searchParams.get('sleep') || '30');
-  const since = daysAgo(days);
-  const prev  = daysAgo(days * 2);
+  // 支援 from/to 週別篩選；若無則用 range 天數
+  const fromP  = url.searchParams.get('from') || null;
+  const toP    = url.searchParams.get('to')   || null;
+  const since  = fromP || daysAgo(days);
+  const until  = toP   || null;
+  const prev   = daysAgo(days * 2);
 
+  // 日期條件 helper
+  const dateWhere = (alias = '') => {
+    const col = alias ? `${alias}.visit_date` : 'visit_date';
+    return until ? `${col} >= '${since}' AND ${col} <= '${until}'`
+                 : `${col} >= '${since}'`;
+  };
+
+  // ── 行銷動能：只計 report（訪談報告）
   const totals = await env.DB.prepare(`
     SELECT COUNT(*) as total,
            COUNT(DISTINCT user_name) as users,
            COUNT(DISTINCT client_name) as clients,
            SUM(is_8_plus_e) as total_8e
-    FROM records WHERE visit_date >= ?
-  `).bind(since).first();
+    FROM records WHERE type = 'report' AND ${dateWhere()}
+  `).first();
 
+  // ── 每人報告數（report only）
   const perUser = await env.DB.prepare(`
     SELECT user_name, COUNT(*) as count,
            SUM(is_8_plus_e) as e8_count,
            COUNT(DISTINCT client_name) as unique_clients
-    FROM records WHERE visit_date >= ?
+    FROM records WHERE type = 'report' AND ${dateWhere()}
     GROUP BY user_name ORDER BY count DESC
-  `).bind(since).all();
+  `).all();
 
+  // ── 前期對比（report only，用 range 天數；週別模式下沿用 daysAgo）
   const prevPeriod = await env.DB.prepare(`
     SELECT user_name, COUNT(*) as count
-    FROM records WHERE visit_date >= ? AND visit_date < ?
+    FROM records WHERE type = 'report' AND visit_date >= ? AND visit_date < ?
     GROUP BY user_name
   `).bind(prev, since).all();
   const prevMap = Object.fromEntries((prevPeriod.results || []).map(r => [r.user_name, r.count]));
 
+  // ── 跟進頻率（report only）
+  const followUpRes = await env.DB.prepare(`
+    SELECT user_name,
+           SUM(CASE WHEN follow_up IN ('高頻追蹤','強追蹤') THEN 1 ELSE 0 END) as high_freq,
+           SUM(CASE WHEN follow_up = '定期追蹤' THEN 1 ELSE 0 END) as regular
+    FROM records WHERE type = 'report' AND ${dateWhere()}
+    GROUP BY user_name
+  `).all();
+  const followUpMap = Object.fromEntries((followUpRes.results || []).map(r => [r.user_name, r]));
+
+  // ── 業務多樣性：從 tmpl_json 的 targetBusiness 陣列統計不重複種類數
+  let bizDivMap = {};
+  try {
+    const bizRes = await env.DB.prepare(`
+      SELECT r.user_name, COUNT(DISTINCT j.value) as biz_count
+      FROM records r, json_each(json_extract(r.tmpl_json, '$.targetBusiness')) j
+      WHERE r.type = 'report' AND ${dateWhere('r')}
+        AND json_extract(r.tmpl_json, '$.targetBusiness') IS NOT NULL
+      GROUP BY r.user_name
+    `).all();
+    bizDivMap = Object.fromEntries((bizRes.results || []).map(r => [r.user_name, r.biz_count]));
+  } catch(e) { /* json_each 在空陣列時可能拋錯，靜默忽略 */ }
+
+  // ── 每日趨勢（所有類型，供趨勢圖用）
   const dailyTrend = await env.DB.prepare(`
     SELECT visit_date, COUNT(*) as count
-    FROM records WHERE visit_date >= ?
+    FROM records WHERE ${dateWhere()}
     GROUP BY visit_date ORDER BY visit_date ASC
-  `).bind(since).all();
+  `).all();
 
+  // ── 活動類型分布（所有類型）
   const typeBreakdown = await env.DB.prepare(`
     SELECT type, COUNT(*) as count
-    FROM records WHERE visit_date >= ? GROUP BY type
-  `).bind(since).all();
+    FROM records WHERE ${dateWhere()} GROUP BY type
+  `).all();
 
+  // ── 拜訪目的（report only）
   const purposeBreakdown = await env.DB.prepare(`
     SELECT purpose, COUNT(*) as count
-    FROM records WHERE visit_date >= ? AND purpose IS NOT NULL GROUP BY purpose
-  `).bind(since).all();
+    FROM records WHERE type = 'report' AND ${dateWhere()} AND purpose IS NOT NULL GROUP BY purpose
+  `).all();
 
+  // ── 沉睡客戶
   const sleepingClients = await env.DB.prepare(`
     SELECT client_name,
            MAX(visit_date) as last_visit,
@@ -305,6 +346,7 @@ async function handleStats(request, env) {
     LIMIT 20
   `).bind(sleep).all();
 
+  // ── 最後拜訪（所有類型）
   const lastVisit = await env.DB.prepare(`
     SELECT user_name, MAX(visit_date) as last_date, COUNT(*) as total_all
     FROM records GROUP BY user_name ORDER BY last_date DESC
@@ -313,19 +355,21 @@ async function handleStats(request, env) {
   const users = perUser.results || [];
   const avg   = users.length > 0 ? users.reduce((s, u) => s + u.count, 0) / users.length : 0;
   const radar = users.map(u => ({
-    user_name:      u.user_name,
-    count:          u.count,
-    prev_count:     prevMap[u.user_name] || 0,
-    momentum:       u.count - (prevMap[u.user_name] || 0),
-    unique_clients: u.unique_clients || 0,
-    e8_count:       u.e8_count || 0,
-    e8_ratio:       u.count > 0 ? Math.round((u.e8_count || 0) * 100 / u.count) : 0,
-    vs_avg:         avg > 0 ? Math.round((u.count - avg) / avg * 100) : 0,
-    above_avg:      u.count >= avg,
+    user_name:     u.user_name,
+    count:         u.count,
+    prev_count:    prevMap[u.user_name] || 0,
+    momentum:      u.count - (prevMap[u.user_name] || 0),
+    e8_count:      u.e8_count || 0,
+    e8_ratio:      u.count > 0 ? Math.round((u.e8_count || 0) * 100 / u.count) : 0,
+    vs_avg:        avg > 0 ? Math.round((u.count - avg) / avg * 100) : 0,
+    above_avg:     u.count >= avg,
+    high_freq:     followUpMap[u.user_name]?.high_freq || 0,
+    regular:       followUpMap[u.user_name]?.regular   || 0,
+    biz_diversity: bizDivMap[u.user_name] || 0,
   }));
 
   return jsonRes({
-    range: days, since, sleep,
+    range: days, since, until, sleep,
     totals, radar,
     avg_visits: Math.round(avg * 10) / 10,
     dailyTrend:       dailyTrend.results,
