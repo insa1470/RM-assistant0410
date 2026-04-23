@@ -404,11 +404,11 @@ async function handleRecords(request, env) {
    GET /api/targets
 ────────────────────────────────────────── */
 async function handleGetTargets(request, env) {
-  if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
+  if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誼' }, 401);
   const row = await env.DB.prepare(
     'SELECT * FROM targets ORDER BY id DESC LIMIT 1'
   ).first();
-  return jsonRes(row || { monthly_visits: 20, sleep_days: 30 });
+  return jsonRes(row || { monthly_visits: 20, sleep_days: 30, rm_count: 12, weekly_visits: 2 });
 }
 
 /* ──────────────────────────────────────────
@@ -416,11 +416,19 @@ async function handleGetTargets(request, env) {
 ────────────────────────────────────────── */
 async function handleSetTargets(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
-  const { monthly_visits = 20, sleep_days = 30 } = await request.json();
-  await env.DB.prepare(
-    `INSERT INTO targets (monthly_visits, sleep_days, updated_at)
-     VALUES (?, ?, datetime('now'))`
-  ).bind(parseInt(monthly_visits), parseInt(sleep_days)).run();
+  const { monthly_visits = 20, sleep_days = 30, rm_count = 12, weekly_visits = 2 } = await request.json();
+  // 嘗試新欄位寫入；若欄位不存在（舊 schema）則降回舊格式
+  try {
+    await env.DB.prepare(
+      `INSERT INTO targets (monthly_visits, sleep_days, rm_count, weekly_visits, updated_at)
+       VALUES (?, ?, ?, ?, datetime('now'))`
+    ).bind(parseInt(monthly_visits), parseInt(sleep_days), parseInt(rm_count), parseInt(weekly_visits)).run();
+  } catch(e) {
+    await env.DB.prepare(
+      `INSERT INTO targets (monthly_visits, sleep_days, updated_at)
+       VALUES (?, ?, datetime('now'))`
+    ).bind(parseInt(monthly_visits), parseInt(sleep_days)).run();
+  }
   return jsonRes({ success: true });
 }
 
@@ -552,6 +560,9 @@ async function handleMigrate(request, env) {
      )`,
     `CREATE INDEX IF NOT EXISTS idx_graph_rel   ON company_graph(rel_name)`,
     `CREATE INDEX IF NOT EXISTS idx_graph_focal ON company_graph(focal_co)`,
+    // v4：targets 加入 rm_count 和 weekly_visits
+    `ALTER TABLE targets ADD COLUMN rm_count INTEGER DEFAULT 12`,
+    `ALTER TABLE targets ADD COLUMN weekly_visits INTEGER DEFAULT 2`,
   ];
   for (const sql of ops) {
     try {
