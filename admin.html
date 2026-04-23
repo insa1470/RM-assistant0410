@@ -103,7 +103,7 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
     <div class="stat-box text-center">
       <p class="text-3xl font-bold text-orange-500" id="stat-clients">—</p>
-      <p class="text-xs text-gray-400 mt-1">涵蓋客戶</p>
+      <p class="text-xs text-gray-400 mt-1">新戶數</p>
     </div>
     <div class="stat-box text-center">
       <p class="text-3xl font-bold text-purple-500" id="stat-8e">—</p>
@@ -395,7 +395,8 @@ async function loadData() {
   document.getElementById('stat-achieve').textContent  = achievePct + '%';
   document.getElementById('stat-achieve-label').textContent = `目標達成（${t.total||0}／${teamTarget}）`;
   document.getElementById('stat-achieve').style.color  = achievePct >= 100 ? '#16a34a' : achievePct >= 60 ? '#f59e0b' : '#ef4444';
-  document.getElementById('stat-clients').textContent  = t.clients || 0;
+  const newClientCount = (statsData.purposeBreakdown || []).find(p => p.purpose === '新户开发' || p.purpose === '新戶開發')?.count || 0;
+  document.getElementById('stat-clients').textContent  = newClientCount;
   const e8pct = t.total > 0 ? Math.round((t.total_8e||0)*100/t.total) : 0;
   document.getElementById('stat-8e').textContent = e8pct + '%';
 
