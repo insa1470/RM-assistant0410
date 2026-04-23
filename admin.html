@@ -159,7 +159,7 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div>
-        <label class="text-xs text-gray-500 font-medium block mb-1">RM 人數</label>
+        <label class="text-xs text-gray-500 font-medium block mb-1">行銷人員人數</label>
         <input id="target-rm-count" type="number" min="1" max="100" value="12"
           class="w-full px-3 py-2 rounded-xl border border-gray-200 text-[15px] outline-none focus:border-[color:var(--brand)]">
       </div>
@@ -401,7 +401,7 @@ async function loadData() {
 
   // 個人週目標
   const personalWeeklyTarget = weekly * weekCount;
-  document.getElementById('avg-badge').textContent = `週目標 ${weekly} 次／人 · RM ${rmCount} 人`;
+  document.getElementById('avg-badge').textContent = `週目標 ${weekly} 次／人 · 行銷人員 ${rmCount} 人`;
 
   renderRadar(statsData.radar, statsData.lastVisit, personalWeeklyTarget);
   renderDailyChart(statsData.dailyTrend);
