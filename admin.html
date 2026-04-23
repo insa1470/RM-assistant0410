@@ -146,7 +146,7 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
   <!-- 圖表：每日趨勢 + 類型分佈 -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
     <div class="card p-5 md:col-span-2">
-      <h2 class="text-[14px] font-semibold text-gray-700 mb-4">每日拜訪趨勢</h2>
+      <h2 class="text-[14px] font-semibold text-gray-700 mb-4">近 10 工作日拜訪趨勢</h2>
       <canvas id="chart-daily" height="110"></canvas>
     </div>
     <div class="card p-5">
@@ -195,15 +195,9 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
   </div>
 
   <!-- 拜訪目的 -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="card p-5">
-      <h2 class="text-[14px] font-semibold text-gray-700 mb-4">拜訪目的分析</h2>
-      <canvas id="chart-purpose" height="180"></canvas>
-    </div>
-    <div class="card p-5">
-      <h2 class="text-[14px] font-semibold text-gray-700 mb-4">8+E 拜訪比率（各人）</h2>
-      <canvas id="chart-8e" height="180"></canvas>
-    </div>
+  <div class="card p-5">
+    <h2 class="text-[14px] font-semibold text-gray-700 mb-4">拜訪目的分析</h2>
+    <canvas id="chart-purpose" height="100"></canvas>
   </div>
 
   <!-- 跟進提醒清單 -->
@@ -437,7 +431,6 @@ async function loadData() {
   renderDailyChart(statsData.dailyTrend);
   renderTypeChart(statsData.typeBreakdown);
   renderPurposeChart(statsData.purposeBreakdown);
-  render8EChart(statsData.radar);
   renderSleepingClients(statsData.sleepingClients);
   populateUserFilter(statsData.lastVisit);
 
@@ -523,12 +516,39 @@ function renderSleepingClients(clients) {
 
 /* ── 圖表 ── */
 function renderDailyChart(trend) {
+  // 只取工作日（週一～週五），取最近 10 個工作日
+  const workdays = (trend||[]).filter(r => {
+    if (!r.visit_date) return false;
+    const dow = new Date(r.visit_date).getDay(); // 0=日,6=六
+    return dow !== 0 && dow !== 6;
+  });
+  const last10 = workdays.slice(-10);
+
+  // 補齊：若不足 10 天，把最近 10 個工作日都列出來（無紀錄的補 0）
+  const last10Dates = getLast10Workdays();
+  const countMap = Object.fromEntries(last10.map(r => [r.visit_date, r.count]));
+  const labels = last10Dates.map(d => d.slice(5));           // MM-DD
+  const data   = last10Dates.map(d => countMap[d] || 0);
+
   redraw('chart-daily', 'line', {
-    labels: (trend||[]).map(r => r.visit_date?.slice(5)),
-    datasets: [{ label:'拜訪', data: (trend||[]).map(r=>r.count),
+    labels,
+    datasets: [{ label:'拜訪', data,
       borderColor:'#007d50', backgroundColor:'rgba(0,125,80,0.08)',
-      fill:true, tension:0.3, pointRadius:3 }]
+      fill:true, tension:0.3, pointRadius:4, pointBackgroundColor:'#007d50' }]
   }, { plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,ticks:{stepSize:1}}, x:{grid:{display:false}} } });
+}
+
+function getLast10Workdays() {
+  const result = [];
+  const d = new Date();
+  while (result.length < 10) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) {
+      result.unshift(d.toISOString().split('T')[0]);
+    }
+    d.setDate(d.getDate() - 1);
+  }
+  return result;
 }
 
 function renderTypeChart(bd) {
