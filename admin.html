@@ -460,7 +460,10 @@ function renderRadar(radar, lastVisit, target) {
                   : daysSince <= 14 ? `<span class="text-yellow-500 text-xs">${lastD}</span>`
                   :                   `<span class="text-red-400 text-xs">${lastD}</span>`;
 
-    const bizLabel = r.biz_diversity > 0 ? `${r.biz_diversity} 種` : `<span class="text-gray-300">—</span>`;
+    const BIZ_SHORT = { '放款':'放款','金流存款':'金流','TMU':'TMU','跨境轉介':'跨境','網銀自動化':'網銀','貿融':'貿融' };
+    const bizLabel = (r.biz_list && r.biz_list.length)
+      ? r.biz_list.map(b => `<span style="display:inline-block;font-size:9px;font-weight:600;padding:1px 5px;border-radius:4px;background:rgba(0,125,80,0.10);color:#007d50;margin:1px;">${BIZ_SHORT[b]||b}</span>`).join('')
+      : `<span class="text-gray-300">—</span>`;
     const followLabel = (r.high_freq || r.regular)
       ? `<span class="text-red-400 font-semibold">高頻 ${r.high_freq}</span><span class="text-gray-300 mx-1">/</span><span class="text-yellow-500 font-semibold">定期 ${r.regular}</span>`
       : `<span class="text-gray-300">—</span>`;

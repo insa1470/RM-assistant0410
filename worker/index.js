@@ -306,17 +306,21 @@ async function handleStats(request, env) {
   `).all();
   const followUpMap = Object.fromEntries((followUpRes.results || []).map(r => [r.user_name, r]));
 
-  // ── 業務多樣性：從 tmpl_json 的 targetBusiness 陣列統計不重複種類數
+  // ── 業務多樣性：從 tmpl_json 的 targetBusiness 陣列取不重複種類
   let bizDivMap = {};
   try {
     const bizRes = await env.DB.prepare(`
-      SELECT r.user_name, COUNT(DISTINCT j.value) as biz_count
+      SELECT r.user_name,
+             COUNT(DISTINCT j.value) as biz_count,
+             GROUP_CONCAT(DISTINCT j.value) as biz_list
       FROM records r, json_each(json_extract(r.tmpl_json, '$.targetBusiness')) j
       WHERE r.type = 'report' AND ${dateWhere('r')}
         AND json_extract(r.tmpl_json, '$.targetBusiness') IS NOT NULL
       GROUP BY r.user_name
     `).all();
-    bizDivMap = Object.fromEntries((bizRes.results || []).map(r => [r.user_name, r.biz_count]));
+    bizDivMap = Object.fromEntries((bizRes.results || []).map(r => [
+      r.user_name, { count: r.biz_count, list: r.biz_list ? r.biz_list.split(',') : [] }
+    ]));
   } catch(e) { /* json_each 在空陣列時可能拋錯，靜默忽略 */ }
 
   // ── 每日趨勢（所有類型，供趨勢圖用）
@@ -371,7 +375,8 @@ async function handleStats(request, env) {
     above_avg:     u.count >= avg,
     high_freq:     followUpMap[u.user_name]?.high_freq || 0,
     regular:       followUpMap[u.user_name]?.regular   || 0,
-    biz_diversity: bizDivMap[u.user_name] || 0,
+    biz_diversity: bizDivMap[u.user_name]?.count || 0,
+    biz_list:      bizDivMap[u.user_name]?.list  || [],
   }));
 
   return jsonRes({
