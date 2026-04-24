@@ -471,7 +471,7 @@ function renderRadar(radar, lastVisit, target) {
     return `<tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
       <td class="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap">
         ${r.user_name}
-        ${isTop ? '<span class="medal ml-1">🏅 最佳</span>' : ''}
+        ${isTop ? '<span class="ml-1">🏅</span>' : ''}
       </td>
       <td class="px-4 py-3 text-center">
         <span style="${countColor}">${r.count}</span>
@@ -484,13 +484,8 @@ function renderRadar(radar, lastVisit, target) {
       </td>
       <td class="px-4 py-3 text-center text-[13px] text-gray-600">${bizLabel}</td>
       <td class="px-4 py-3 text-center text-[12px]">${followLabel}</td>
-      <td class="px-4 py-3" style="min-width:120px">
-        <div class="flex items-center gap-2">
-          <div class="progress-bg flex-1">
-            <div class="progress-fill" style="width:${pct}%;background:${barColor}"></div>
-          </div>
-          <span class="text-xs text-gray-500 w-8 text-right">${pct}%</span>
-        </div>
+      <td class="px-4 py-3 text-center">
+        <span style="font-weight:700;color:${barColor}">${pct}%</span>
       </td>
       <td class="px-4 py-3 text-center">${lastTag}</td>
     </tr>`;
