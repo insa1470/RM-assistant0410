@@ -185,6 +185,17 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     <p id="target-saved" class="text-xs text-green-500 mt-2 hidden">✅ 已儲存</p>
   </div>
 
+  <!-- 擊中領先指標 -->
+  <div class="card p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-[14px] font-bold text-gray-800">🎯 擊中領先指標</h2>
+        <p class="text-xs text-gray-400 mt-0.5" id="leading-subtitle">每週拜訪次數 vs 目標</p>
+      </div>
+      <span id="leading-hit-badge" class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-100 text-gray-500"></span>
+    </div>
+    <canvas id="chart-weekly" height="140"></canvas>
+  </div>
 
   <!-- 跟進提醒清單 -->
   <div class="card overflow-hidden">
@@ -414,6 +425,7 @@ async function loadData() {
   document.getElementById('avg-badge').textContent = `週目標 ${weekly} 次／人 · 行銷人員 ${rmCount} 人`;
 
   renderRadar(statsData.radar, statsData.lastVisit, personalWeeklyTarget);
+  renderWeeklyChart(statsData.weeklyTrend);
   renderDailyChart(statsData.dailyTrend);
   renderTypeChart(statsData.typeBreakdown);
   populateUserFilter(statsData.lastVisit);
@@ -497,6 +509,63 @@ function renderSleepingClients(clients) {
 }
 
 /* ── 圖表 ── */
+function renderWeeklyChart(trend) {
+  const weekly  = parseInt(document.getElementById('target-weekly')?.value)   || 2;
+  const rmCount = parseInt(document.getElementById('target-rm-count')?.value) || 13;
+  const weekTarget = weekly * rmCount;
+
+  const weeks = trend || [];
+  const labels = weeks.map(w => {
+    // 取 week_start 日期，格式化為 M/D 週
+    const d = new Date(w.week_start);
+    return `${d.getMonth()+1}/${d.getDate()}週`;
+  });
+  const data   = weeks.map(w => w.count);
+  const colors = data.map(v => v >= weekTarget ? 'rgba(0,125,80,0.75)' : 'rgba(239,68,68,0.75)');
+  const borderColors = data.map(v => v >= weekTarget ? '#007d50' : '#ef4444');
+
+  // 達標週數統計
+  const hitCount   = data.filter(v => v >= weekTarget).length;
+  const totalCount = data.length;
+  const badge = document.getElementById('leading-hit-badge');
+  if (badge) {
+    badge.textContent = `達標 ${hitCount}／${totalCount} 週`;
+    badge.style.background = hitCount === totalCount ? 'rgba(0,125,80,0.12)' : hitCount >= totalCount * 0.6 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)';
+    badge.style.color = hitCount === totalCount ? '#007d50' : hitCount >= totalCount * 0.6 ? '#d97706' : '#ef4444';
+  }
+  document.getElementById('leading-subtitle').textContent = `週目標 ${weekTarget} 次（${rmCount} 人 × ${weekly} 次），最近 13 週`;
+
+  redraw('chart-weekly', 'bar', {
+    labels,
+    datasets: [
+      {
+        label: '實際拜訪',
+        data,
+        backgroundColor: colors,
+        borderColor: borderColors,
+        borderWidth: 1,
+        borderRadius: 4,
+      },
+      {
+        label: `目標 ${weekTarget} 次`,
+        data: weeks.map(() => weekTarget),
+        type: 'line',
+        borderColor: '#f59e0b',
+        borderWidth: 2,
+        borderDash: [5, 4],
+        pointRadius: 0,
+        fill: false,
+      }
+    ]
+  }, {
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: Math.ceil(weekTarget / 5) }, grid: { color: 'rgba(0,0,0,0.05)' } },
+      x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+    }
+  });
+}
+
 function renderDailyChart(trend) {
   // 只取工作日（週一～週五），取最近 10 個工作日
   const workdays = (trend||[]).filter(r => {

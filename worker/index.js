@@ -362,6 +362,17 @@ async function handleStats(request, env) {
     FROM records GROUP BY user_name ORDER BY last_date DESC
   `).all();
 
+  // ── 週統計（固定最近 90 天，report only，供領先指標圖用）
+  const weeklyTrend = await env.DB.prepare(`
+    SELECT strftime('%Y-%W', visit_date) as week_key,
+           MIN(visit_date) as week_start,
+           COUNT(*) as count
+    FROM records
+    WHERE type = 'report' AND visit_date >= date('now', '-91 days')
+    GROUP BY week_key
+    ORDER BY week_key ASC
+  `).all();
+
   const users = perUser.results || [];
   const avg   = users.length > 0 ? users.reduce((s, u) => s + u.count, 0) / users.length : 0;
   const radar = users.map(u => ({
@@ -384,6 +395,7 @@ async function handleStats(request, env) {
     totals, radar,
     avg_visits: Math.round(avg * 10) / 10,
     dailyTrend:       dailyTrend.results,
+    weeklyTrend:      weeklyTrend.results,
     typeBreakdown:    typeBreakdown.results,
     purposeBreakdown: purposeBreakdown.results,
     sleepingClients:  sleepingClients.results,
