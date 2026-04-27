@@ -1661,6 +1661,22 @@
             }
         }
 
+        // 在標點處將超長行截斷，continuation 縮排對齊「1. 」
+        function wrapEmailLine(str, maxLen) {
+            if (str.length <= maxLen) return str;
+            const lines = [];
+            let cur = '';
+            for (const ch of str) {
+                cur += ch;
+                if (cur.length >= maxLen && /[。，；！？]/.test(ch)) {
+                    lines.push(cur);
+                    cur = '';
+                }
+            }
+            if (cur) lines.push(cur);
+            return lines.join('\n   ');
+        }
+
         function buildTmplText(t, bizStr, followStr) {
             const clauses = [];
             if (t.group)    clauses.push(`该公司属于${t.group}集团${t.founded?'，成立于'+t.founded:''}`);
@@ -1685,7 +1701,13 @@
             if (hasBiz)    clauses.push(`本次RM争取业务为${bizStr}`);
             if (hasFollow) clauses.push(`RM将${followStr}`);
             if (!clauses.length) return '';
-            return '1. ' + clauses.join('。') + '。';
+            // 每兩個子句合為一段，每段再限制最多 38 字寬
+            const groups = [];
+            for (let i = 0; i < clauses.length; i += 2) {
+                const pair = clauses.slice(i, i + 2).join('。');
+                groups.push(wrapEmailLine(pair, 38));
+            }
+            return '1. ' + groups.join('。\n   ') + '。';
         }
 
         function updateTmpl(k, v) {
