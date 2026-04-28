@@ -1661,16 +1661,22 @@
             }
         }
 
-        // 在標點處將超長行截斷，continuation 縮排對齊「1. 」
+        // 在標點處截斷，找不到標點時強制在 maxLen 處斷行，continuation 縮排對齊
         function wrapEmailLine(str, maxLen) {
             if (str.length <= maxLen) return str;
             const lines = [];
             let cur = '';
             for (const ch of str) {
                 cur += ch;
-                if (cur.length >= maxLen && /[。，；！？]/.test(ch)) {
-                    lines.push(cur);
-                    cur = '';
+                if (cur.length >= maxLen) {
+                    if (/[。，；！？]/.test(ch)) {
+                        lines.push(cur);
+                        cur = '';
+                    } else if (cur.length >= maxLen + 10) {
+                        // 超過 maxLen 10 字仍無標點，強制斷行
+                        lines.push(cur);
+                        cur = '';
+                    }
                 }
             }
             if (cur) lines.push(cur);
@@ -2253,9 +2259,9 @@
                 const bizStr    = Array.isArray(draft.targetBusiness) && draft.targetBusiness.length ? draft.targetBusiness.join('、') : '';
                 const followStr = draft.followUp || '';
                 const tmplSentence = buildTmplText(t, bizStr, followStr);
-                const extraLines   = (draft.contentList || []).filter(i => i.trim() !== '').map((i, idx) => `${idx + 2}. ${i}`).join('\n');
+                const extraLines   = (draft.contentList || []).filter(i => i.trim() !== '').map((i, idx) => `${idx + 2}. ${wrapEmailLine(i, 38)}`).join('\n');
                 const summaryText  = [tmplSentence, extraLines].filter(Boolean).join('\n');
-                const todoText     = (draft.todoList || []).filter(i => i.trim() !== '').map((i, idx) => `${idx + 1}. ${i}`).join('\n');
+                const todoText     = (draft.todoList || []).filter(i => i.trim() !== '').map((i, idx) => `${idx + 1}. ${wrapEmailLine(i, 38)}`).join('\n');
                 text = `玉山銀行(中國) 訪談報告\n──────────────────\n【客戶】${draft.clientName}\n【負責人】${draft.owner || '-'}\n【RM組別】${draft.rmGroup || '-'}\n【訪談時間】${dateStr} ${timeStr}\n【產業描述】${draft.industryDesc || '-'}\n【型態/8+E】${draft.companyType || '-'}${draft.is8PlusE ? '(8+E)' : ''}\n【訪談目的】${draft.purpose || '-'}\n【地點】${draft.city || '-'}\n【參與人員】顧客: ${draft.customerStaff || '-'} / 我行: ${draft.bankStaff || '-'}\n\n【訪談紀錄摘要】\n${summaryText || '-'}\n\n【待辦與後續規劃】\n${todoText || '-'}\n──────────────────\nRM 隨行助手生成`;
             }
             const el = document.createElement('textarea');
