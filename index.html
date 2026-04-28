@@ -1703,23 +1703,8 @@
             if (hasBiz)    clauses.push(`本次RM争取业务为${bizStr}`);
             if (hasFollow) clauses.push(`RM将${followStr}`);
             if (!clauses.length) return '';
-            // 每段從 2 個子句開始；換行後尾巴 < 25 字則繼續吸入子句，依此類推
-            const segments = [];
-            let i = 0;
-            while (i < clauses.length) {
-                let seg = clauses[i++];
-                if (i < clauses.length) seg += '。' + clauses[i++];
-                while (i < clauses.length) {
-                    const parts = wrapEmailLine(seg, 45).split('\n   ');
-                    if (parts.length > 1 && parts[parts.length - 1].length < 25) {
-                        seg += '。' + clauses[i++];
-                    } else {
-                        break;
-                    }
-                }
-                segments.push(wrapEmailLine(seg, 45));
-            }
-            return '1. ' + segments.join('。\n   ') + '。';
+            // 全部子句串成一段，每 40 字截行，不管子句邊界
+            return '1. ' + wrapEmailLine(clauses.join('。'), 40) + '。';
         }
 
         function updateTmpl(k, v) {
