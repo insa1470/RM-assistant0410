@@ -1707,13 +1707,8 @@
             if (hasBiz)    clauses.push(`本次RM争取业务为${bizStr}`);
             if (hasFollow) clauses.push(`RM将${followStr}`);
             if (!clauses.length) return '';
-            // 每兩個子句合為一段，每段再限制最多 38 字寬
-            const groups = [];
-            for (let i = 0; i < clauses.length; i += 2) {
-                const pair = clauses.slice(i, i + 2).join('。');
-                groups.push(wrapEmailLine(pair, 38));
-            }
-            return '1. ' + groups.join('。\n   ') + '。';
+            // 每個子句各自一行，超過 38 字再截行
+            return '1. ' + clauses.map(c => wrapEmailLine(c, 38)).join('。\n   ') + '。';
         }
 
         function updateTmpl(k, v) {
