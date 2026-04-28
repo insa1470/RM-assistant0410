@@ -1661,7 +1661,7 @@
             }
         }
 
-        // 在標點處截斷，找不到標點時強制在 maxLen 處斷行，continuation 縮排對齊
+        // 在標點處截斷；超過 maxLen 5 字仍無標點則強制斷行，continuation 縮排對齊
         function wrapEmailLine(str, maxLen) {
             if (str.length <= maxLen) return str;
             const lines = [];
@@ -1669,11 +1669,7 @@
             for (const ch of str) {
                 cur += ch;
                 if (cur.length >= maxLen) {
-                    if (/[。，；！？]/.test(ch)) {
-                        lines.push(cur);
-                        cur = '';
-                    } else if (cur.length >= maxLen + 10) {
-                        // 超過 maxLen 10 字仍無標點，強制斷行
+                    if (/[。，；！？]/.test(ch) || cur.length >= maxLen + 5) {
                         lines.push(cur);
                         cur = '';
                     }
@@ -1707,8 +1703,23 @@
             if (hasBiz)    clauses.push(`本次RM争取业务为${bizStr}`);
             if (hasFollow) clauses.push(`RM将${followStr}`);
             if (!clauses.length) return '';
-            // 每個子句各自一行，超過 38 字再截行
-            return '1. ' + clauses.map(c => wrapEmailLine(c, 38)).join('。\n   ') + '。';
+            // 每段從 2 個子句開始；換行後尾巴 < 25 字則繼續吸入子句，依此類推
+            const segments = [];
+            let i = 0;
+            while (i < clauses.length) {
+                let seg = clauses[i++];
+                if (i < clauses.length) seg += '。' + clauses[i++];
+                while (i < clauses.length) {
+                    const parts = wrapEmailLine(seg, 45).split('\n   ');
+                    if (parts.length > 1 && parts[parts.length - 1].length < 25) {
+                        seg += '。' + clauses[i++];
+                    } else {
+                        break;
+                    }
+                }
+                segments.push(wrapEmailLine(seg, 45));
+            }
+            return '1. ' + segments.join('。\n   ') + '。';
         }
 
         function updateTmpl(k, v) {
