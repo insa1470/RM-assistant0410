@@ -24,8 +24,12 @@ body  { font-family:-apple-system,"Helvetica Neue",sans-serif; background:#F2F2F
 .status-yellow { background:rgba(245,158,11,0.14); color:#b45309; }
 .status-red { background:rgba(239,68,68,0.12); color:#dc2626; }
 .status-gray { background:#f3f4f6; color:#9ca3af; }
-.matrix-cell { min-width:112px; cursor:pointer; transition:background .15s ease; }
+.matrix-cell { min-width:92px; cursor:pointer; transition:background .15s ease; }
 .matrix-cell:hover { background:#f9fafb; }
+.matrix-table th,.matrix-table td { border-color:#e5e7eb; }
+.matrix-tip { position:fixed; z-index:60; max-width:220px; background:#111827; color:white; border-radius:10px; padding:8px 10px; font-size:12px; line-height:1.5; box-shadow:0 8px 24px rgba(0,0,0,0.18); pointer-events:none; white-space:pre-wrap; }
+.page-btn { min-width:32px; height:32px; border-radius:10px; border:1px solid #e5e7eb; background:white; color:#6b7280; font-size:13px; font-weight:600; }
+.page-btn:disabled { opacity:.35; }
 input[type=number]::-webkit-inner-spin-button { opacity:1; }
 </style>
 </head>
@@ -162,12 +166,12 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 class="text-[15px] font-bold text-gray-800">RM 組別週管理</h2>
-        <p class="text-xs text-gray-400 mt-0.5">左側為 RM 組別，上方由近到遠；每格顯示達成率、拜訪數、8+E 與环金比率</p>
+        <p class="text-xs text-gray-400 mt-0.5">左側為 RM 組別，上方由近到遠；每格顯示達成率、8+E 與环金比率，點選可看客戶名稱</p>
       </div>
       <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">週目標：每人 1.5 次，322 資深 TH 不計</span>
     </div>
     <div class="overflow-x-auto">
-      <table class="w-full text-sm">
+      <table class="w-full text-sm matrix-table border-collapse">
         <thead id="group-weekly-head"></thead>
         <tbody id="group-weekly-body"></tbody>
       </table>
@@ -210,24 +214,12 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
   </div>
 
-  <!-- 擊中領先指標 -->
-  <div class="card p-5">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h2 class="text-[14px] font-bold text-gray-800">🎯 擊中領先指標</h2>
-        <p class="text-xs text-gray-400 mt-0.5" id="leading-subtitle">每週拜訪次數 vs 目標</p>
-      </div>
-      <span id="leading-hit-badge" class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-100 text-gray-500"></span>
-    </div>
-    <canvas id="chart-weekly" height="140"></canvas>
-  </div>
-
   <!-- 明細紀錄 -->
   <div class="card overflow-hidden">
     <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 class="text-[14px] font-semibold text-gray-700">明細紀錄</h2>
-        <p class="text-xs text-gray-400 mt-0.5">待跟進會依提醒日排序；新增同客戶的新紀錄後，舊提醒自然消失</p>
+        <p class="text-xs text-gray-400 mt-0.5" id="records-subtitle">本月明細；待跟進會依提醒日排序</p>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
         <select id="follow-filter" onchange="loadRecords()" class="text-sm px-3 py-1.5 rounded-xl border border-gray-200 bg-white outline-none">
@@ -243,12 +235,15 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
       </div>
     </div>
     <div id="records-body" class="divide-y divide-gray-100"></div>
-    <div id="records-more" class="px-5 py-3 text-center hidden">
-      <button onclick="loadMoreRecords()" class="text-sm font-medium" style="color:var(--brand)">載入更多</button>
+    <div id="records-pagination" class="px-5 py-3 hidden border-t border-gray-100 flex items-center justify-between gap-3">
+      <button id="record-prev" onclick="changeRecordPage(-1)" class="page-btn">‹</button>
+      <span id="record-page-info" class="text-xs text-gray-400"></span>
+      <button id="record-next" onclick="changeRecordPage(1)" class="page-btn">›</button>
     </div>
   </div>
 
 </div><!-- /dashboard -->
+<div id="matrix-tooltip" class="matrix-tip hidden"></div>
 
 <!-- ── 紀錄詳情 Modal ── -->
 <div id="detail-modal" class="fixed inset-0 z-50 hidden" style="background:rgba(0,0,0,0.45);" onclick="if(event.target===this)hideDetail()">
@@ -272,6 +267,8 @@ let _recordMap = {}; // id → record
 let statsData = null;
 let recordsOffset = 0;
 const RECORDS_LIMIT = 30;
+let recordsPage = 1;
+let recordsHasNext = false;
 let recordsSeenKeys = new Set(); // 跨分頁去重
 const ADMIN_WEEKLY_VISITS = 1.5;
 const ADMIN_RM_COUNT = 12;
@@ -419,11 +416,10 @@ async function loadData() {
   renderWeeklyOverview(statsData, teamTarget, achievePct, e8pct, ringPct);
   renderGroupWeeklyMatrix(statsData.groupWeeklyMatrix);
   renderRadar(statsData.radar, statsData.lastVisit, personalWeeklyTarget);
-  renderWeeklyChart(statsData.weeklyTrend);
   renderDailyChart(statsData.dailyTrend);
   populateUserFilter(statsData.lastVisit);
 
-  recordsOffset = 0;
+  recordsPage = 1;
   loadRecords();
 }
 
@@ -440,6 +436,12 @@ function statusLabel(pct) {
   if (pct >= 70) return '追趕中';
   if (pct > 0) return '落後';
   return '無資料';
+}
+
+function matrixStatusClass(pct) {
+  if (pct >= 60) return 'status-green';
+  if (pct > 0) return 'status-red';
+  return 'status-gray';
 }
 
 function formatSegmentLine(e8, ring) {
@@ -466,6 +468,14 @@ function fmtWeekLabel(weekStart) {
   return `${d.getMonth()+1}/${d.getDate()}`;
 }
 
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function formatLocalDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 function buildGroupWeeklyModel(rows) {
   const weekMap = new Map();
   const groupMap = new Map();
@@ -485,14 +495,14 @@ function renderGroupWeeklyMatrix(rows) {
   const { weeks, groups, groupMap } = buildGroupWeeklyModel(rows);
   document.getElementById('group-weekly-head').innerHTML = `
     <tr class="bg-gray-50 text-gray-500 text-xs font-semibold">
-      <th class="px-4 py-3 text-left sticky left-0 bg-gray-50 z-10">RM 組別</th>
-      ${weeks.map(w => `<th class="px-3 py-3 text-center whitespace-nowrap">${fmtWeekLabel(w.start)}週</th>`).join('')}
+      <th class="px-3 py-2 text-left sticky left-0 bg-gray-50 z-10 border">RM 組別</th>
+      ${weeks.map(w => `<th class="px-2 py-2 text-center whitespace-nowrap border">${fmtWeekLabel(w.start)}週</th>`).join('')}
     </tr>`;
 
   document.getElementById('group-weekly-body').innerHTML = groups.map(group => {
     const target = GROUP_TARGETS[group] || 1.5;
-    return `<tr class="border-b border-gray-50">
-      <td class="px-4 py-3 font-bold text-gray-800 sticky left-0 bg-white z-10 whitespace-nowrap">${group}</td>
+    return `<tr>
+      <td class="px-3 py-2 font-bold text-gray-800 sticky left-0 bg-white z-10 whitespace-nowrap border">${group}</td>
       ${weeks.map(w => {
         const r = groupMap.get(group)?.get(w.key);
         const count = r?.count || 0;
@@ -500,13 +510,34 @@ function renderGroupWeeklyMatrix(rows) {
         const e8 = count ? Math.round((r?.e8_count || 0) * 100 / count) : 0;
         const ring = count ? Math.round((r?.ring_count || 0) * 100 / count) : 0;
         const segmentLine = formatSegmentLine(e8, ring);
-        return `<td class="matrix-cell px-3 py-3 text-center border-l border-gray-50">
-          <div class="status-chip ${statusClass(pct)} mx-auto">${pct}%</div>
+        const names = String(r?.customer_names || '').split(',').map(s => s.trim()).filter(Boolean);
+        const tipText = names.length ? [...new Set(names)].join('\n') : '本週無客戶';
+        return `<td class="matrix-cell px-2 py-2 text-center border" title="${escapeHtml(tipText)}" data-names="${escapeHtml(tipText)}" onmouseenter="showCustomerTooltip(event,this.dataset.names)" onclick="showCustomerTooltip(event,this.dataset.names,true)" onmouseleave="hideCustomerTooltip()">
+          <div class="status-chip ${matrixStatusClass(pct)} mx-auto">${pct}%</div>
           ${segmentLine ? `<div class="text-[10px] text-gray-400 mt-1">${segmentLine}</div>` : ''}
         </td>`;
       }).join('')}
     </tr>`;
   }).join('') || '<tr><td class="px-4 py-8 text-center text-gray-400 text-sm">無週管理資料</td></tr>';
+}
+
+function showCustomerTooltip(event, names, sticky=false) {
+  const tip = document.getElementById('matrix-tooltip');
+  if (!tip) return;
+  tip.textContent = names || '本週無客戶';
+  const x = Math.min(event.clientX + 12, window.innerWidth - 240);
+  const y = Math.min(event.clientY + 12, window.innerHeight - 120);
+  tip.style.left = `${Math.max(8, x)}px`;
+  tip.style.top = `${Math.max(8, y)}px`;
+  tip.classList.remove('hidden');
+  if (sticky) {
+    clearTimeout(tip._timer);
+    tip._timer = setTimeout(hideCustomerTooltip, 2600);
+  }
+}
+
+function hideCustomerTooltip() {
+  document.getElementById('matrix-tooltip')?.classList.add('hidden');
 }
 
 /* ── 管理雷達 ── */
@@ -583,63 +614,6 @@ function renderSleepingClients(clients) {
 }
 
 /* ── 圖表 ── */
-function renderWeeklyChart(trend) {
-  const weekly  = ADMIN_WEEKLY_VISITS;
-  const rmCount = ADMIN_RM_COUNT;
-  const weekTarget = weekly * rmCount;
-
-  const weeks = trend || [];
-  const labels = weeks.map(w => {
-    // 取 week_start 日期，格式化為 M/D 週
-    const d = new Date(w.week_start);
-    return `${d.getMonth()+1}/${d.getDate()}週`;
-  });
-  const data   = weeks.map(w => w.count);
-  const colors = data.map(v => v >= weekTarget ? 'rgba(0,125,80,0.75)' : 'rgba(239,68,68,0.75)');
-  const borderColors = data.map(v => v >= weekTarget ? '#007d50' : '#ef4444');
-
-  // 達標週數統計
-  const hitCount   = data.filter(v => v >= weekTarget).length;
-  const totalCount = data.length;
-  const badge = document.getElementById('leading-hit-badge');
-  if (badge) {
-    badge.textContent = `達標 ${hitCount}／${totalCount} 週`;
-    badge.style.background = hitCount === totalCount ? 'rgba(0,125,80,0.12)' : hitCount >= totalCount * 0.6 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)';
-    badge.style.color = hitCount === totalCount ? '#007d50' : hitCount >= totalCount * 0.6 ? '#d97706' : '#ef4444';
-  }
-  document.getElementById('leading-subtitle').textContent = `週目標 ${weekTarget} 次（${rmCount} 人 × ${weekly} 次），最近 13 週`;
-
-  redraw('chart-weekly', 'bar', {
-    labels,
-    datasets: [
-      {
-        label: '實際拜訪',
-        data,
-        backgroundColor: colors,
-        borderColor: borderColors,
-        borderWidth: 1,
-        borderRadius: 4,
-      },
-      {
-        label: `目標 ${weekTarget} 次`,
-        data: weeks.map(() => weekTarget),
-        type: 'line',
-        borderColor: '#f59e0b',
-        borderWidth: 2,
-        borderDash: [5, 4],
-        pointRadius: 0,
-        fill: false,
-      }
-    ]
-  }, {
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, ticks: { stepSize: Math.ceil(weekTarget / 5) }, grid: { color: 'rgba(0,0,0,0.05)' } },
-      x: { grid: { display: false }, ticks: { font: { size: 11 } } }
-    }
-  });
-}
-
 function renderDailyChart(trend) {
   // 只取工作日（週一～週五），取最近 10 個工作日
   const workdays = (trend||[]).filter(r => {
@@ -725,7 +699,7 @@ function exportManagementReportHTML() {
       const e8 = count ? Math.round((r?.e8_count || 0) * 100 / count) : 0;
       const ring = count ? Math.round((r?.ring_count || 0) * 100 / count) : 0;
       const segmentLine = formatSegmentLine(e8, ring);
-      return `<td class="${pct >= 100 ? 'ok' : pct >= 70 ? 'warn' : count ? 'bad' : ''}">
+      return `<td class="${pct >= 60 ? 'ok' : count ? 'bad' : ''}">
         <b>${pct}%</b>${segmentLine ? `<br><small>${segmentLine}</small>` : ''}
       </td>`;
     }).join('')}</tr>`;
@@ -835,19 +809,47 @@ function applyFollowFilter(rows, followFilter) {
     .map(({ row }) => row);
 }
 
-async function loadRecords() { recordsOffset=0; recordsSeenKeys.clear(); document.getElementById('records-body').innerHTML=''; await fetchRecords(); }
-async function loadMoreRecords() { await fetchRecords(); }
+function getCurrentMonthRange() {
+  const now = new Date();
+  const from = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  const to = formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 1));
+  const label = `${now.getFullYear()}年${now.getMonth() + 1}月`;
+  return { from, to, label };
+}
+
+async function loadRecords() {
+  recordsPage = 1;
+  recordsOffset = 0;
+  await fetchRecords();
+}
+
+async function changeRecordPage(delta) {
+  const nextPage = recordsPage + delta;
+  if (nextPage < 1 || (delta > 0 && !recordsHasNext)) return;
+  recordsPage = nextPage;
+  recordsOffset = (recordsPage - 1) * RECORDS_LIMIT;
+  await fetchRecords();
+}
+
 async function fetchRecords() {
   const user = document.getElementById('user-filter').value;
   const followFilter = document.getElementById('follow-filter')?.value || 'all';
-  const limit = followFilter === 'all' ? RECORDS_LIMIT : 500;
+  const { from, to, label } = getCurrentMonthRange();
+  const limit = followFilter === 'all' ? RECORDS_LIMIT + 1 : 500;
   const offset = followFilter === 'all' ? recordsOffset : 0;
+  recordsSeenKeys.clear();
+  document.getElementById('records-body').innerHTML = '';
+  document.getElementById('records-subtitle').textContent =
+    followFilter === 'all' ? `${label}明細；下方可切換頁次` : '待跟進會依提醒日排序；新增同客戶的新紀錄後，舊提醒自然消失';
   let url = `${WORKER_URL}/api/records?password=${enc(PASSWORD)}&limit=${limit}&offset=${offset}`;
+  if (followFilter === 'all') url += `&from=${enc(from)}&to=${enc(to)}`;
   if (user) url += `&user=${enc(user)}`;
   const res  = await fetch(url);
   const data = await res.json();
   const sourceRows = (data.records || []).filter(r => r.type !== 'meeting');
-  const allRows = applyFollowFilter(sourceRows, followFilter);
+  recordsHasNext = followFilter === 'all' && sourceRows.length > RECORDS_LIMIT;
+  const visibleRows = followFilter === 'all' ? sourceRows.slice(0, RECORDS_LIMIT) : sourceRows;
+  const allRows = applyFollowFilter(visibleRows, followFilter);
   // 去重：同用戶 + 同客戶/會議 + 同日期 + 同類型，只保留第一筆（API 已按 created_at DESC，即最新）
   const rows = allRows.filter(r => {
     const key = `${r.user_name}|${r.type}|${r.client_name||r.meeting_name||''}|${r.visit_date||''}`;
@@ -872,9 +874,12 @@ async function fetchRecords() {
     </div>`;
   }).join('');
   const emptyText = followFilter === 'all' ? '此區間無紀錄' : '目前沒有符合條件的跟進紀錄';
-  document.getElementById('records-body').insertAdjacentHTML('beforeend', html || (recordsOffset===0 ? `<div class="px-5 py-8 text-center text-gray-400 text-sm">${emptyText}</div>` : ''));
-  recordsOffset += rows.length;
-  document.getElementById('records-more').classList.toggle('hidden', followFilter !== 'all' || rows.length < RECORDS_LIMIT);
+  document.getElementById('records-body').innerHTML = html || `<div class="px-5 py-8 text-center text-gray-400 text-sm">${emptyText}</div>`;
+  const pager = document.getElementById('records-pagination');
+  pager.classList.toggle('hidden', followFilter !== 'all');
+  document.getElementById('record-page-info').textContent = `${label} · 第 ${recordsPage} 頁`;
+  document.getElementById('record-prev').disabled = recordsPage <= 1;
+  document.getElementById('record-next').disabled = !recordsHasNext;
   lucide.createIcons();
 }
 

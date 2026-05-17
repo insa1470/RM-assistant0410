@@ -26,8 +26,16 @@ assert.match(adminHtml, /ADMIN_WEEKLY_VISITS = 1\.5/, 'weekly target should be f
 assert.match(adminHtml, /const range = 'all'/, 'admin dashboard should request all-time stats by default');
 assert.match(adminHtml, /formatSegmentLine/, 'RM weekly cells should conditionally show only non-zero customer segment ratios');
 assert.doesNotMatch(adminHtml, new RegExp(String.raw`\$\{count\} / \$\{target\}|\$\{count\}/\$\{groupTarget\}`), 'RM weekly cells should not show raw count over target text');
+assert.match(adminHtml, /matrixStatusClass/, 'RM weekly matrix should have its own color threshold');
+assert.match(adminHtml, /pct >= 60/, 'RM weekly matrix should mark 60 percent and above as green');
+assert.match(adminHtml, /showCustomerTooltip/, 'RM weekly matrix cells should reveal customer names on hover or click');
+assert.match(adminHtml, /record-page-info/, 'records section should show page navigation');
+assert.match(adminHtml, /getCurrentMonthRange/, 'records section should default to the current month');
+assert.doesNotMatch(adminHtml, /擊中領先指標|leading-hit-badge|chart-weekly|renderWeeklyChart\(statsData\.weeklyTrend\)/, 'leading indicator chart block should be removed from the dashboard');
 
 assert.match(workerJs, /groupWeeklyMatrix/, 'stats API should return group weekly matrix data');
+assert.match(workerJs, /customer_names/, 'group weekly matrix should include customer names for cell drilldown');
+assert.match(workerJs, /fromDate|toDate/, 'records API should support date-range filtering for current-month records');
 assert.doesNotMatch(workerJs, /dataQuality|unmanaged_rm_group|missing_rm_group|invalid_rm_group|excluded_meetings/, 'stats API should not return data quality reminder fields');
 assert.match(workerJs, /json_extract\(.*customerSegments/, 'stats API should read customer segments from tmpl_json');
 assert.match(workerJs, /type IN \('report','site'\)/, 'marketing stats should include reports and site visits while excluding meetings');

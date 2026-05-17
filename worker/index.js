@@ -390,6 +390,7 @@ async function handleStats(request, env) {
            MIN(visit_date) as week_start,
            COUNT(*) as count,
            SUM(is_8_plus_e) as e8_count,
+           GROUP_CONCAT(DISTINCT COALESCE(NULLIF(client_name,''), NULLIF(meeting_name,''))) as customer_names,
            SUM(CASE WHEN EXISTS (
              SELECT 1 FROM json_each(json_extract(records.tmpl_json, '$.customerSegments'))
              WHERE value IN ('环金','环金陆企','環金陸企')
@@ -439,12 +440,18 @@ async function handleRecords(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
   const url    = new URL(request.url);
   const user   = url.searchParams.get('user') || null;
+  const fromDate = url.searchParams.get('from') || null;
+  const toDate = url.searchParams.get('to') || null;
   const limit  = parseInt(url.searchParams.get('limit')  || '50');
   const offset = parseInt(url.searchParams.get('offset') || '0');
 
   let q = 'SELECT * FROM records';
   const p = [];
-  if (user) { q += ' WHERE user_name = ?'; p.push(user); }
+  const where = [];
+  if (user) { where.push('user_name = ?'); p.push(user); }
+  if (fromDate) { where.push('visit_date >= ?'); p.push(fromDate); }
+  if (toDate) { where.push('visit_date < ?'); p.push(toDate); }
+  if (where.length) q += ` WHERE ${where.join(' AND ')}`;
   q += ' ORDER BY visit_date DESC, created_at DESC LIMIT ? OFFSET ?';
   p.push(limit, offset);
 
