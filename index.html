@@ -860,7 +860,7 @@
                             </div>
                             <div class="ios-row-half">
                                 <span class="ios-row-label">RM 组别</span>
-                                <input type="text" value="${draft.rmGroup||''}" oninput="updateDraft('rmGroup',this.value)" placeholder="例：深圳">
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" value="${draft.rmGroup||''}" oninput="updateRmGroup(this)" placeholder="例：322">
                             </div>
                         </div>
                         <!-- 负责人 ＋ 企业型态：同行 -->
@@ -1278,7 +1278,7 @@
                         </div>
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">RM 组别</span>
-                            <input type="text" value="${draft.rmGroup||''}" oninput="updateDraft('rmGroup',this.value)" placeholder="组别名称">
+                            <input type="text" inputmode="numeric" pattern="[0-9]*" value="${draft.rmGroup||''}" oninput="updateRmGroup(this)" placeholder="例：322">
                         </div>
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">负责人</span>
@@ -1661,6 +1661,16 @@
             }
         }
 
+        function sanitizeRmGroup(value) {
+            return String(value || '').replace(/\D/g, '');
+        }
+
+        function updateRmGroup(input) {
+            const clean = sanitizeRmGroup(input.value);
+            if (input.value !== clean) input.value = clean;
+            updateDraft('rmGroup', clean);
+        }
+
         // 在標點處截斷；超過 maxLen 5 字仍無標點則強制斷行，continuation 縮排對齊
         function wrapEmailLine(str, maxLen) {
             if (str.length <= maxLen) return str;
@@ -1937,6 +1947,7 @@
         function goPreview() {
             const title = draft.type==='meeting' ? draft.meetingName : draft.clientName;
             if (!title||!title.trim()) return showToast('⚠️ 请填写标题或客户名称');
+            if (draft.type !== 'meeting' && !/^[0-9]+$/.test(draft.rmGroup || '')) return showToast('⚠️ 請輸入數字組別');
             switchView('preview');
         }
 

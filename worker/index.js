@@ -59,6 +59,9 @@ async function handleUpload(request, env) {
   } = b;
 
   if (!userName || !type) return jsonRes({ error: '缺少必填欄位' }, 400);
+  const rmGroupClean = sanitizeRmGroup(rmGroup);
+  if (rmGroup && rmGroupClean !== String(rmGroup).trim()) return jsonRes({ error: 'RM 組別僅能填寫數字' }, 400);
+  if (type !== 'meeting' && !rmGroupClean) return jsonRes({ error: 'RM 組別僅能填寫數字' }, 400);
 
   const recordId = id || crypto.randomUUID();
   // 合併 companyType / industryDesc 進 tmpl_json（不需額外 DB 欄位）
@@ -78,7 +81,7 @@ async function handleUpload(request, env) {
     userName.trim(), type,
     clientName ? normalize(clientName) : null,
     meetingName ? normalize(meetingName) : null,
-    rmGroup ? rmGroup.trim() : null, owner ? owner.trim() : null,
+    rmGroupClean || null, owner ? owner.trim() : null,
     visitDate || null,
     visitHour  != null ? parseInt(visitHour)    : null,
     visitEndHour != null ? parseInt(visitEndHour) : null,
@@ -651,6 +654,9 @@ function jsonRes(data, status = 200) {
 }
 function daysAgo(n) {
   return new Date(Date.now() - n * 86400000).toISOString().split('T')[0];
+}
+function sanitizeRmGroup(value) {
+  return String(value || '').trim().replace(/\D/g, '');
 }
 
 /* ── 繁→簡 正規化（供公司名稱匹配用） ── */
