@@ -187,7 +187,7 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 class="text-[14px] font-semibold text-gray-700">明細紀錄</h2>
-        <p class="text-xs text-gray-400 mt-0.5" id="records-subtitle">全部明細；下方可切換頁次</p>
+        <p class="text-xs text-gray-400 mt-0.5" id="records-subtitle">當月明細優先顯示；歷史明細在下方分頁</p>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
         <select id="follow-filter" onchange="loadRecords()" class="text-sm px-3 py-1.5 rounded-xl border border-gray-200 bg-white outline-none">
@@ -202,10 +202,15 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
         </select>
       </div>
     </div>
-    <div id="records-body" class="divide-y divide-gray-100"></div>
-    <div id="records-pagination" class="px-5 py-3 hidden border-t border-gray-100">
-      <div id="record-page-buttons" class="flex items-center justify-center gap-2 flex-wrap"></div>
-      <p id="record-page-info" class="text-xs text-gray-400 text-center mt-2"></p>
+    <div class="px-5 py-2 bg-gray-50 text-xs font-semibold text-gray-500">當月明細</div>
+    <div id="current-records-body" class="divide-y divide-gray-100"></div>
+    <div id="history-records-section" class="border-t border-gray-100">
+      <div class="px-5 py-2 bg-gray-50 text-xs font-semibold text-gray-500">歷史明細</div>
+      <div id="history-records-body" class="divide-y divide-gray-100"></div>
+      <div id="records-pagination" class="px-5 py-3 hidden border-t border-gray-100">
+        <div id="record-page-buttons" class="flex items-center justify-center gap-2 flex-wrap"></div>
+        <p id="record-page-info" class="text-xs text-gray-400 text-center mt-2"></p>
+      </div>
     </div>
   </div>
 
@@ -431,6 +436,15 @@ function formatLocalDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+function getCurrentMonthRange() {
+  const now = new Date();
+  return {
+    from: formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+    to: formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 1)),
+    label: `${now.getFullYear()}年${now.getMonth() + 1}月`
+  };
+}
+
 function buildGroupWeeklyModel(rows) {
   const weekMap = new Map();
   const groupMap = new Map();
@@ -626,8 +640,12 @@ function redraw(id, type, data, options) {
   charts[id] = new Chart(document.getElementById(id).getContext('2d'), { type, data, options:{ responsive:true, ...options } });
 }
 
+function scriptJson(data) {
+  return JSON.stringify(data).replace(/<\//g, '<\\/');
+}
+
 /* ── 匯出管理報表 HTML ── */
-function exportManagementReportHTML() {
+async function exportManagementReportHTML() {
   if (!statsData) return;
   const { weeks, groups, groupMap } = buildGroupWeeklyModel(statsData.groupWeeklyMatrix);
   const t = statsData.totals || {};
@@ -643,6 +661,32 @@ function exportManagementReportHTML() {
     const found = (statsData.dailyTrend || []).find(r => r.visit_date === d);
     return { date:d, count:found?.count || 0 };
   });
+  const recordsData = await fetchRecordBatch({ limit: 1000 });
+  const reportRecords = (recordsData.records || []).map(r => {
+    let tmpl = {};
+    try { tmpl = r.tmpl_json ? JSON.parse(r.tmpl_json) : {}; } catch { tmpl = {}; }
+    return {
+      date: r.visit_date || '',
+      type: TYPE_LABEL[r.type] || r.type || '',
+      client: r.client_name || r.meeting_name || '',
+      user: r.user_name || '',
+      group: r.rm_group || '',
+      city: r.city || r.branch || '',
+      purpose: r.purpose || '',
+      segments: Array.isArray(tmpl.customerSegments) ? tmpl.customerSegments : [],
+      business: Array.isArray(tmpl.targetBusiness) ? tmpl.targetBusiness : [],
+      follow: r.follow_up || ''
+    };
+  });
+  const radarRows = (statsData.radar || []).map(r => ({
+    user: r.user_name,
+    count: r.count || 0,
+    momentum: r.momentum || 0,
+    e8: r.e8_ratio || 0,
+    follow: `高频 ${r.high_freq || 0} / 定期 ${r.regular || 0}`,
+    target: target ? Math.round((r.count || 0) * 100 / target) : 0,
+    last: (statsData.lastVisit || []).find(v => v.user_name === r.user_name)?.last_date || ''
+  }));
 
   const matrixRows = groups.map(group => {
     const groupTarget = GROUP_TARGETS[group] || 1.5;
@@ -653,37 +697,86 @@ function exportManagementReportHTML() {
       const e8 = count ? Math.round((r?.e8_count || 0) * 100 / count) : 0;
       const ring = count ? Math.round((r?.ring_count || 0) * 100 / count) : 0;
       const segmentLine = formatSegmentLine(e8, ring);
-      return `<td class="${pct >= 60 ? 'ok' : count ? 'bad' : ''}">
+      const names = String(r?.customer_names || '').split(',').filter(Boolean).join('\\n') || '本周无客户';
+      return `<td title="${escapeHtml(names)}" class="${pct >= 60 ? 'ok' : count ? 'bad' : ''}">
         <b>${pct}%</b>${segmentLine ? `<br><small>${segmentLine}</small>` : ''}
       </td>`;
     }).join('')}</tr>`;
   }).join('');
 
-  const html = `<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><title>RM 週管理報表</title>
+  const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>RM 交互式管理报表</title>
   <style>
-    body{font-family:-apple-system,BlinkMacSystemFont,"Microsoft JhengHei",Arial,sans-serif;margin:28px;color:#111827;background:#f8fafc;}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Microsoft YaHei",Arial,sans-serif;margin:28px;color:#111827;background:#f8fafc;}
     h1{margin:0 0 4px;font-size:24px;} h2{font-size:16px;margin:24px 0 10px;}
     .sub{color:#6b7280;font-size:12px;margin-bottom:18px;}
-    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+    .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
     .card{background:white;border:1px solid #e5e7eb;border-radius:12px;padding:14px;}
     .label{font-size:12px;color:#6b7280}.num{font-size:26px;font-weight:800;margin-top:4px;}
     table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;}
-    th,td{border:1px solid #e5e7eb;padding:9px;text-align:center;font-size:12px;} th{background:#f3f4f6;}
+    th,td{border:1px solid #e5e7eb;padding:9px;text-align:center;font-size:12px;} th{background:#f3f4f6;cursor:pointer;}
     td.ok{background:#ecfdf5;color:#166534}td.warn{background:#fffbeb;color:#92400e}td.bad{background:#fef2f2;color:#991b1b}
-    small{color:#6b7280}.quality{display:flex;gap:8px;flex-wrap:wrap}.pill{border-radius:999px;background:white;border:1px solid #e5e7eb;padding:7px 10px;font-size:12px;}
+    small{color:#6b7280}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.toolbar input,.toolbar select{border:1px solid #d1d5db;border-radius:10px;padding:8px 10px;font-size:13px;background:white;}
+    .tag{display:inline-block;border-radius:999px;background:#ecfdf5;color:#047857;padding:1px 7px;margin:1px;font-size:11px;font-weight:700;}
+    @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}body{margin:14px}table{min-width:760px}.scroll{overflow-x:auto}}
   </style></head><body>
-    <h1>RM 週管理報表</h1>
-    <div class="sub">${document.getElementById('header-since').textContent || ''} · 會議不列入統計</div>
+    <h1>RM 交互式管理报表</h1>
+    <div class="sub">${document.getElementById('header-since').textContent || ''} · 会议不列入统计 · 导出时间 ${new Date().toLocaleString('zh-CN')}</div>
     <div class="grid">
-      <div class="card"><div class="label">拜訪數</div><div class="num">${t.total || 0}</div></div>
-      <div class="card"><div class="label">週目標達成率</div><div class="num">${achievePct}%</div></div>
+      <div class="card"><div class="label">拜访数</div><div class="num">${t.total || 0}</div></div>
+      <div class="card"><div class="label">目标达成率</div><div class="num">${achievePct}%</div></div>
+      <div class="card"><div class="label">新户数</div><div class="num">${(statsData.purposeBreakdown || []).find(p => p.purpose === '新户开发' || p.purpose === '新戶開發')?.count || 0}</div></div>
       <div class="card"><div class="label">8+E 比率</div><div class="num">${e8pct}%</div></div>
       <div class="card"><div class="label">环金比率</div><div class="num">${ringPct}%</div></div>
     </div>
-    <h2>RM 組動能逐週管理</h2>
-    <table><thead><tr><th>RM 組別</th>${weeks.map(w => `<th>${fmtWeekLabel(w.start)}週</th>`).join('')}</tr></thead><tbody>${matrixRows}</tbody></table>
-    <h2>近 10 工作日拜訪趨勢</h2>
-    <table><thead><tr>${daily.map(d => `<th>${d.date.slice(5)}</th>`).join('')}</tr></thead><tbody><tr>${daily.map(d => `<td><b>${d.count}</b></td>`).join('')}</tr></tbody></table>
+    <h2>RM 组动能逐周管理</h2>
+    <div class="scroll"><table><thead><tr><th>RM 组别</th>${weeks.map(w => `<th>${fmtWeekLabel(w.start)}周</th>`).join('')}</tr></thead><tbody>${matrixRows}</tbody></table></div>
+    <h2>行销人员管理雷达</h2>
+    <div class="scroll"><table id="radar-table"><thead><tr><th onclick="sortRadarReport('user')">姓名</th><th onclick="sortRadarReport('count')">拜访数</th><th onclick="sortRadarReport('momentum')">动能</th><th onclick="sortRadarReport('e8')">8+E</th><th>跟进频率</th><th onclick="sortRadarReport('target')">目标</th><th onclick="sortRadarReport('last')">最后拜访</th></tr></thead><tbody></tbody></table></div>
+    <h2>近 10 工作日拜访趋势</h2>
+    <div class="scroll"><table><thead><tr>${daily.map(d => `<th>${d.date.slice(5)}</th>`).join('')}</tr></thead><tbody><tr>${daily.map(d => `<td><b>${d.count}</b></td>`).join('')}</tr></tbody></table></div>
+    <h2>明细记录</h2>
+    <div class="toolbar">
+      <input id="record-search" oninput="filterReportRecords()" placeholder="搜索公司 / 人员 / 地点">
+      <select id="group-filter" onchange="filterReportRecords()"><option value="">全部组别</option>${ALLOWED_RM_GROUPS.map(g => `<option value="${g}">${g}</option>`).join('')}</select>
+      <select id="segment-filter" onchange="filterReportRecords()"><option value="">全部客群</option><option value="8+E">8+E</option><option value="环金">环金</option></select>
+    </div>
+    <div class="scroll"><table id="records-table"><thead><tr><th>日期</th><th>公司</th><th>人员</th><th>组别</th><th>地点</th><th>业务</th><th>跟进</th></tr></thead><tbody></tbody></table></div>
+    <script>
+      const radarRows = ${scriptJson(radarRows)};
+      const reportRecords = ${scriptJson(reportRecords)};
+      let radarSortKey = 'count';
+      let radarSortDir = -1;
+      function tags(items){ return (items || []).map(function(x){ return '<span class="tag">' + x + '</span>'; }).join(''); }
+      function sortRadarReport(key){
+        radarSortDir = radarSortKey === key ? -radarSortDir : -1;
+        radarSortKey = key;
+        renderRadarReport();
+      }
+      function renderRadarReport(){
+        const rows = radarRows.slice().sort(function(a,b){
+          if (a[radarSortKey] === b[radarSortKey]) return 0;
+          return a[radarSortKey] > b[radarSortKey] ? radarSortDir : -radarSortDir;
+        });
+        document.querySelector('#radar-table tbody').innerHTML = rows.map(function(r){
+          return '<tr><td>' + r.user + '</td><td><b>' + r.count + '</b></td><td>' + r.momentum + '</td><td>' + r.e8 + '%</td><td>' + r.follow + '</td><td>' + r.target + '%</td><td>' + r.last + '</td></tr>';
+        }).join('');
+      }
+      function filterReportRecords(){
+        const q = document.getElementById('record-search').value.trim().toLowerCase();
+        const g = document.getElementById('group-filter').value;
+        const s = document.getElementById('segment-filter').value;
+        const rows = reportRecords.filter(function(r){
+          const text = [r.client,r.user,r.city,r.purpose,r.group].join(' ').toLowerCase();
+          const segs = (r.segments || []).join(',');
+          return (!q || text.includes(q)) && (!g || r.group === g) && (!s || segs.includes(s) || (s === '8+E' && segs.includes('8+E')));
+        });
+        document.querySelector('#records-table tbody').innerHTML = rows.map(function(r){
+          return '<tr><td>' + r.date + '</td><td style="text-align:left"><b>' + r.client + '</b><br>' + tags(r.segments) + '</td><td>' + r.user + '</td><td>' + r.group + '</td><td>' + r.city + '</td><td>' + tags(r.business) + '</td><td>' + r.follow + '</td></tr>';
+        }).join('') || '<tr><td colspan="7">无符合条件的记录</td></tr>';
+      }
+      renderRadarReport();
+      filterReportRecords();
+    <\\/script>
   </body></html>`;
 
   const blob = new Blob([html], { type:'text/html;charset=utf-8' });
@@ -796,32 +889,8 @@ function renderRecordPageButtons() {
   ).join('');
 }
 
-async function fetchRecords() {
-  const user = document.getElementById('user-filter').value;
-  const followFilter = document.getElementById('follow-filter')?.value || 'all';
-  const limit = followFilter === 'all' ? RECORDS_LIMIT : 500;
-  const offset = followFilter === 'all' ? recordsOffset : 0;
-  recordsSeenKeys.clear();
-  document.getElementById('records-body').innerHTML = '';
-  document.getElementById('records-subtitle').textContent =
-    followFilter === 'all' ? '全部明細；下方可切換頁次' : '待跟進會依提醒日排序；新增同客戶的新紀錄後，舊提醒自然消失';
-  let url = `${WORKER_URL}/api/records?password=${enc(PASSWORD)}&limit=${limit}&offset=${offset}&exclude_meeting=1`;
-  if (user) url += `&user=${enc(user)}`;
-  const res  = await fetch(url);
-  const data = await res.json();
-  const sourceRows = (data.records || []).filter(r => r.type !== 'meeting');
-  recordsTotalPages = Math.max(1, Math.ceil((data.total || sourceRows.length || 0) / RECORDS_LIMIT));
-  const visibleRows = sourceRows;
-  const allRows = applyFollowFilter(visibleRows, followFilter);
-  // 去重：同用戶 + 同客戶/會議 + 同日期 + 同類型，只保留第一筆（API 已按 created_at DESC，即最新）
-  const rows = allRows.filter(r => {
-    const key = `${r.user_name}|${r.type}|${r.client_name||r.meeting_name||''}|${r.visit_date||''}`;
-    if (recordsSeenKeys.has(key)) return false;
-    recordsSeenKeys.add(key);
-    return true;
-  });
-  rows.forEach(r => { _recordMap[r.id] = r; });
-  const html = rows.map(r => {
+function recordRowsHtml(rows) {
+  return rows.map(r => {
     const remind = reminderBadge(r.visit_date, r.follow_up);
     const biz = businessBadges(r.tmpl_json);
     return `
@@ -837,14 +906,65 @@ async function fetchRecords() {
       </div>
     </div>`;
   }).join('');
-  const emptyText = followFilter === 'all' ? '此區間無紀錄' : '目前沒有符合條件的跟進紀錄';
-  document.getElementById('records-body').innerHTML = html || `<div class="px-5 py-8 text-center text-gray-400 text-sm">${emptyText}</div>`;
-  const pager = document.getElementById('records-pagination');
-  pager.classList.toggle('hidden', followFilter !== 'all');
-  if (followFilter === 'all') {
-    renderRecordPageButtons();
-    document.getElementById('record-page-info').textContent = `第 ${recordsPage} / ${recordsTotalPages} 頁`;
+}
+
+async function fetchRecordBatch({ limit, offset = 0, from = '', to = '', user = '' }) {
+  let url = `${WORKER_URL}/api/records?password=${enc(PASSWORD)}&limit=${limit}&offset=${offset}&exclude_meeting=1`;
+  if (from) url += `&from=${enc(from)}`;
+  if (to) url += `&to=${enc(to)}`;
+  if (user) url += `&user=${enc(user)}`;
+  const res = await fetch(url);
+  return await res.json();
+}
+
+async function fetchRecords() {
+  const user = document.getElementById('user-filter').value;
+  const followFilter = document.getElementById('follow-filter')?.value || 'all';
+  recordsSeenKeys.clear();
+  const currentBody = document.getElementById('current-records-body');
+  const historyBody = document.getElementById('history-records-body');
+  const historySection = document.getElementById('history-records-section');
+  currentBody.innerHTML = '';
+  historyBody.innerHTML = '';
+  document.getElementById('records-subtitle').textContent =
+    followFilter === 'all' ? '當月明細優先顯示；歷史明細在下方分頁' : '待跟進會依提醒日排序；新增同客戶的新紀錄後，舊提醒自然消失';
+
+  if (followFilter !== 'all') {
+    historySection.classList.add('hidden');
+    const data = await fetchRecordBatch({ limit: 500, user });
+    const sourceRows = (data.records || []).filter(r => r.type !== 'meeting');
+    const rows = applyFollowFilter(sourceRows, followFilter);
+    rows.forEach(r => { _recordMap[r.id] = r; });
+    currentBody.innerHTML = recordRowsHtml(rows) || '<div class="px-5 py-8 text-center text-gray-400 text-sm">目前沒有符合條件的跟進紀錄</div>';
+    document.getElementById('records-pagination').classList.add('hidden');
+    lucide.createIcons();
+    return;
   }
+
+  historySection.classList.remove('hidden');
+  const { from, to, label } = getCurrentMonthRange();
+  const currentData = await fetchRecordBatch({ limit: 500, from, to, user });
+  const currentRows = (currentData.records || []).filter(r => r.type !== 'meeting');
+  currentRows.forEach(r => { _recordMap[r.id] = r; });
+  currentBody.innerHTML = recordRowsHtml(currentRows) || `<div class="px-5 py-8 text-center text-gray-400 text-sm">${label}暫無明細</div>`;
+
+  const historyData = await fetchRecordBatch({ limit: RECORDS_LIMIT, offset: recordsOffset, to: from, user });
+  const sourceRows = (historyData.records || []).filter(r => r.type !== 'meeting');
+  recordsTotalPages = Math.max(1, Math.ceil((historyData.total || sourceRows.length || 0) / RECORDS_LIMIT));
+  const allRows = sourceRows;
+  // 去重：同用戶 + 同客戶/會議 + 同日期 + 同類型，只保留第一筆（API 已按 created_at DESC，即最新）
+  const rows = allRows.filter(r => {
+    const key = `${r.user_name}|${r.type}|${r.client_name||r.meeting_name||''}|${r.visit_date||''}`;
+    if (recordsSeenKeys.has(key)) return false;
+    recordsSeenKeys.add(key);
+    return true;
+  });
+  rows.forEach(r => { _recordMap[r.id] = r; });
+  historyBody.innerHTML = recordRowsHtml(rows) || '<div class="px-5 py-8 text-center text-gray-400 text-sm">尚無歷史明細</div>';
+  const pager = document.getElementById('records-pagination');
+  pager.classList.toggle('hidden', recordsTotalPages <= 1);
+  renderRecordPageButtons();
+  document.getElementById('record-page-info').textContent = `歷史明細 第 ${recordsPage} / ${recordsTotalPages} 頁`;
   lucide.createIcons();
 }
 

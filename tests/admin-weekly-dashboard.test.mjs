@@ -34,11 +34,19 @@ assert.match(adminHtml, /showCustomerTooltip/, 'RM weekly matrix cells should re
 assert.doesNotMatch(adminHtml, /slice\(0, 8\)/, 'RM weekly matrix should show all available weeks, not only the latest 8 weeks');
 assert.match(adminHtml, /record-page-info/, 'records section should show page navigation');
 assert.match(adminHtml, /renderRecordPageButtons/, 'records section should render numeric page buttons');
+assert.match(adminHtml, /current-records-body/, 'records section should render current-month details separately');
+assert.match(adminHtml, /history-records-body/, 'records section should render older details separately');
+assert.match(adminHtml, /歷史明細/, 'records section should label older records as history details');
+assert.match(adminHtml, /getCurrentMonthRange/, 'records section should use current month for the top detail list');
 assert.match(adminHtml, /businessBadges/, 'records section should show business opportunity tags beside each company');
 assert.match(adminHtml, /targetBusiness/, 'records business tags should come from each record targetBusiness field');
 assert.match(adminHtml, /exclude_meeting=1/, 'records pagination should use the same non-meeting scope as the visible list');
-assert.doesNotMatch(adminHtml, /getCurrentMonthRange|from=\$\{enc\(from\)\}|to=\$\{enc\(to\)\}|本月明細/, 'records section should not be limited to the current month');
+assert.match(adminHtml, /fetchRecordBatch\(\{ limit: RECORDS_LIMIT, offset: recordsOffset, to: from, user \}\)/, 'history pagination should start before the current month');
 assert.doesNotMatch(adminHtml, /擊中領先指標|leading-hit-badge|chart-weekly|renderWeeklyChart\(statsData\.weeklyTrend\)/, 'leading indicator chart block should be removed from the dashboard');
+assert.match(adminHtml, /<html lang="zh-CN">/, 'exported management report should use Simplified Chinese locale');
+assert.match(adminHtml, /交互式管理报表/, 'exported management report should use Simplified Chinese wording');
+assert.match(adminHtml, /function sortRadarReport/, 'exported management report should support interactive radar sorting');
+assert.match(adminHtml, /function filterReportRecords/, 'exported management report should support interactive record filtering');
 
 assert.match(workerJs, /groupWeeklyMatrix/, 'stats API should return group weekly matrix data');
 assert.match(workerJs, /customer_names/, 'group weekly matrix should include customer names for cell drilldown');
