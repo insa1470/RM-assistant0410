@@ -55,6 +55,11 @@ assert.match(adminHtml, /fetchRecordBatch\(\{ limit: RECORDS_LIMIT, offset: reco
 assert.doesNotMatch(adminHtml, /擊中領先指標|leading-hit-badge|chart-weekly|renderWeeklyChart\(statsData\.weeklyTrend\)/, 'leading indicator chart block should be removed from the dashboard');
 assert.match(adminHtml, /<html lang="zh-CN">/, 'exported management report should use Simplified Chinese locale');
 assert.match(adminHtml, /交互式管理报表/, 'exported management report should use Simplified Chinese wording');
+assert.match(adminHtml, /body\{font-size:16px/, 'exported management report should use larger base font size');
+assert.match(adminHtml, /weekly-matrix/, 'exported management report should give weekly matrix a dedicated readable style');
+assert.match(adminHtml, /latestDailyDate/, 'exported recent 10 workday trend should anchor to the latest available data date');
+assert.match(adminHtml, new RegExp(String.raw`['"]<['"] \+ ['"]\/script>['"]`), 'exported management report should emit a real closing script tag');
+assert.doesNotMatch(adminHtml, new RegExp(String.raw`<\\\\\/script>`), 'exported management report should not leave an escaped script terminator in the saved HTML');
 assert.match(adminHtml, /function sortRadarReport/, 'exported management report should support interactive radar sorting');
 assert.match(adminHtml, /function filterReportRecords/, 'exported management report should support interactive record filtering');
 

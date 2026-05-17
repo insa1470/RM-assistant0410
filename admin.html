@@ -602,9 +602,9 @@ function renderDailyChart(trend) {
   }, { plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,ticks:{stepSize:1}}, x:{grid:{display:false}} } });
 }
 
-function getLast10Workdays() {
+function getLast10Workdays(anchorDate) {
   const result = [];
-  const d = new Date();
+  const d = anchorDate ? new Date(anchorDate) : new Date();
   while (result.length < 10) {
     const dow = d.getDay();
     if (dow !== 0 && dow !== 6) {
@@ -657,7 +657,12 @@ async function exportManagementReportHTML() {
     return match ? Number(match[1]) : WEEKLY_TEAM_TARGET;
   })();
   const achievePct = target > 0 ? Math.round((t.total || 0) / target * 100) : 0;
-  const daily = getLast10Workdays().map(d => {
+  const latestDailyDate = (statsData.dailyTrend || [])
+    .map(r => r.visit_date)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const daily = getLast10Workdays(latestDailyDate).map(d => {
     const found = (statsData.dailyTrend || []).find(r => r.visit_date === d);
     return { date:d, count:found?.count || 0 };
   });
@@ -706,18 +711,23 @@ async function exportManagementReportHTML() {
 
   const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>RM 交互式管理报表</title>
   <style>
-    body{font-family:-apple-system,BlinkMacSystemFont,"Microsoft YaHei",Arial,sans-serif;margin:28px;color:#111827;background:#f8fafc;}
-    h1{margin:0 0 4px;font-size:24px;} h2{font-size:16px;margin:24px 0 10px;}
-    .sub{color:#6b7280;font-size:12px;margin-bottom:18px;}
-    .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
-    .card{background:white;border:1px solid #e5e7eb;border-radius:12px;padding:14px;}
-    .label{font-size:12px;color:#6b7280}.num{font-size:26px;font-weight:800;margin-top:4px;}
+    body{font-size:16px;font-family:-apple-system,BlinkMacSystemFont,"Microsoft YaHei",Arial,sans-serif;margin:32px;color:#111827;background:#f8fafc;}
+    h1{margin:0 0 6px;font-size:32px;line-height:1.2;} h2{font-size:22px;margin:32px 0 14px;}
+    .sub{color:#6b7280;font-size:15px;margin-bottom:22px;}
+    .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+    .card{background:white;border:1px solid #e5e7eb;border-radius:12px;padding:16px;}
+    .label{font-size:14px;color:#6b7280}.num{font-size:34px;font-weight:800;margin-top:6px;}
     table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;}
-    th,td{border:1px solid #e5e7eb;padding:9px;text-align:center;font-size:12px;} th{background:#f3f4f6;cursor:pointer;}
+    th,td{border:1px solid #e5e7eb;padding:12px 10px;text-align:center;font-size:15px;line-height:1.45;} th{background:#f3f4f6;cursor:pointer;font-weight:800;}
+    .weekly-matrix th,.weekly-matrix td{font-size:16px;padding:13px 12px;min-width:108px;}
+    .weekly-matrix tbody th{position:sticky;left:0;background:#f9fafb;z-index:1;min-width:92px;}
+    .weekly-matrix b{font-size:18px;}
+    .trend-table td b{font-size:24px;color:#047857;}
     td.ok{background:#ecfdf5;color:#166534}td.warn{background:#fffbeb;color:#92400e}td.bad{background:#fef2f2;color:#991b1b}
-    small{color:#6b7280}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.toolbar input,.toolbar select{border:1px solid #d1d5db;border-radius:10px;padding:8px 10px;font-size:13px;background:white;}
-    .tag{display:inline-block;border-radius:999px;background:#ecfdf5;color:#047857;padding:1px 7px;margin:1px;font-size:11px;font-weight:700;}
-    @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}body{margin:14px}table{min-width:760px}.scroll{overflow-x:auto}}
+    small{color:#6b7280;font-size:13px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.toolbar input,.toolbar select{border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font-size:15px;background:white;}
+    .tag{display:inline-block;border-radius:999px;background:#ecfdf5;color:#047857;padding:2px 8px;margin:2px;font-size:13px;font-weight:700;}
+    .empty{padding:22px;color:#9ca3af;font-size:15px;text-align:center;}
+    @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}body{margin:16px;font-size:15px}table{min-width:840px}.scroll{overflow-x:auto}}
   </style></head><body>
     <h1>RM 交互式管理报表</h1>
     <div class="sub">${document.getElementById('header-since').textContent || ''} · 会议不列入统计 · 导出时间 ${new Date().toLocaleString('zh-CN')}</div>
@@ -729,11 +739,11 @@ async function exportManagementReportHTML() {
       <div class="card"><div class="label">环金比率</div><div class="num">${ringPct}%</div></div>
     </div>
     <h2>RM 组动能逐周管理</h2>
-    <div class="scroll"><table><thead><tr><th>RM 组别</th>${weeks.map(w => `<th>${fmtWeekLabel(w.start)}周</th>`).join('')}</tr></thead><tbody>${matrixRows}</tbody></table></div>
+    <div class="scroll"><table class="weekly-matrix"><thead><tr><th>RM 组别</th>${weeks.map(w => `<th>${fmtWeekLabel(w.start)}周</th>`).join('')}</tr></thead><tbody>${matrixRows || '<tr><td class="empty" colspan="9">暂无逐周资料</td></tr>'}</tbody></table></div>
     <h2>行销人员管理雷达</h2>
     <div class="scroll"><table id="radar-table"><thead><tr><th onclick="sortRadarReport('user')">姓名</th><th onclick="sortRadarReport('count')">拜访数</th><th onclick="sortRadarReport('momentum')">动能</th><th onclick="sortRadarReport('e8')">8+E</th><th>跟进频率</th><th onclick="sortRadarReport('target')">目标</th><th onclick="sortRadarReport('last')">最后拜访</th></tr></thead><tbody></tbody></table></div>
     <h2>近 10 工作日拜访趋势</h2>
-    <div class="scroll"><table><thead><tr>${daily.map(d => `<th>${d.date.slice(5)}</th>`).join('')}</tr></thead><tbody><tr>${daily.map(d => `<td><b>${d.count}</b></td>`).join('')}</tr></tbody></table></div>
+    <div class="scroll"><table class="trend-table"><thead><tr>${daily.map(d => `<th>${d.date.slice(5)}</th>`).join('')}</tr></thead><tbody><tr>${daily.map(d => `<td><b>${d.count}</b></td>`).join('')}</tr></tbody></table></div>
     <h2>明细记录</h2>
     <div class="toolbar">
       <input id="record-search" oninput="filterReportRecords()" placeholder="搜索公司 / 人员 / 地点">
@@ -782,7 +792,7 @@ async function exportManagementReportHTML() {
         });
         document.querySelector('#radar-table tbody').innerHTML = rows.map(function(r){
           return '<tr><td>' + r.user + '</td><td><b>' + r.count + '</b></td><td>' + r.momentum + '</td><td>' + r.e8 + '%</td><td>' + r.follow + '</td><td>' + r.target + '%</td><td>' + r.last + '</td></tr>';
-        }).join('');
+        }).join('') || '<tr><td class="empty" colspan="7">暂无行销人员资料</td></tr>';
       }
       function filterReportRecords(){
         const q = document.getElementById('record-search').value.trim().toLowerCase();
@@ -799,7 +809,7 @@ async function exportManagementReportHTML() {
       }
       renderRadarReport();
       filterReportRecords();
-    <\\/script>
+    ${'<' + '/script>'}
   </body></html>`;
 
   const blob = new Blob([html], { type:'text/html;charset=utf-8' });
