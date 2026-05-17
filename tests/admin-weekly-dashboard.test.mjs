@@ -29,4 +29,6 @@ assert.match(workerJs, /type IN \('report','site'\)/, 'marketing stats should in
 assert.match(workerJs, /ALLOWED_RM_GROUPS/, 'stats API should define the 8 managed RM groups');
 assert.match(workerJs, /rm_group IN \(\$\{allowedGroupSql\}\)/, 'stats API should count only the managed RM groups');
 assert.match(workerJs, /range\) === 'all'/, 'stats API should support all-time dashboard stats');
+assert.match(workerJs, /const days\s+= isAllTime \? 0 : parseInt/, 'stats API should not parse all as a numeric day range');
+assert.match(workerJs, /const prev\s+= isAllTime \? '0000-01-01' : daysAgo/, 'stats API should not compute invalid previous range dates for all-time stats');
 assert.doesNotMatch(workerJs, /date\\('now', '-84 days'\\)|date\\('now', '-91 days'\\)/, 'weekly data should not be limited to recent 84 or 91 days');

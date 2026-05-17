@@ -260,14 +260,14 @@ async function handleStats(request, env) {
   const url   = new URL(request.url);
   const range = url.searchParams.get('range') || '30';
   const isAllTime = String(range) === 'all';
-  const days  = parseInt(range || '30');
+  const days  = isAllTime ? 0 : parseInt(range || '30');
   const sleep = parseInt(url.searchParams.get('sleep') || '30');
   // 支援 from/to 週別篩選；若無則用 range 天數
   const fromP  = url.searchParams.get('from') || null;
   const toP    = url.searchParams.get('to')   || null;
   const since  = isAllTime && !fromP ? '0000-01-01' : (fromP || daysAgo(days));
   const until  = toP   || null;
-  const prev   = daysAgo(days * 2);
+  const prev   = isAllTime ? '0000-01-01' : daysAgo(days * 2);
   const allowedGroupSql = ALLOWED_RM_GROUPS.map(g => `'${g}'`).join(',');
   const managedGroupWhere = `rm_group IN (${allowedGroupSql})`;
 
