@@ -885,11 +885,11 @@
                                 <input type="text" value="${draft.industryDesc||''}" oninput="updateDraft('industryDesc',this.value)" placeholder="行业描述">
                             </div>
                             <div class="ios-row-half" style="flex:1;align-items:flex-start;flex-direction:column;gap:6px;">
-                                <span style="font-size:13px;color:var(--label);white-space:nowrap;">客群</span>
+                                <span style="font-size:12px;color:var(--label);white-space:nowrap;">客群</span>
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%;">
-                                    ${['8+E','環金陸企'].map(seg=>{
+                                    ${['8+E','环金陆企'].map(seg=>{
                                         const selected = getCustomerSegments(draft).includes(seg);
-                                        return `<label style="display:flex;align-items:center;justify-content:center;gap:4px;min-height:30px;border-radius:8px;border:1px solid ${selected?'var(--brand)':'var(--separator)'};background:${selected?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};color:${selected?'var(--brand)':'var(--label-secondary)'};font-size:12px;font-weight:${selected?'700':'500'};white-space:nowrap;">
+                                        return `<label style="display:flex;align-items:center;justify-content:center;gap:3px;min-height:28px;border-radius:8px;border:1px solid ${selected?'var(--brand)':'var(--separator)'};background:${selected?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};color:${selected?'var(--brand)':'var(--label-secondary)'};font-size:11px;font-weight:${selected?'700':'500'};white-space:nowrap;">
                                             <input type="checkbox" ${selected?'checked':''} onchange="toggleCustomerSegment('${seg}',this.checked)" style="width:14px !important;height:14px !important;accent-color:var(--brand);">
                                             <span>${seg}</span>
                                         </label>`;
