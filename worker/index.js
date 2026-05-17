@@ -442,6 +442,7 @@ async function handleRecords(request, env) {
   const user   = url.searchParams.get('user') || null;
   const fromDate = url.searchParams.get('from') || null;
   const toDate = url.searchParams.get('to') || null;
+  const excludeMeeting = url.searchParams.get('exclude_meeting') === '1';
   const limit  = parseInt(url.searchParams.get('limit')  || '50');
   const offset = parseInt(url.searchParams.get('offset') || '0');
 
@@ -451,12 +452,15 @@ async function handleRecords(request, env) {
   if (user) { where.push('user_name = ?'); p.push(user); }
   if (fromDate) { where.push('visit_date >= ?'); p.push(fromDate); }
   if (toDate) { where.push('visit_date < ?'); p.push(toDate); }
+  if (excludeMeeting) where.push("type != 'meeting'");
   if (where.length) q += ` WHERE ${where.join(' AND ')}`;
+  const countQ = `SELECT COUNT(*) as total FROM records${where.length ? ` WHERE ${where.join(' AND ')}` : ''}`;
+  const totalRow = await env.DB.prepare(countQ).bind(...p).first();
   q += ' ORDER BY visit_date DESC, created_at DESC LIMIT ? OFFSET ?';
   p.push(limit, offset);
 
   const result = await env.DB.prepare(q).bind(...p).all();
-  return jsonRes({ records: result.results });
+  return jsonRes({ records: result.results, total: totalRow?.total || 0 });
 }
 
 /* ──────────────────────────────────────────

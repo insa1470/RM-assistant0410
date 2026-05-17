@@ -4,8 +4,9 @@ import { readFileSync } from 'node:fs';
 const adminHtml = readFileSync(new URL('../admin.html', import.meta.url), 'utf8');
 const workerJs = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
 
-assert.match(adminHtml, /週管理總覽/, 'admin dashboard should lead with weekly management overview');
+assert.doesNotMatch(adminHtml, /週管理總覽|weekly-overview|weekly-current-count|weekly-target-count|weekly-8e-ratio|weekly-ring-ratio|renderWeeklyOverview/, 'admin dashboard should not duplicate top summary cards with a weekly overview section');
 assert.match(adminHtml, /RM 組動能逐週管理/, 'admin dashboard should include the RM group weekly momentum matrix');
+assert.match(adminHtml, /行銷人員管理雷達/, 'admin radar section should use the clearer marketing staff title');
 assert.match(adminHtml, /近 10 工作日拜訪趨勢/, 'admin dashboard should preserve the recent 10 workday trend');
 assert.match(adminHtml, /renderGroupWeeklyMatrix/, 'admin dashboard should render the group weekly matrix');
 assert.match(adminHtml, /GROUP_TARGETS/, 'admin dashboard should define weekly targets by RM group');
@@ -31,7 +32,9 @@ assert.match(adminHtml, /pct >= 60/, 'RM weekly matrix should mark 60 percent an
 assert.match(adminHtml, /showCustomerTooltip/, 'RM weekly matrix cells should reveal customer names on hover or click');
 assert.doesNotMatch(adminHtml, /slice\(0, 8\)/, 'RM weekly matrix should show all available weeks, not only the latest 8 weeks');
 assert.match(adminHtml, /record-page-info/, 'records section should show page navigation');
-assert.match(adminHtml, /getCurrentMonthRange/, 'records section should default to the current month');
+assert.match(adminHtml, /renderRecordPageButtons/, 'records section should render numeric page buttons');
+assert.match(adminHtml, /exclude_meeting=1/, 'records pagination should use the same non-meeting scope as the visible list');
+assert.doesNotMatch(adminHtml, /getCurrentMonthRange|from=\$\{enc\(from\)\}|to=\$\{enc\(to\)\}|本月明細/, 'records section should not be limited to the current month');
 assert.doesNotMatch(adminHtml, /擊中領先指標|leading-hit-badge|chart-weekly|renderWeeklyChart\(statsData\.weeklyTrend\)/, 'leading indicator chart block should be removed from the dashboard');
 
 assert.match(workerJs, /groupWeeklyMatrix/, 'stats API should return group weekly matrix data');
@@ -39,6 +42,8 @@ assert.match(workerJs, /customer_names/, 'group weekly matrix should include cus
 assert.match(workerJs, /visit_date >= '0000-01-01'[\s\S]*GROUP BY rm_group, week_key/, 'group weekly matrix should always use all-time weekly data');
 assert.doesNotMatch(workerJs, /groupWeeklyMatrix[\s\S]{0,700}visit_date >= '\$\{since\}'/, 'group weekly matrix should not be constrained by the selected dashboard range');
 assert.match(workerJs, /fromDate|toDate/, 'records API should support date-range filtering for current-month records');
+assert.match(workerJs, /total/, 'records API should return total count for numeric pagination');
+assert.match(workerJs, /excludeMeeting/, 'records API should support excluding meetings from paginated totals');
 assert.doesNotMatch(workerJs, /dataQuality|unmanaged_rm_group|missing_rm_group|invalid_rm_group|excluded_meetings/, 'stats API should not return data quality reminder fields');
 assert.match(workerJs, /json_extract\(.*customerSegments/, 'stats API should read customer segments from tmpl_json');
 assert.match(workerJs, /type IN \('report','site'\)/, 'marketing stats should include reports and site visits while excluding meetings');

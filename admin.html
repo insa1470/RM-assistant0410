@@ -97,6 +97,9 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
       <button onclick="exportCSV()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-white border border-gray-200 text-gray-600">
         <i data-lucide="download" class="w-4 h-4"></i> 匯出 CSV
       </button>
+      <button onclick="exportManagementReportHTML()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-white border border-gray-200 text-gray-600">
+        <i data-lucide="file-code-2" class="w-4 h-4"></i> 匯出管理報表 HTML
+      </button>
       <button onclick="logout()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-gray-500 bg-white border border-gray-200">
         <i data-lucide="log-out" class="w-4 h-4"></i> 登出
       </button>
@@ -127,40 +130,6 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
   </div>
 
-  <!-- 週管理總覽 -->
-  <div class="card p-5">
-    <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
-      <div>
-        <h2 class="text-[15px] font-bold text-gray-800">週管理總覽</h2>
-        <p class="text-xs text-gray-400 mt-0.5" id="weekly-overview-subtitle">統計範圍：301、302、303、305、306、321、322、323</p>
-      </div>
-      <div class="flex items-center gap-2">
-        <button onclick="exportManagementReportHTML()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-white border border-gray-200 text-gray-600">
-          <i data-lucide="file-code-2" class="w-4 h-4"></i> 匯出管理報表 HTML
-        </button>
-        <span id="weekly-overview-status" class="status-chip status-gray">—</span>
-      </div>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div class="rounded-xl bg-gray-50 p-4">
-        <p class="text-xs text-gray-400">本期拜訪</p>
-        <p class="text-2xl font-bold text-gray-900 mt-1" id="weekly-current-count">—</p>
-      </div>
-      <div class="rounded-xl bg-gray-50 p-4">
-        <p class="text-xs text-gray-400">本期目標</p>
-        <p class="text-2xl font-bold text-gray-900 mt-1" id="weekly-target-count">—</p>
-      </div>
-      <div class="rounded-xl bg-gray-50 p-4">
-        <p class="text-xs text-gray-400">8+E 比率</p>
-        <p class="text-2xl font-bold text-gray-900 mt-1" id="weekly-8e-ratio">—</p>
-      </div>
-      <div class="rounded-xl bg-gray-50 p-4">
-        <p class="text-xs text-gray-400">环金比率</p>
-        <p class="text-2xl font-bold text-gray-900 mt-1" id="weekly-ring-ratio">—</p>
-      </div>
-    </div>
-  </div>
-
   <!-- RM 組動能逐週管理 -->
   <div class="card overflow-hidden">
     <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
@@ -178,11 +147,11 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
   </div>
 
-  <!-- 管理雷達 -->
+  <!-- 行銷人員管理雷達 -->
   <div class="card overflow-hidden">
     <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
       <div>
-        <h2 class="text-[15px] font-bold text-gray-800">📡 管理雷達</h2>
+        <h2 class="text-[15px] font-bold text-gray-800">📡 行銷人員管理雷達</h2>
         <p class="text-xs text-gray-400 mt-0.5">綠色＝達到週目標 · 紅色＝未達目標 · 🏅 表現最佳</p>
       </div>
       <span id="avg-badge" class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg"></span>
@@ -219,7 +188,7 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 class="text-[14px] font-semibold text-gray-700">明細紀錄</h2>
-        <p class="text-xs text-gray-400 mt-0.5" id="records-subtitle">本月明細；待跟進會依提醒日排序</p>
+        <p class="text-xs text-gray-400 mt-0.5" id="records-subtitle">全部明細；下方可切換頁次</p>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
         <select id="follow-filter" onchange="loadRecords()" class="text-sm px-3 py-1.5 rounded-xl border border-gray-200 bg-white outline-none">
@@ -235,10 +204,9 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
       </div>
     </div>
     <div id="records-body" class="divide-y divide-gray-100"></div>
-    <div id="records-pagination" class="px-5 py-3 hidden border-t border-gray-100 flex items-center justify-between gap-3">
-      <button id="record-prev" onclick="changeRecordPage(-1)" class="page-btn">‹</button>
-      <span id="record-page-info" class="text-xs text-gray-400"></span>
-      <button id="record-next" onclick="changeRecordPage(1)" class="page-btn">›</button>
+    <div id="records-pagination" class="px-5 py-3 hidden border-t border-gray-100">
+      <div id="record-page-buttons" class="flex items-center justify-center gap-2 flex-wrap"></div>
+      <p id="record-page-info" class="text-xs text-gray-400 text-center mt-2"></p>
     </div>
   </div>
 
@@ -268,7 +236,7 @@ let statsData = null;
 let recordsOffset = 0;
 const RECORDS_LIMIT = 30;
 let recordsPage = 1;
-let recordsHasNext = false;
+let recordsTotalPages = 1;
 let recordsSeenKeys = new Set(); // 跨分頁去重
 const ADMIN_WEEKLY_VISITS = 1.5;
 const ADMIN_RM_COUNT = 12;
@@ -413,7 +381,6 @@ async function loadData() {
   const personalWeeklyTarget = weekly * weekCount;
   document.getElementById('avg-badge').textContent = `週目標 ${weekly} 次／人 · 行銷人員 ${rmCount} 人`;
 
-  renderWeeklyOverview(statsData, teamTarget, achievePct, e8pct, ringPct);
   renderGroupWeeklyMatrix(statsData.groupWeeklyMatrix);
   renderRadar(statsData.radar, statsData.lastVisit, personalWeeklyTarget);
   renderDailyChart(statsData.dailyTrend);
@@ -423,7 +390,7 @@ async function loadData() {
   loadRecords();
 }
 
-/* ── 週管理總覽 ── */
+/* ── 管理狀態 ── */
 function statusClass(pct) {
   if (pct >= 100) return 'status-green';
   if (pct >= 70) return 'status-yellow';
@@ -449,17 +416,6 @@ function formatSegmentLine(e8, ring) {
   if (e8 > 0) parts.push(`8+E ${e8}%`);
   if (ring > 0) parts.push(`环金 ${ring}%`);
   return parts.join(' · ');
-}
-
-function renderWeeklyOverview(data, target, achievePct, e8pct, ringPct) {
-  const t = data?.totals || {};
-  document.getElementById('weekly-current-count').textContent = t.total || 0;
-  document.getElementById('weekly-target-count').textContent = target;
-  document.getElementById('weekly-8e-ratio').textContent = e8pct + '%';
-  document.getElementById('weekly-ring-ratio').textContent = ringPct + '%';
-  const badge = document.getElementById('weekly-overview-status');
-  badge.className = `status-chip ${statusClass(achievePct)}`;
-  badge.textContent = `${statusLabel(achievePct)} ${achievePct}%`;
 }
 
 function fmtWeekLabel(weekStart) {
@@ -683,7 +639,11 @@ function exportManagementReportHTML() {
   const t = statsData.totals || {};
   const e8pct = t.total > 0 ? Math.round((t.total_8e || 0) * 100 / t.total) : 0;
   const ringPct = t.total > 0 ? Math.round((t.total_ring || 0) * 100 / t.total) : 0;
-  const target = Number(String(document.getElementById('weekly-target-count')?.textContent || WEEKLY_TEAM_TARGET).replace(/[^\d.]/g, '')) || WEEKLY_TEAM_TARGET;
+  const target = (() => {
+    const label = document.getElementById('stat-achieve-label')?.textContent || '';
+    const match = label.match(/／([\d.]+)/);
+    return match ? Number(match[1]) : WEEKLY_TEAM_TARGET;
+  })();
   const achievePct = target > 0 ? Math.round((t.total || 0) / target * 100) : 0;
   const daily = getLast10Workdays().map(d => {
     const found = (statsData.dailyTrend || []).find(r => r.visit_date === d);
@@ -809,46 +769,44 @@ function applyFollowFilter(rows, followFilter) {
     .map(({ row }) => row);
 }
 
-function getCurrentMonthRange() {
-  const now = new Date();
-  const from = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1));
-  const to = formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 1));
-  const label = `${now.getFullYear()}年${now.getMonth() + 1}月`;
-  return { from, to, label };
-}
-
 async function loadRecords() {
   recordsPage = 1;
   recordsOffset = 0;
   await fetchRecords();
 }
 
-async function changeRecordPage(delta) {
-  const nextPage = recordsPage + delta;
-  if (nextPage < 1 || (delta > 0 && !recordsHasNext)) return;
-  recordsPage = nextPage;
+async function changeRecordPage(page) {
+  if (page < 1 || page > recordsTotalPages || page === recordsPage) return;
+  recordsPage = page;
   recordsOffset = (recordsPage - 1) * RECORDS_LIMIT;
   await fetchRecords();
+}
+
+function renderRecordPageButtons() {
+  const box = document.getElementById('record-page-buttons');
+  const pages = [];
+  for (let i = 1; i <= recordsTotalPages; i++) pages.push(i);
+  box.innerHTML = pages.map(p =>
+    `<button onclick="changeRecordPage(${p})" class="page-btn ${p === recordsPage ? 'text-white border-transparent' : ''}" style="${p === recordsPage ? 'background:var(--brand);' : ''}">${p}</button>`
+  ).join('');
 }
 
 async function fetchRecords() {
   const user = document.getElementById('user-filter').value;
   const followFilter = document.getElementById('follow-filter')?.value || 'all';
-  const { from, to, label } = getCurrentMonthRange();
-  const limit = followFilter === 'all' ? RECORDS_LIMIT + 1 : 500;
+  const limit = followFilter === 'all' ? RECORDS_LIMIT : 500;
   const offset = followFilter === 'all' ? recordsOffset : 0;
   recordsSeenKeys.clear();
   document.getElementById('records-body').innerHTML = '';
   document.getElementById('records-subtitle').textContent =
-    followFilter === 'all' ? `${label}明細；下方可切換頁次` : '待跟進會依提醒日排序；新增同客戶的新紀錄後，舊提醒自然消失';
-  let url = `${WORKER_URL}/api/records?password=${enc(PASSWORD)}&limit=${limit}&offset=${offset}`;
-  if (followFilter === 'all') url += `&from=${enc(from)}&to=${enc(to)}`;
+    followFilter === 'all' ? '全部明細；下方可切換頁次' : '待跟進會依提醒日排序；新增同客戶的新紀錄後，舊提醒自然消失';
+  let url = `${WORKER_URL}/api/records?password=${enc(PASSWORD)}&limit=${limit}&offset=${offset}&exclude_meeting=1`;
   if (user) url += `&user=${enc(user)}`;
   const res  = await fetch(url);
   const data = await res.json();
   const sourceRows = (data.records || []).filter(r => r.type !== 'meeting');
-  recordsHasNext = followFilter === 'all' && sourceRows.length > RECORDS_LIMIT;
-  const visibleRows = followFilter === 'all' ? sourceRows.slice(0, RECORDS_LIMIT) : sourceRows;
+  recordsTotalPages = Math.max(1, Math.ceil((data.total || sourceRows.length || 0) / RECORDS_LIMIT));
+  const visibleRows = sourceRows;
   const allRows = applyFollowFilter(visibleRows, followFilter);
   // 去重：同用戶 + 同客戶/會議 + 同日期 + 同類型，只保留第一筆（API 已按 created_at DESC，即最新）
   const rows = allRows.filter(r => {
@@ -877,9 +835,10 @@ async function fetchRecords() {
   document.getElementById('records-body').innerHTML = html || `<div class="px-5 py-8 text-center text-gray-400 text-sm">${emptyText}</div>`;
   const pager = document.getElementById('records-pagination');
   pager.classList.toggle('hidden', followFilter !== 'all');
-  document.getElementById('record-page-info').textContent = `${label} · 第 ${recordsPage} 頁`;
-  document.getElementById('record-prev').disabled = recordsPage <= 1;
-  document.getElementById('record-next').disabled = !recordsHasNext;
+  if (followFilter === 'all') {
+    renderRecordPageButtons();
+    document.getElementById('record-page-info').textContent = `第 ${recordsPage} / ${recordsTotalPages} 頁`;
+  }
   lucide.createIcons();
 }
 
