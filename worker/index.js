@@ -18,6 +18,7 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
+const ALLOWED_RM_GROUPS = ['301','302','303','305','306','321','322','323'];
 
 export default {
   async fetch(request, env) {
@@ -265,6 +266,8 @@ async function handleStats(request, env) {
   const since  = fromP || daysAgo(days);
   const until  = toP   || null;
   const prev   = daysAgo(days * 2);
+  const allowedGroupSql = ALLOWED_RM_GROUPS.map(g => `'${g}'`).join(',');
+  const managedGroupWhere = `rm_group IN (${allowedGroupSql})`;
 
   // 日期條件 helper
   const dateWhere = (alias = '') => {
@@ -281,7 +284,7 @@ async function handleStats(request, env) {
            SUM(is_8_plus_e) as total_8e,
            SUM(hq_leader) as total_hq,
            SUM(CASE WHEN instr(COALESCE(tmpl_json,''), '环金') > 0 OR instr(COALESCE(tmpl_json,''), '環金') > 0 THEN 1 ELSE 0 END) as total_ring
-    FROM records WHERE type IN ('report','site') AND ${dateWhere()}
+    FROM records WHERE type IN ('report','site') AND ${managedGroupWhere} AND ${dateWhere()}
   `).first();
 
   // ── 每人行銷拜訪數
@@ -289,14 +292,14 @@ async function handleStats(request, env) {
     SELECT user_name, COUNT(*) as count,
            SUM(is_8_plus_e) as e8_count,
            COUNT(DISTINCT client_name) as unique_clients
-    FROM records WHERE type IN ('report','site') AND ${dateWhere()}
+    FROM records WHERE type IN ('report','site') AND ${managedGroupWhere} AND ${dateWhere()}
     GROUP BY user_name ORDER BY count DESC
   `).all();
 
   // ── 前期對比（排除 meeting，用 range 天數；週別模式下沿用 daysAgo）
   const prevPeriod = await env.DB.prepare(`
     SELECT user_name, COUNT(*) as count
-    FROM records WHERE type IN ('report','site') AND visit_date >= ? AND visit_date < ?
+    FROM records WHERE type IN ('report','site') AND ${managedGroupWhere} AND visit_date >= ? AND visit_date < ?
     GROUP BY user_name
   `).bind(prev, since).all();
   const prevMap = Object.fromEntries((prevPeriod.results || []).map(r => [r.user_name, r.count]));
@@ -306,7 +309,7 @@ async function handleStats(request, env) {
     SELECT user_name,
            SUM(CASE WHEN follow_up IN ('高頻追蹤','強追蹤') THEN 1 ELSE 0 END) as high_freq,
            SUM(CASE WHEN follow_up = '定期追蹤' THEN 1 ELSE 0 END) as regular
-    FROM records WHERE type = 'report' AND ${dateWhere()}
+    FROM records WHERE type = 'report' AND ${managedGroupWhere} AND ${dateWhere()}
     GROUP BY user_name
   `).all();
   const followUpMap = Object.fromEntries((followUpRes.results || []).map(r => [r.user_name, r]));
@@ -319,7 +322,7 @@ async function handleStats(request, env) {
              COUNT(DISTINCT j.value) as biz_count,
              GROUP_CONCAT(DISTINCT j.value) as biz_list
       FROM records r, json_each(json_extract(r.tmpl_json, '$.targetBusiness')) j
-      WHERE r.type = 'report' AND ${dateWhere('r')}
+      WHERE r.type = 'report' AND r.rm_group IN (${allowedGroupSql}) AND ${dateWhere('r')}
         AND json_extract(r.tmpl_json, '$.targetBusiness') IS NOT NULL
       GROUP BY r.user_name
     `).all();
@@ -331,20 +334,20 @@ async function handleStats(request, env) {
   // ── 每日趨勢（行銷拜訪，排除 meeting，供近 10 工作日趨勢圖用）
   const dailyTrend = await env.DB.prepare(`
     SELECT visit_date, COUNT(*) as count
-    FROM records WHERE type IN ('report','site') AND ${dateWhere()}
+    FROM records WHERE type IN ('report','site') AND ${managedGroupWhere} AND ${dateWhere()}
     GROUP BY visit_date ORDER BY visit_date ASC
   `).all();
 
   // ── 活動類型分布（行銷拜訪，排除 meeting）
   const typeBreakdown = await env.DB.prepare(`
     SELECT type, COUNT(*) as count
-    FROM records WHERE type IN ('report','site') AND ${dateWhere()} GROUP BY type
+    FROM records WHERE type IN ('report','site') AND ${managedGroupWhere} AND ${dateWhere()} GROUP BY type
   `).all();
 
   // ── 拜訪目的（report only）
   const purposeBreakdown = await env.DB.prepare(`
     SELECT purpose, COUNT(*) as count
-    FROM records WHERE type = 'report' AND ${dateWhere()} AND purpose IS NOT NULL GROUP BY purpose
+    FROM records WHERE type = 'report' AND ${managedGroupWhere} AND ${dateWhere()} AND purpose IS NOT NULL GROUP BY purpose
   `).all();
 
   // ── 沉睡客戶
@@ -354,7 +357,7 @@ async function handleStats(request, env) {
            COUNT(*) as total_visits,
            CAST(julianday('now') - julianday(MAX(visit_date)) AS INTEGER) as days_since
     FROM records
-    WHERE client_name IS NOT NULL AND type IN ('report','site')
+    WHERE client_name IS NOT NULL AND type IN ('report','site') AND ${managedGroupWhere}
     GROUP BY client_name
     HAVING days_since > ?
     ORDER BY days_since DESC
@@ -364,7 +367,7 @@ async function handleStats(request, env) {
   // ── 最後拜訪（行銷拜訪，排除 meeting）
   const lastVisit = await env.DB.prepare(`
     SELECT user_name, MAX(visit_date) as last_date, COUNT(*) as total_all
-    FROM records WHERE type IN ('report','site') GROUP BY user_name ORDER BY last_date DESC
+    FROM records WHERE type IN ('report','site') AND ${managedGroupWhere} GROUP BY user_name ORDER BY last_date DESC
   `).all();
 
   // ── 週統計（固定最近 90 天，行銷拜訪，供領先指標圖用）
@@ -373,7 +376,7 @@ async function handleStats(request, env) {
            MIN(visit_date) as week_start,
            COUNT(*) as count
     FROM records
-    WHERE type IN ('report','site') AND visit_date >= date('now', '-91 days')
+    WHERE type IN ('report','site') AND ${managedGroupWhere} AND visit_date >= date('now', '-91 days')
     GROUP BY week_key
     ORDER BY week_key ASC
   `).all();
@@ -391,20 +394,10 @@ async function handleStats(request, env) {
            ) THEN 1 ELSE 0 END) as ring_count
     FROM records
     WHERE type IN ('report','site') AND visit_date >= date('now', '-84 days')
-      AND rm_group IS NOT NULL AND TRIM(rm_group) <> ''
+      AND rm_group IN (${allowedGroupSql})
     GROUP BY rm_group, week_key
     ORDER BY week_key DESC, rm_group ASC
   `).all();
-
-  // ── 資料品質提醒
-  const dataQuality = await env.DB.prepare(`
-    SELECT
-      SUM(CASE WHEN type IN ('report','site') AND (rm_group IS NULL OR TRIM(rm_group) = '') THEN 1 ELSE 0 END) as missing_rm_group,
-      SUM(CASE WHEN type IN ('report','site') AND rm_group IS NOT NULL AND TRIM(rm_group) <> '' AND rm_group GLOB '*[^0-9]*' THEN 1 ELSE 0 END) as invalid_rm_group,
-      SUM(CASE WHEN type = 'meeting' THEN 1 ELSE 0 END) as excluded_meetings
-    FROM records
-    WHERE ${dateWhere()}
-  `).first();
 
   const users = perUser.results || [];
   const avg   = users.length > 0 ? users.reduce((s, u) => s + u.count, 0) / users.length : 0;
@@ -430,7 +423,6 @@ async function handleStats(request, env) {
     dailyTrend:       dailyTrend.results,
     weeklyTrend:      weeklyTrend.results,
     groupWeeklyMatrix: groupWeeklyMatrix.results,
-    dataQuality,
     typeBreakdown:    typeBreakdown.results,
     purposeBreakdown: purposeBreakdown.results,
     sleepingClients:  sleepingClients.results,

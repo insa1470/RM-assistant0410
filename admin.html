@@ -127,7 +127,7 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
       <div>
         <h2 class="text-[15px] font-bold text-gray-800">週管理總覽</h2>
-        <p class="text-xs text-gray-400 mt-0.5" id="weekly-overview-subtitle">會議已排除，行銷拜訪包含訪談與現場</p>
+        <p class="text-xs text-gray-400 mt-0.5" id="weekly-overview-subtitle">統計範圍：301、302、303、305、306、321、322、323</p>
       </div>
       <div class="flex items-center gap-2">
         <button onclick="exportManagementReportHTML()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-white border border-gray-200 text-gray-600">
@@ -154,7 +154,6 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
         <p class="text-2xl font-bold text-gray-900 mt-1" id="weekly-ring-ratio">—</p>
       </div>
     </div>
-    <div id="data-quality-alerts" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2"></div>
   </div>
 
   <!-- RM 組別週管理 -->
@@ -202,46 +201,12 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
   </div>
 
-  <!-- 圖表：每日趨勢 + 類型分佈 -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div class="card p-5 md:col-span-2">
+  <!-- 圖表：每日趨勢 -->
+  <div class="grid grid-cols-1 gap-4">
+    <div class="card p-5">
       <h2 class="text-[14px] font-semibold text-gray-700 mb-4">近 10 工作日拜訪趨勢</h2>
       <canvas id="chart-daily" height="110"></canvas>
     </div>
-    <div class="card p-5">
-      <h2 class="text-[14px] font-semibold text-gray-700 mb-4">活動類型</h2>
-      <canvas id="chart-type" height="160"></canvas>
-    </div>
-  </div>
-
-  <!-- 行銷目標設定 -->
-  <div class="card p-5">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-[14px] font-bold text-gray-800">🎯 行銷目標設定</h2>
-      <button onclick="saveTargets()" class="text-sm font-semibold px-4 py-1.5 rounded-xl text-white" style="background:var(--brand)">儲存</button>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div>
-        <label class="text-xs text-gray-500 font-medium block mb-1">行銷人員人數</label>
-        <input id="target-rm-count" type="number" min="1" max="100" value="12"
-          class="w-full px-3 py-2 rounded-xl border border-gray-200 text-[15px] outline-none focus:border-[color:var(--brand)]">
-      </div>
-      <div>
-        <label class="text-xs text-gray-500 font-medium block mb-1">每週目標（次／人）</label>
-        <input id="target-weekly" type="number" min="0.5" max="20" step="0.5" value="1.5"
-          class="w-full px-3 py-2 rounded-xl border border-gray-200 text-[15px] outline-none focus:border-[color:var(--brand)]">
-      </div>
-      <div>
-        <label class="text-xs text-gray-500 font-medium block mb-1">每月目標（自動計算）</label>
-        <div id="monthly-auto" class="px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 text-[15px] text-gray-400">8 次／人</div>
-      </div>
-      <div>
-        <label class="text-xs text-gray-500 font-medium block mb-1">沉睡客戶（幾天未拜訪）</label>
-        <input id="target-sleep" type="number" min="7" max="365" value="30"
-          class="w-full px-3 py-2 rounded-xl border border-gray-200 text-[15px] outline-none focus:border-[color:var(--brand)]">
-      </div>
-    </div>
-    <p id="target-saved" class="text-xs text-green-500 mt-2 hidden">✅ 已儲存</p>
   </div>
 
   <!-- 擊中領先指標 -->
@@ -319,6 +284,10 @@ let statsData = null;
 let recordsOffset = 0;
 const RECORDS_LIMIT = 30;
 let recordsSeenKeys = new Set(); // 跨分頁去重
+const ADMIN_WEEKLY_VISITS = 1.5;
+const ADMIN_RM_COUNT = 12;
+const ADMIN_SLEEP_DAYS = 30;
+const ALLOWED_RM_GROUPS = ['301','302','303','305','306','321','322','323'];
 const GROUP_TARGETS = {
   '301': 3,
   '302': 3,
@@ -345,7 +314,6 @@ async function login() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
   initWeekMonthSelect();
-  try { await loadTargets(); } catch(e) { console.warn('loadTargets error', e); }
   try { await loadData();    } catch(e) { console.warn('loadData error', e); }
 }
 
@@ -358,41 +326,6 @@ function showLoginError() {
 function logout() {
   localStorage.removeItem('rm_admin_pwd');
   location.reload();
-}
-
-/* ── 目標設定 ── */
-async function loadTargets() {
-  try {
-    const res  = await fetch(`${WORKER_URL}/api/targets?password=${enc(PASSWORD)}`);
-    const data = await res.json();
-    const weekly  = data.weekly_visits  || 1.5;
-    const rmCount = data.rm_count       || 12;
-    document.getElementById('target-weekly').value   = weekly;
-    document.getElementById('target-rm-count').value = rmCount;
-    document.getElementById('target-sleep').value    = data.sleep_days || 30;
-    updateMonthlyAuto();
-  } catch {}
-}
-
-function updateMonthlyAuto() {
-  const weekly = parseFloat(document.getElementById('target-weekly').value) || 1.5;
-  document.getElementById('monthly-auto').textContent = `${weekly * 4} 次／人`;
-}
-
-async function saveTargets() {
-  const weekly  = parseFloat(document.getElementById('target-weekly').value) || 1.5;
-  const rmCount = parseInt(document.getElementById('target-rm-count').value) || 12;
-  const sd      = parseInt(document.getElementById('target-sleep').value)    || 30;
-  await fetch(`${WORKER_URL}/api/targets?password=${enc(PASSWORD)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ monthly_visits: weekly * 4, sleep_days: sd, rm_count: rmCount, weekly_visits: weekly })
-  });
-  updateMonthlyAuto();
-  const msg = document.getElementById('target-saved');
-  msg.classList.remove('hidden');
-  setTimeout(() => msg.classList.add('hidden'), 2000);
-  await loadData();
 }
 
 /* ── 週別選單初始化 ── */
@@ -442,7 +375,7 @@ function getWeekRange(yearMonth, weekNum) {
 
 /* ── 主資料載入 ── */
 async function loadData() {
-  const sleep      = document.getElementById('target-sleep').value || 30;
+  const sleep      = ADMIN_SLEEP_DAYS;
   const weekMonth  = document.getElementById('week-month-select')?.value || '';
   const weekNum    = parseInt(document.getElementById('week-num-select')?.value || '0');
 
@@ -465,8 +398,8 @@ async function loadData() {
     headerText || `${statsData.since} 至今`;
 
   const t = statsData.totals || {};
-  const weekly  = parseFloat(document.getElementById('target-weekly')?.value) || 1.5;
-  const rmCount = parseInt(document.getElementById('target-rm-count')?.value) || 12;
+  const weekly  = ADMIN_WEEKLY_VISITS;
+  const rmCount = ADMIN_RM_COUNT;
 
   // 計算週目標總量：依時間區間判斷週數
   let weekCount = 1;
@@ -496,12 +429,10 @@ async function loadData() {
   document.getElementById('avg-badge').textContent = `週目標 ${weekly} 次／人 · 行銷人員 ${rmCount} 人`;
 
   renderWeeklyOverview(statsData, teamTarget, achievePct, e8pct, ringPct);
-  renderDataQuality(statsData.dataQuality);
   renderGroupWeeklyMatrix(statsData.groupWeeklyMatrix);
   renderRadar(statsData.radar, statsData.lastVisit, personalWeeklyTarget);
   renderWeeklyChart(statsData.weeklyTrend);
   renderDailyChart(statsData.dailyTrend);
-  renderTypeChart(statsData.typeBreakdown);
   populateUserFilter(statsData.lastVisit);
 
   recordsOffset = 0;
@@ -535,19 +466,6 @@ function renderWeeklyOverview(data, target, achievePct, e8pct, ringPct) {
   badge.textContent = `${statusLabel(achievePct)} ${achievePct}%`;
 }
 
-function renderDataQuality(q) {
-  const rows = [
-    { label:'組代號未填', value:q?.missing_rm_group || 0, tone:(q?.missing_rm_group || 0) ? 'status-red' : 'status-green' },
-    { label:'組代號異常', value:q?.invalid_rm_group || 0, tone:(q?.invalid_rm_group || 0) ? 'status-red' : 'status-green' },
-    { label:'會議已排除', value:q?.excluded_meetings || 0, tone:'status-gray' },
-  ];
-  document.getElementById('data-quality-alerts').innerHTML = rows.map(r => `
-    <div class="rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between">
-      <span class="text-xs text-gray-500">${r.label}</span>
-      <span class="status-chip ${r.tone}">${r.value}</span>
-    </div>`).join('');
-}
-
 function fmtWeekLabel(weekStart) {
   if (!weekStart) return '—';
   const d = new Date(weekStart);
@@ -565,7 +483,7 @@ function buildGroupWeeklyModel(rows) {
     groupMap.get(g).set(r.week_key, r);
   });
   const weeks = [...weekMap.values()].sort((a,b) => b.key.localeCompare(a.key)).slice(0, 8);
-  const groups = [...new Set([...Object.keys(GROUP_TARGETS), ...groupMap.keys()])].sort((a,b) => a.localeCompare(b, 'zh-Hant-u-kn-true'));
+  const groups = ALLOWED_RM_GROUPS;
   return { weeks, groups, groupMap };
 }
 
@@ -672,8 +590,8 @@ function renderSleepingClients(clients) {
 
 /* ── 圖表 ── */
 function renderWeeklyChart(trend) {
-  const weekly  = parseFloat(document.getElementById('target-weekly')?.value) || 1.5;
-  const rmCount = parseInt(document.getElementById('target-rm-count')?.value) || 13;
+  const weekly  = ADMIN_WEEKLY_VISITS;
+  const rmCount = ADMIN_RM_COUNT;
   const weekTarget = weekly * rmCount;
 
   const weeks = trend || [];
@@ -765,14 +683,6 @@ function getLast10Workdays() {
   return result;
 }
 
-function renderTypeChart(bd) {
-  const MAP = { report:'訪談', meeting:'會議', site:'現場' };
-  redraw('chart-type', 'doughnut', {
-    labels: (bd||[]).map(r => MAP[r.type]||r.type),
-    datasets: [{ data:(bd||[]).map(r=>r.count), backgroundColor:['#007d50','#007AFF','#FF9500'], borderWidth:0 }]
-  }, { plugins:{legend:{position:'bottom',labels:{font:{size:12}}}}, cutout:'62%' });
-}
-
 function renderPurposeChart(bd) {
   redraw('chart-purpose', 'doughnut', {
     labels: (bd||[]).map(r => r.purpose||'未填'),
@@ -807,7 +717,6 @@ function exportManagementReportHTML() {
   const ringPct = t.total > 0 ? Math.round((t.total_ring || 0) * 100 / t.total) : 0;
   const target = Number(String(document.getElementById('weekly-target-count')?.textContent || WEEKLY_TEAM_TARGET).replace(/[^\d.]/g, '')) || WEEKLY_TEAM_TARGET;
   const achievePct = target > 0 ? Math.round((t.total || 0) / target * 100) : 0;
-  const q = statsData.dataQuality || {};
   const daily = getLast10Workdays().map(d => {
     const found = (statsData.dailyTrend || []).find(r => r.visit_date === d);
     return { date:d, count:found?.count || 0 };
@@ -847,12 +756,6 @@ function exportManagementReportHTML() {
       <div class="card"><div class="label">週目標達成率</div><div class="num">${achievePct}%</div></div>
       <div class="card"><div class="label">8+E 比率</div><div class="num">${e8pct}%</div></div>
       <div class="card"><div class="label">环金比率</div><div class="num">${ringPct}%</div></div>
-    </div>
-    <h2>資料品質提醒</h2>
-    <div class="quality">
-      <span class="pill">組代號未填：${q.missing_rm_group || 0}</span>
-      <span class="pill">組代號異常：${q.invalid_rm_group || 0}</span>
-      <span class="pill">已排除會議：${q.excluded_meetings || 0}</span>
     </div>
     <h2>RM 組別週管理</h2>
     <table><thead><tr><th>RM 組別</th>${weeks.map(w => `<th>${fmtWeekLabel(w.start)}週</th>`).join('')}</tr></thead><tbody>${matrixRows}</tbody></table>
