@@ -878,18 +878,23 @@
                                 </select>
                             </div>
                         </div>
-                        <!-- 产业描述 ＋ 8+E：同行 -->
+                        <!-- 产业描述 ＋ 客群：同行 -->
                         <div class="ios-row-split">
                             <div class="ios-row-half" style="flex:1.4;">
                                 <span class="ios-row-label">产业描述</span>
                                 <input type="text" value="${draft.industryDesc||''}" oninput="updateDraft('industryDesc',this.value)" placeholder="行业描述">
                             </div>
-                            <div class="ios-row-half" style="flex:0.8;justify-content:space-between;">
-                                <span style="font-size:13px;color:var(--label);white-space:nowrap;">8+E 客户</span>
-                                <label class="toggle-switch" style="flex-shrink:0;">
-                                    <input type="checkbox" ${draft.is8PlusE?'checked':''} onchange="updateDraft('is8PlusE',this.checked)">
-                                    <span class="toggle-track"></span>
-                                </label>
+                            <div class="ios-row-half" style="flex:1;align-items:flex-start;flex-direction:column;gap:6px;">
+                                <span style="font-size:13px;color:var(--label);white-space:nowrap;">客群</span>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%;">
+                                    ${['8+E','環金陸企'].map(seg=>{
+                                        const selected = getCustomerSegments(draft).includes(seg);
+                                        return `<label style="display:flex;align-items:center;justify-content:center;gap:4px;min-height:30px;border-radius:8px;border:1px solid ${selected?'var(--brand)':'var(--separator)'};background:${selected?'rgba(0,125,80,0.10)':'var(--ios-gray6)'};color:${selected?'var(--brand)':'var(--label-secondary)'};font-size:12px;font-weight:${selected?'700':'500'};white-space:nowrap;">
+                                            <input type="checkbox" ${selected?'checked':''} onchange="toggleCustomerSegment('${seg}',this.checked)" style="width:14px !important;height:14px !important;accent-color:var(--brand);">
+                                            <span>${seg}</span>
+                                        </label>`;
+                                    }).join('')}
+                                </div>
                             </div>
                         </div>
                         <!-- 拜访地点：全寬（GPS 按鈕保留） -->
@@ -1396,7 +1401,7 @@
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;width:18%;font-weight:bold;">客户名称</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${draft.clientName}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">实际负责人</td><td style="border:1px solid black;padding:4px 7px;width:32%;">${draft.owner||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;width:18%;font-weight:bold;">RM组别</td><td style="border:1px solid black;padding:4px 7px;">${draft.rmGroup||'-'}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">访谈时间</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">${dateStr} ${timeStr}</td></tr>
-                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">产业描述</td><td style="border:1px solid black;padding:4px 7px;">${draft.industryDesc||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">类型/8+E</td><td style="border:1px solid black;padding:4px 7px;">${draft.companyType}${draft.is8PlusE?'(8+E)':''}</td></tr>
+                        <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">产业描述</td><td style="border:1px solid black;padding:4px 7px;">${draft.industryDesc||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">型态/客群</td><td style="border:1px solid black;padding:4px 7px;">${draft.companyType}${getCustomerSegments(draft).length?' / '+getCustomerSegments(draft).join('、'):''}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">访谈目的</td><td style="border:1px solid black;padding:4px 7px;">${draft.purpose}</td><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">地点</td><td style="border:1px solid black;padding:4px 7px;">${draft.city||'-'}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:4px 7px;font-weight:bold;">参与人员</td><td colspan="3" style="border:1px solid black;padding:4px 7px;">顾客: ${draft.customerStaff||'-'} / 我行: ${draft.bankStaff||'-'}</td></tr>
                         <tr><td colspan="4" style="background:#f5f5f5;border:1px solid black;padding:5px;text-align:center;font-weight:bold;border-top:1.5px solid black;">访谈记录摘要</td></tr>
@@ -1569,7 +1574,7 @@
             const id  = now.getTime();
             const base = { id, type, visitDate: now.toISOString().split('T')[0], timestamp: id };
             if (type === 'report') {
-                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, industryDesc:'', purpose:'新户开发', targetBusiness:[], followUp:'', hqLeader:false, customerStaff:'', contentList:[''], todoList:[''], bankStaff:'', tmpl:{ group:'', founded:'', buyer:'', buyerTerms:'', supplier:'', supplierTerms:'', revenue:'', grossMargin:'', headcount:'', customerNeed:'' } };
+                draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, rmGroup:'', clientName:'', owner:'', city:'', companyType:'台商', is8PlusE:false, customerSegments:[], industryDesc:'', purpose:'新户开发', targetBusiness:[], followUp:'', hqLeader:false, customerStaff:'', contentList:[''], todoList:[''], bankStaff:'', tmpl:{ group:'', founded:'', buyer:'', buyerTerms:'', supplier:'', supplierTerms:'', revenue:'', grossMargin:'', headcount:'', customerNeed:'' } };
             } else if (type === 'meeting') {
                 draft = { ...base, visitHour: now.getHours(), visitEndHour: (now.getHours()+1)%24, branch:'', meetingName:'主管会议', chairman:'', recorder:'', city:'', attendeeText:'', discussions:{}, todoQuadrants:{ urgentImportant:'', importantNotUrgent:'', urgentNotImportant:'', notUrgentNotImportant:'' }, dailySections:[{dept:'',content:''}] };
             } else if (type === 'site') {
@@ -1928,6 +1933,21 @@
             // 若有 data-biz 屬性直接更新，否則 switchView 重繪
             switchView(`edit-${draft.type}`);
         }
+
+        function getCustomerSegments(record) {
+            const segments = Array.isArray(record.customerSegments) ? [...record.customerSegments] : [];
+            if (record.is8PlusE && !segments.includes('8+E')) segments.unshift('8+E');
+            return segments;
+        }
+
+        function toggleCustomerSegment(segment, checked) {
+            const segments = getCustomerSegments(draft).filter(s => s !== segment);
+            if (checked) segments.push(segment);
+            draft.customerSegments = segments;
+            draft.is8PlusE = segments.includes('8+E');
+            saveDraft();
+            switchView(`edit-${draft.type}`);
+        }
         function updateListItem(list, idx, val) { draft[list][idx] = val; saveDraft(); }
         function addListItem(list)    { draft[list].push(''); switchView(`edit-${draft.type}`); }
         function removeListItem(list, idx) { draft[list].splice(idx,1); if(!draft[list].length) draft[list]=['']; switchView(`edit-${draft.type}`); }
@@ -2100,7 +2120,7 @@
                 <table><tr><td class="lb">客户名称</td><td colspan="3">${draft.clientName}</td></tr>
                 <tr><td class="lb">实际负责人</td><td width="32%">${draft.owner||'-'}</td><td class="lb" width="18%">RM组别</td><td>${draft.rmGroup||'-'}</td></tr>
                 <tr><td class="lb">访谈时间</td><td colspan="3">${dateStr} ${timeStr}</td></tr>
-                <tr><td class="lb">产业描述</td><td>${draft.industryDesc||'-'}</td><td class="lb">型态/8+E</td><td>${draft.companyType} ${draft.is8PlusE?'(8+E)':''}</td></tr>
+                <tr><td class="lb">产业描述</td><td>${draft.industryDesc||'-'}</td><td class="lb">型态/客群</td><td>${draft.companyType}${getCustomerSegments(draft).length?' / '+getCustomerSegments(draft).join('、'):''}</td></tr>
                 <tr><td class="lb">访谈目的</td><td>${draft.purpose}</td><td class="lb">地点</td><td>${draft.city||'-'}</td></tr>
                 <tr><td class="lb">参与人员</td><td colspan="3">顾客: ${draft.customerStaff||'-'} / 我行: ${draft.bankStaff||'-'}</td></tr>
                 <tr><td colspan="4" style="background:#F2F2F2;text-align:center;font-weight:bold;height:18pt;border-top:1.5pt solid black;">访谈记录摘要</td></tr>
@@ -2133,6 +2153,7 @@
         async function uploadToWorker(record) {
             if (!currentUserName) return; // 沒有姓名就不上傳
             try {
+                const customerSegments = getCustomerSegments(record);
                 await fetch(`${WORKER_URL}/api/record`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2150,7 +2171,7 @@
                         purpose:      record.purpose      || null,
                         city:         record.city         || null,
                         branch:       record.branch       || null,
-                        is8PlusE:     record.is8PlusE     ? true : false,
+                        is8PlusE:     customerSegments.includes('8+E') ? true : false,
                         companyType:  record.companyType  || null,
                         industryDesc: record.industryDesc || null,
                         tmpl:         record.tmpl ? {
@@ -2158,6 +2179,7 @@
                                           contentList:    record.contentList    || [],
                                           todoList:       record.todoList       || [],
                                           targetBusiness: record.targetBusiness || [],
+                                          customerSegments,
                                       } : (record.type === 'site' ? {
                                           mgmtTalk:     record.mgmtTalk     || null,
                                           factoryEnv:   record.factoryEnv   || null,
@@ -2264,7 +2286,7 @@
                 const extraLines   = (draft.contentList || []).filter(i => i.trim() !== '').map((i, idx) => `${idx + 2}. ${wrapEmailLine(i, 38)}`).join('\n');
                 const summaryText  = [tmplSentence, extraLines].filter(Boolean).join('\n');
                 const todoText     = (draft.todoList || []).filter(i => i.trim() !== '').map((i, idx) => `${idx + 1}. ${wrapEmailLine(i, 38)}`).join('\n');
-                text = `玉山銀行(中國) 訪談報告\n──────────────────\n【客戶】${draft.clientName}\n【負責人】${draft.owner || '-'}\n【RM組別】${draft.rmGroup || '-'}\n【訪談時間】${dateStr} ${timeStr}\n【產業描述】${draft.industryDesc || '-'}\n【型態/8+E】${draft.companyType || '-'}${draft.is8PlusE ? '(8+E)' : ''}\n【訪談目的】${draft.purpose || '-'}\n【地點】${draft.city || '-'}\n【參與人員】顧客: ${draft.customerStaff || '-'} / 我行: ${draft.bankStaff || '-'}\n\n【訪談紀錄摘要】\n${summaryText || '-'}\n\n【待辦與後續規劃】\n${todoText || '-'}\n──────────────────\nRM 隨行助手生成`;
+                text = `玉山銀行(中國) 訪談報告\n──────────────────\n【客戶】${draft.clientName}\n【負責人】${draft.owner || '-'}\n【RM組別】${draft.rmGroup || '-'}\n【訪談時間】${dateStr} ${timeStr}\n【產業描述】${draft.industryDesc || '-'}\n【型態/客群】${draft.companyType || '-'}${getCustomerSegments(draft).length ? ' / ' + getCustomerSegments(draft).join('、') : ''}\n【訪談目的】${draft.purpose || '-'}\n【地點】${draft.city || '-'}\n【參與人員】顧客: ${draft.customerStaff || '-'} / 我行: ${draft.bankStaff || '-'}\n\n【訪談紀錄摘要】\n${summaryText || '-'}\n\n【待辦與後續規劃】\n${todoText || '-'}\n──────────────────\nRM 隨行助手生成`;
             }
             const el = document.createElement('textarea');
             el.value = text; document.body.appendChild(el); el.select();
