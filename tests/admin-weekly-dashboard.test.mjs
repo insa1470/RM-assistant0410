@@ -14,6 +14,11 @@ assert.doesNotMatch(adminHtml, /groupMap\.keys\(\)/, 'admin dashboard should not
 assert.match(adminHtml, /环金/, 'admin dashboard should expose the shortened 环金 customer segment');
 assert.doesNotMatch(adminHtml, /資料品質提醒|組代號未填|組代號異常|會議已排除/, 'admin dashboard should not show data quality reminder chips');
 assert.doesNotMatch(adminHtml, /行銷目標設定|活動類型|chart-type|renderTypeChart/, 'admin dashboard should remove target settings and activity type sections');
+assert.doesNotMatch(adminHtml, /跟進提醒清單|followup-high|followup-regular|loadFollowUpList|逾期/, 'follow-up reminders should be merged into records and use 過期 wording');
+assert.match(adminHtml, /follow-filter/, 'records section should include follow-up filters');
+assert.match(adminHtml, /待跟進/, 'records section should include a pending follow-up filter');
+assert.match(adminHtml, /過期/, 'records reminders should use 過期 wording');
+assert.match(adminHtml, /latestReportByClient/, 'follow-up reminders should be based on each client latest report');
 assert.match(adminHtml, /匯出管理報表 HTML/, 'admin dashboard should provide HTML management report export');
 assert.match(adminHtml, /function exportManagementReportHTML\(/, 'admin dashboard should implement HTML management report export');
 assert.match(adminHtml, /<option value="all" selected>全部資料<\/option>/, 'admin dashboard should default to all-time stats');
