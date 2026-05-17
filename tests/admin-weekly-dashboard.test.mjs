@@ -40,6 +40,16 @@ assert.match(adminHtml, /歷史明細/, 'records section should label older reco
 assert.match(adminHtml, /getCurrentMonthRange/, 'records section should use current month for the top detail list');
 assert.match(adminHtml, /businessBadges/, 'records section should show business opportunity tags beside each company');
 assert.match(adminHtml, /targetBusiness/, 'records business tags should come from each record targetBusiness field');
+assert.match(adminHtml, /BIZ_COLORS/, 'records business tags should use a business color map');
+assert.match(adminHtml, /TMU[\s\S]*#f59e0b/, 'TMU business tag should use yellow styling');
+assert.match(adminHtml, /貿融[\s\S]*#f59e0b/, 'trade finance business tag should use yellow styling');
+assert.match(adminHtml, /跨境轉介[\s\S]*#f97316/, 'cross-border business tag should use orange styling');
+assert.match(adminHtml, /金流存款[\s\S]*#2563eb/, 'cash-management business tag should use blue styling');
+assert.match(adminHtml, /bizStyle/, 'exported interactive report should reuse business tag colors');
+assert.match(adminHtml, /segmentBadges/, 'records section should show customer segment tags beside each company');
+assert.match(adminHtml, /SEGMENT_COLORS/, 'customer segment tags should use a segment color map');
+assert.match(adminHtml, /环金[\s\S]*#db2777/, 'ring customer segment should use vivid pink styling');
+assert.match(adminHtml, /環金型陸企|环金型陆企/, 'ring customer segment should display as a ring mainland-enterprise label');
 assert.match(adminHtml, /exclude_meeting=1/, 'records pagination should use the same non-meeting scope as the visible list');
 assert.match(adminHtml, /fetchRecordBatch\(\{ limit: RECORDS_LIMIT, offset: recordsOffset, to: from, user \}\)/, 'history pagination should start before the current month');
 assert.doesNotMatch(adminHtml, /擊中領先指標|leading-hit-badge|chart-weekly|renderWeeklyChart\(statsData\.weeklyTrend\)/, 'leading indicator chart block should be removed from the dashboard');

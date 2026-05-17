@@ -746,7 +746,30 @@ async function exportManagementReportHTML() {
       const reportRecords = ${scriptJson(reportRecords)};
       let radarSortKey = 'count';
       let radarSortDir = -1;
-      function tags(items){ return (items || []).map(function(x){ return '<span class="tag">' + x + '</span>'; }).join(''); }
+      const bizColors = ${scriptJson(BIZ_COLORS)};
+      const segmentColors = ${scriptJson(SEGMENT_COLORS)};
+      function bizStyle(name){
+        const c = bizColors[name] || { bg:'#f3f4f6', fg:'#4b5563' };
+        return 'background:' + c.bg + ';color:' + c.fg + ';';
+      }
+      function bizTags(items){ return (items || []).map(function(x){ return '<span class="tag" style="' + bizStyle(x) + '">' + x + '</span>'; }).join(''); }
+      function segmentStyle(name){
+        const c = segmentColors[name] || { bg:'#f3f4f6', fg:'#4b5563' };
+        return 'background:' + c.bg + ';color:' + c.fg + ';';
+      }
+      function segmentLabel(name){
+        if (name === '环金' || name === '環金' || name === '环金陆企' || name === '環金陸企') return '环金型陆企';
+        return name;
+      }
+      function segmentTags(items){
+        const seen = {};
+        return (items || []).filter(Boolean).map(function(x){
+          const label = segmentLabel(x);
+          if (seen[label]) return '';
+          seen[label] = true;
+          return '<span class="tag" style="' + segmentStyle(x) + '">' + label + '</span>';
+        }).join('');
+      }
       function sortRadarReport(key){
         radarSortDir = radarSortKey === key ? -radarSortDir : -1;
         radarSortKey = key;
@@ -771,7 +794,7 @@ async function exportManagementReportHTML() {
           return (!q || text.includes(q)) && (!g || r.group === g) && (!s || segs.includes(s) || (s === '8+E' && segs.includes('8+E')));
         });
         document.querySelector('#records-table tbody').innerHTML = rows.map(function(r){
-          return '<tr><td>' + r.date + '</td><td style="text-align:left"><b>' + r.client + '</b><br>' + tags(r.segments) + '</td><td>' + r.user + '</td><td>' + r.group + '</td><td>' + r.city + '</td><td>' + tags(r.business) + '</td><td>' + r.follow + '</td></tr>';
+          return '<tr><td>' + r.date + '</td><td style="text-align:left"><b>' + r.client + '</b><br>' + segmentTags(r.segments) + '</td><td>' + r.user + '</td><td>' + r.group + '</td><td>' + r.city + '</td><td>' + bizTags(r.business) + '</td><td>' + r.follow + '</td></tr>';
         }).join('') || '<tr><td colspan="7">无符合条件的记录</td></tr>';
       }
       renderRadarReport();
@@ -791,6 +814,36 @@ async function exportManagementReportHTML() {
 const TYPE_LABEL = { report:'訪談', meeting:'會議', site:'現場' };
 const TYPE_CLASS = { report:'badge-report', meeting:'badge-meeting', site:'badge-site' };
 const BIZ_SHORT = { '放款':'放款','金流存款':'金流','TMU':'TMU','跨境轉介':'跨境','網銀自動化':'網銀','貿融':'貿融' };
+const BIZ_COLORS = {
+  'TMU': { bg:'#fef3c7', fg:'#f59e0b' },
+  '貿融': { bg:'#fef3c7', fg:'#f59e0b' },
+  '跨境轉介': { bg:'#ffedd5', fg:'#f97316' },
+  '金流存款': { bg:'#dbeafe', fg:'#2563eb' },
+  '放款': { bg:'#fee2e2', fg:'#dc2626' },
+  '網銀自動化': { bg:'#ede9fe', fg:'#7c3aed' },
+};
+const SEGMENT_COLORS = {
+  '8+E': { bg:'#dcfce7', fg:'#16a34a' },
+  '环金': { bg:'#fce7f3', fg:'#db2777' },
+  '環金': { bg:'#fce7f3', fg:'#db2777' },
+  '环金陆企': { bg:'#fce7f3', fg:'#db2777' },
+  '環金陸企': { bg:'#fce7f3', fg:'#db2777' },
+};
+
+function bizStyle(name) {
+  const c = BIZ_COLORS[name] || { bg:'#f3f4f6', fg:'#4b5563' };
+  return `background:${c.bg};color:${c.fg};`;
+}
+
+function segmentStyle(name) {
+  const c = SEGMENT_COLORS[name] || { bg:'#f3f4f6', fg:'#4b5563' };
+  return `background:${c.bg};color:${c.fg};`;
+}
+
+function segmentLabel(name) {
+  if (name === '环金' || name === '環金' || name === '环金陆企' || name === '環金陸企') return '環金型陸企';
+  return name;
+}
 
 /* 提醒日計算 */
 function calcReminder(visitDate, followUp) {
@@ -863,8 +916,23 @@ function businessBadges(tmplJson) {
   const items = Array.isArray(tmpl.targetBusiness) ? tmpl.targetBusiness.filter(Boolean) : [];
   if (!items.length) return '';
   return `<span class="inline-flex flex-wrap gap-1 align-middle ml-2">${items.map(b =>
-    `<span style="display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:rgba(0,125,80,0.10);color:#007d50;">${BIZ_SHORT[b] || b}</span>`
+    `<span style="display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;${bizStyle(b)}">${BIZ_SHORT[b] || b}</span>`
   ).join('')}</span>`;
+}
+
+function segmentBadges(tmplJson) {
+  let tmpl = {};
+  try { tmpl = tmplJson ? JSON.parse(tmplJson) : {}; } catch { tmpl = {}; }
+  const items = Array.isArray(tmpl.customerSegments) ? tmpl.customerSegments.filter(Boolean) : [];
+  if (!items.length) return '';
+  const seen = new Set();
+  const chips = items.map(s => {
+    const label = segmentLabel(s);
+    if (seen.has(label)) return '';
+    seen.add(label);
+    return `<span style="display:inline-block;font-size:10px;font-weight:800;padding:1px 6px;border-radius:999px;${segmentStyle(s)}">${label}</span>`;
+  }).join('');
+  return chips ? `<span class="inline-flex flex-wrap gap-1 align-middle ml-2">${chips}</span>` : '';
 }
 
 async function loadRecords() {
@@ -892,12 +960,13 @@ function renderRecordPageButtons() {
 function recordRowsHtml(rows) {
   return rows.map(r => {
     const remind = reminderBadge(r.visit_date, r.follow_up);
+    const seg = segmentBadges(r.tmpl_json);
     const biz = businessBadges(r.tmpl_json);
     return `
     <div class="flex items-center gap-3 px-5 py-3 cursor-pointer active:bg-gray-50 hover:bg-gray-50 transition-colors" onclick="showDetail('${r.id}')">
       <span class="badge ${TYPE_CLASS[r.type]||'badge-report'} flex-shrink-0">${TYPE_LABEL[r.type]||r.type}</span>
       <div class="flex-1 min-w-0">
-        <p class="text-[14px] font-semibold text-gray-800">${r.client_name||r.meeting_name||'—'}${biz}</p>
+        <p class="text-[14px] font-semibold text-gray-800">${r.client_name||r.meeting_name||'—'}${seg}${biz}</p>
         <p class="text-[12px] text-gray-400">${r.user_name} · ${r.visit_date||'-'} · ${r.city||r.branch||'-'}${r.is_8_plus_e ? ' · <span style="color:#007d50;font-weight:600">8+E</span>' : ''}</p>
       </div>
       <div class="flex flex-col items-end gap-1 flex-shrink-0">
