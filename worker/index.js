@@ -273,29 +273,30 @@ async function handleStats(request, env) {
                  : `${col} >= '${since}'`;
   };
 
-  // ── 行銷動能：只計 report（訪談報告）
+  // ── 行銷動能：計 report + site，排除 meeting
   const totals = await env.DB.prepare(`
     SELECT COUNT(*) as total,
            COUNT(DISTINCT user_name) as users,
            COUNT(DISTINCT client_name) as clients,
            SUM(is_8_plus_e) as total_8e,
-           SUM(hq_leader) as total_hq
-    FROM records WHERE type = 'report' AND ${dateWhere()}
+           SUM(hq_leader) as total_hq,
+           SUM(CASE WHEN instr(COALESCE(tmpl_json,''), '环金') > 0 OR instr(COALESCE(tmpl_json,''), '環金') > 0 THEN 1 ELSE 0 END) as total_ring
+    FROM records WHERE type IN ('report','site') AND ${dateWhere()}
   `).first();
 
-  // ── 每人報告數（report only）
+  // ── 每人行銷拜訪數
   const perUser = await env.DB.prepare(`
     SELECT user_name, COUNT(*) as count,
            SUM(is_8_plus_e) as e8_count,
            COUNT(DISTINCT client_name) as unique_clients
-    FROM records WHERE type = 'report' AND ${dateWhere()}
+    FROM records WHERE type IN ('report','site') AND ${dateWhere()}
     GROUP BY user_name ORDER BY count DESC
   `).all();
 
-  // ── 前期對比（report only，用 range 天數；週別模式下沿用 daysAgo）
+  // ── 前期對比（排除 meeting，用 range 天數；週別模式下沿用 daysAgo）
   const prevPeriod = await env.DB.prepare(`
     SELECT user_name, COUNT(*) as count
-    FROM records WHERE type = 'report' AND visit_date >= ? AND visit_date < ?
+    FROM records WHERE type IN ('report','site') AND visit_date >= ? AND visit_date < ?
     GROUP BY user_name
   `).bind(prev, since).all();
   const prevMap = Object.fromEntries((prevPeriod.results || []).map(r => [r.user_name, r.count]));
@@ -327,17 +328,17 @@ async function handleStats(request, env) {
     ]));
   } catch(e) { /* json_each 在空陣列時可能拋錯，靜默忽略 */ }
 
-  // ── 每日趨勢（所有類型，供趨勢圖用）
+  // ── 每日趨勢（行銷拜訪，排除 meeting，供近 10 工作日趨勢圖用）
   const dailyTrend = await env.DB.prepare(`
     SELECT visit_date, COUNT(*) as count
-    FROM records WHERE ${dateWhere()}
+    FROM records WHERE type IN ('report','site') AND ${dateWhere()}
     GROUP BY visit_date ORDER BY visit_date ASC
   `).all();
 
-  // ── 活動類型分布（所有類型）
+  // ── 活動類型分布（行銷拜訪，排除 meeting）
   const typeBreakdown = await env.DB.prepare(`
     SELECT type, COUNT(*) as count
-    FROM records WHERE ${dateWhere()} GROUP BY type
+    FROM records WHERE type IN ('report','site') AND ${dateWhere()} GROUP BY type
   `).all();
 
   // ── 拜訪目的（report only）
@@ -360,22 +361,50 @@ async function handleStats(request, env) {
     LIMIT 20
   `).bind(sleep).all();
 
-  // ── 最後拜訪（所有類型）
+  // ── 最後拜訪（行銷拜訪，排除 meeting）
   const lastVisit = await env.DB.prepare(`
     SELECT user_name, MAX(visit_date) as last_date, COUNT(*) as total_all
-    FROM records GROUP BY user_name ORDER BY last_date DESC
+    FROM records WHERE type IN ('report','site') GROUP BY user_name ORDER BY last_date DESC
   `).all();
 
-  // ── 週統計（固定最近 90 天，report only，供領先指標圖用）
+  // ── 週統計（固定最近 90 天，行銷拜訪，供領先指標圖用）
   const weeklyTrend = await env.DB.prepare(`
     SELECT strftime('%Y-%W', visit_date) as week_key,
            MIN(visit_date) as week_start,
            COUNT(*) as count
     FROM records
-    WHERE type = 'report' AND visit_date >= date('now', '-91 days')
+    WHERE type IN ('report','site') AND visit_date >= date('now', '-91 days')
     GROUP BY week_key
     ORDER BY week_key ASC
   `).all();
+
+  // ── RM 組別 x 週別矩陣（最近 12 週，近到遠由前端排序）
+  const groupWeeklyMatrix = await env.DB.prepare(`
+    SELECT rm_group,
+           strftime('%Y-%W', visit_date) as week_key,
+           MIN(visit_date) as week_start,
+           COUNT(*) as count,
+           SUM(is_8_plus_e) as e8_count,
+           SUM(CASE WHEN EXISTS (
+             SELECT 1 FROM json_each(json_extract(records.tmpl_json, '$.customerSegments'))
+             WHERE value IN ('环金','环金陆企','環金陸企')
+           ) THEN 1 ELSE 0 END) as ring_count
+    FROM records
+    WHERE type IN ('report','site') AND visit_date >= date('now', '-84 days')
+      AND rm_group IS NOT NULL AND TRIM(rm_group) <> ''
+    GROUP BY rm_group, week_key
+    ORDER BY week_key DESC, rm_group ASC
+  `).all();
+
+  // ── 資料品質提醒
+  const dataQuality = await env.DB.prepare(`
+    SELECT
+      SUM(CASE WHEN type IN ('report','site') AND (rm_group IS NULL OR TRIM(rm_group) = '') THEN 1 ELSE 0 END) as missing_rm_group,
+      SUM(CASE WHEN type IN ('report','site') AND rm_group IS NOT NULL AND TRIM(rm_group) <> '' AND rm_group GLOB '*[^0-9]*' THEN 1 ELSE 0 END) as invalid_rm_group,
+      SUM(CASE WHEN type = 'meeting' THEN 1 ELSE 0 END) as excluded_meetings
+    FROM records
+    WHERE ${dateWhere()}
+  `).first();
 
   const users = perUser.results || [];
   const avg   = users.length > 0 ? users.reduce((s, u) => s + u.count, 0) / users.length : 0;
@@ -400,6 +429,8 @@ async function handleStats(request, env) {
     avg_visits: Math.round(avg * 10) / 10,
     dailyTrend:       dailyTrend.results,
     weeklyTrend:      weeklyTrend.results,
+    groupWeeklyMatrix: groupWeeklyMatrix.results,
+    dataQuality,
     typeBreakdown:    typeBreakdown.results,
     purposeBreakdown: purposeBreakdown.results,
     sleepingClients:  sleepingClients.results,
@@ -435,7 +466,7 @@ async function handleGetTargets(request, env) {
   const row = await env.DB.prepare(
     'SELECT * FROM targets ORDER BY id DESC LIMIT 1'
   ).first();
-  return jsonRes(row || { monthly_visits: 20, sleep_days: 30, rm_count: 12, weekly_visits: 2 });
+  return jsonRes(row || { monthly_visits: 6, sleep_days: 30, rm_count: 12, weekly_visits: 1.5 });
 }
 
 /* ──────────────────────────────────────────
@@ -443,13 +474,13 @@ async function handleGetTargets(request, env) {
 ────────────────────────────────────────── */
 async function handleSetTargets(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
-  const { monthly_visits = 20, sleep_days = 30, rm_count = 12, weekly_visits = 2 } = await request.json();
+  const { monthly_visits = 6, sleep_days = 30, rm_count = 12, weekly_visits = 1.5 } = await request.json();
   // 嘗試新欄位寫入；若欄位不存在（舊 schema）則降回舊格式
   try {
     await env.DB.prepare(
       `INSERT INTO targets (monthly_visits, sleep_days, rm_count, weekly_visits, updated_at)
        VALUES (?, ?, ?, ?, datetime('now'))`
-    ).bind(parseInt(monthly_visits), parseInt(sleep_days), parseInt(rm_count), parseInt(weekly_visits)).run();
+    ).bind(parseFloat(monthly_visits), parseInt(sleep_days), parseInt(rm_count), parseFloat(weekly_visits)).run();
   } catch(e) {
     await env.DB.prepare(
       `INSERT INTO targets (monthly_visits, sleep_days, updated_at)

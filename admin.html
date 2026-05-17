@@ -19,6 +19,13 @@ body  { font-family:-apple-system,"Helvetica Neue",sans-serif; background:#F2F2F
 .medal { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; background:linear-gradient(135deg,#FFD700,#FFA500); color:#7a4800; }
 .progress-bg { background:#E5E7EB; border-radius:99px; height:8px; overflow:hidden; }
 .progress-fill { height:100%; border-radius:99px; transition:width 0.6s ease; }
+.status-chip { display:inline-flex; align-items:center; justify-content:center; min-width:48px; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+.status-green { background:rgba(22,163,74,0.12); color:#15803d; }
+.status-yellow { background:rgba(245,158,11,0.14); color:#b45309; }
+.status-red { background:rgba(239,68,68,0.12); color:#dc2626; }
+.status-gray { background:#f3f4f6; color:#9ca3af; }
+.matrix-cell { min-width:112px; cursor:pointer; transition:background .15s ease; }
+.matrix-cell:hover { background:#f9fafb; }
 input[type=number]::-webkit-inner-spin-button { opacity:1; }
 </style>
 </head>
@@ -66,8 +73,8 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
     <div class="flex items-center gap-2 flex-wrap">
       <select id="range-select" onchange="onRangeChange()" class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
-        <option value="7">近 7 天</option>
-        <option value="30" selected>近 30 天</option>
+        <option value="7" selected>近 7 天</option>
+        <option value="30">近 30 天</option>
         <option value="90">近 90 天</option>
         <option value="365">近一年</option>
       </select>
@@ -111,7 +118,59 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
     <div class="stat-box text-center">
       <p class="text-3xl font-bold text-rose-500" id="stat-hq">—</p>
-      <p class="text-xs text-gray-400 mt-1">總行領導陪訪</p>
+      <p class="text-xs text-gray-400 mt-1">环金拜訪佔比</p>
+    </div>
+  </div>
+
+  <!-- 週管理總覽 -->
+  <div class="card p-5">
+    <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-[15px] font-bold text-gray-800">週管理總覽</h2>
+        <p class="text-xs text-gray-400 mt-0.5" id="weekly-overview-subtitle">會議已排除，行銷拜訪包含訪談與現場</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="exportManagementReportHTML()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-white border border-gray-200 text-gray-600">
+          <i data-lucide="file-code-2" class="w-4 h-4"></i> 匯出管理報表 HTML
+        </button>
+        <span id="weekly-overview-status" class="status-chip status-gray">—</span>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="rounded-xl bg-gray-50 p-4">
+        <p class="text-xs text-gray-400">本期拜訪</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1" id="weekly-current-count">—</p>
+      </div>
+      <div class="rounded-xl bg-gray-50 p-4">
+        <p class="text-xs text-gray-400">本期目標</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1" id="weekly-target-count">—</p>
+      </div>
+      <div class="rounded-xl bg-gray-50 p-4">
+        <p class="text-xs text-gray-400">8+E 比率</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1" id="weekly-8e-ratio">—</p>
+      </div>
+      <div class="rounded-xl bg-gray-50 p-4">
+        <p class="text-xs text-gray-400">环金比率</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1" id="weekly-ring-ratio">—</p>
+      </div>
+    </div>
+    <div id="data-quality-alerts" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2"></div>
+  </div>
+
+  <!-- RM 組別週管理 -->
+  <div class="card overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 class="text-[15px] font-bold text-gray-800">RM 組別週管理</h2>
+        <p class="text-xs text-gray-400 mt-0.5">左側為 RM 組別，上方由近到遠；每格顯示達成率、拜訪數、8+E 與环金比率</p>
+      </div>
+      <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">週目標：每人 1.5 次，322 資深 TH 不計</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead id="group-weekly-head"></thead>
+        <tbody id="group-weekly-body"></tbody>
+      </table>
     </div>
   </div>
 
@@ -169,7 +228,7 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
       </div>
       <div>
         <label class="text-xs text-gray-500 font-medium block mb-1">每週目標（次／人）</label>
-        <input id="target-weekly" type="number" min="1" max="20" value="2"
+        <input id="target-weekly" type="number" min="0.5" max="20" step="0.5" value="1.5"
           class="w-full px-3 py-2 rounded-xl border border-gray-200 text-[15px] outline-none focus:border-[color:var(--brand)]">
       </div>
       <div>
@@ -260,6 +319,17 @@ let statsData = null;
 let recordsOffset = 0;
 const RECORDS_LIMIT = 30;
 let recordsSeenKeys = new Set(); // 跨分頁去重
+const GROUP_TARGETS = {
+  '301': 3,
+  '302': 3,
+  '303': 1.5,
+  '305': 1.5,
+  '306': 1.5,
+  '321': 1.5,
+  '322': 3,
+  '323': 3,
+};
+const WEEKLY_TEAM_TARGET = Object.values(GROUP_TARGETS).reduce((sum, v) => sum + v, 0);
 
 /* ── 登入 ── */
 async function login() {
@@ -295,7 +365,7 @@ async function loadTargets() {
   try {
     const res  = await fetch(`${WORKER_URL}/api/targets?password=${enc(PASSWORD)}`);
     const data = await res.json();
-    const weekly  = data.weekly_visits  || 2;
+    const weekly  = data.weekly_visits  || 1.5;
     const rmCount = data.rm_count       || 12;
     document.getElementById('target-weekly').value   = weekly;
     document.getElementById('target-rm-count').value = rmCount;
@@ -305,12 +375,12 @@ async function loadTargets() {
 }
 
 function updateMonthlyAuto() {
-  const weekly = parseInt(document.getElementById('target-weekly').value) || 2;
+  const weekly = parseFloat(document.getElementById('target-weekly').value) || 1.5;
   document.getElementById('monthly-auto').textContent = `${weekly * 4} 次／人`;
 }
 
 async function saveTargets() {
-  const weekly  = parseInt(document.getElementById('target-weekly').value)   || 2;
+  const weekly  = parseFloat(document.getElementById('target-weekly').value) || 1.5;
   const rmCount = parseInt(document.getElementById('target-rm-count').value) || 12;
   const sd      = parseInt(document.getElementById('target-sleep').value)    || 30;
   await fetch(`${WORKER_URL}/api/targets?password=${enc(PASSWORD)}`, {
@@ -395,7 +465,7 @@ async function loadData() {
     headerText || `${statsData.since} 至今`;
 
   const t = statsData.totals || {};
-  const weekly  = parseInt(document.getElementById('target-weekly')?.value)   || 2;
+  const weekly  = parseFloat(document.getElementById('target-weekly')?.value) || 1.5;
   const rmCount = parseInt(document.getElementById('target-rm-count')?.value) || 12;
 
   // 計算週目標總量：依時間區間判斷週數
@@ -418,12 +488,16 @@ async function loadData() {
   document.getElementById('stat-clients').textContent  = newClientCount;
   const e8pct = t.total > 0 ? Math.round((t.total_8e||0)*100/t.total) : 0;
   document.getElementById('stat-8e').textContent = e8pct + '%';
-  document.getElementById('stat-hq').textContent = t.total_hq || 0;
+  const ringPct = t.total > 0 ? Math.round((t.total_ring||0)*100/t.total) : 0;
+  document.getElementById('stat-hq').textContent = ringPct + '%';
 
   // 個人週目標
   const personalWeeklyTarget = weekly * weekCount;
   document.getElementById('avg-badge').textContent = `週目標 ${weekly} 次／人 · 行銷人員 ${rmCount} 人`;
 
+  renderWeeklyOverview(statsData, teamTarget, achievePct, e8pct, ringPct);
+  renderDataQuality(statsData.dataQuality);
+  renderGroupWeeklyMatrix(statsData.groupWeeklyMatrix);
   renderRadar(statsData.radar, statsData.lastVisit, personalWeeklyTarget);
   renderWeeklyChart(statsData.weeklyTrend);
   renderDailyChart(statsData.dailyTrend);
@@ -433,6 +507,94 @@ async function loadData() {
   recordsOffset = 0;
   loadRecords();
   loadFollowUpList();
+}
+
+/* ── 週管理總覽 ── */
+function statusClass(pct) {
+  if (pct >= 100) return 'status-green';
+  if (pct >= 70) return 'status-yellow';
+  if (pct > 0) return 'status-red';
+  return 'status-gray';
+}
+
+function statusLabel(pct) {
+  if (pct >= 100) return '達標';
+  if (pct >= 70) return '追趕中';
+  if (pct > 0) return '落後';
+  return '無資料';
+}
+
+function renderWeeklyOverview(data, target, achievePct, e8pct, ringPct) {
+  const t = data?.totals || {};
+  document.getElementById('weekly-current-count').textContent = t.total || 0;
+  document.getElementById('weekly-target-count').textContent = target;
+  document.getElementById('weekly-8e-ratio').textContent = e8pct + '%';
+  document.getElementById('weekly-ring-ratio').textContent = ringPct + '%';
+  const badge = document.getElementById('weekly-overview-status');
+  badge.className = `status-chip ${statusClass(achievePct)}`;
+  badge.textContent = `${statusLabel(achievePct)} ${achievePct}%`;
+}
+
+function renderDataQuality(q) {
+  const rows = [
+    { label:'組代號未填', value:q?.missing_rm_group || 0, tone:(q?.missing_rm_group || 0) ? 'status-red' : 'status-green' },
+    { label:'組代號異常', value:q?.invalid_rm_group || 0, tone:(q?.invalid_rm_group || 0) ? 'status-red' : 'status-green' },
+    { label:'會議已排除', value:q?.excluded_meetings || 0, tone:'status-gray' },
+  ];
+  document.getElementById('data-quality-alerts').innerHTML = rows.map(r => `
+    <div class="rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between">
+      <span class="text-xs text-gray-500">${r.label}</span>
+      <span class="status-chip ${r.tone}">${r.value}</span>
+    </div>`).join('');
+}
+
+function fmtWeekLabel(weekStart) {
+  if (!weekStart) return '—';
+  const d = new Date(weekStart);
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function buildGroupWeeklyModel(rows) {
+  const weekMap = new Map();
+  const groupMap = new Map();
+  (rows || []).forEach(r => {
+    if (!r.rm_group || !r.week_key) return;
+    if (!weekMap.has(r.week_key)) weekMap.set(r.week_key, { key:r.week_key, start:r.week_start });
+    const g = String(r.rm_group);
+    if (!groupMap.has(g)) groupMap.set(g, new Map());
+    groupMap.get(g).set(r.week_key, r);
+  });
+  const weeks = [...weekMap.values()].sort((a,b) => b.key.localeCompare(a.key)).slice(0, 8);
+  const groups = [...new Set([...Object.keys(GROUP_TARGETS), ...groupMap.keys()])].sort((a,b) => a.localeCompare(b, 'zh-Hant-u-kn-true'));
+  return { weeks, groups, groupMap };
+}
+
+function renderGroupWeeklyMatrix(rows) {
+  const { weeks, groups, groupMap } = buildGroupWeeklyModel(rows);
+  document.getElementById('group-weekly-head').innerHTML = `
+    <tr class="bg-gray-50 text-gray-500 text-xs font-semibold">
+      <th class="px-4 py-3 text-left sticky left-0 bg-gray-50 z-10">RM 組別</th>
+      ${weeks.map(w => `<th class="px-3 py-3 text-center whitespace-nowrap">${fmtWeekLabel(w.start)}週</th>`).join('')}
+    </tr>`;
+
+  document.getElementById('group-weekly-body').innerHTML = groups.map(group => {
+    const target = GROUP_TARGETS[group] || 1.5;
+    return `<tr class="border-b border-gray-50">
+      <td class="px-4 py-3 font-bold text-gray-800 sticky left-0 bg-white z-10 whitespace-nowrap">${group}</td>
+      ${weeks.map(w => {
+        const r = groupMap.get(group)?.get(w.key);
+        const count = r?.count || 0;
+        const pct = Math.round(count / target * 100);
+        const e8 = count ? Math.round((r?.e8_count || 0) * 100 / count) : 0;
+        const ring = count ? Math.round((r?.ring_count || 0) * 100 / count) : 0;
+        return `<td class="matrix-cell px-3 py-3 text-center border-l border-gray-50">
+          <div class="status-chip ${statusClass(pct)} mx-auto">${pct}%</div>
+          <div class="text-[11px] text-gray-500 mt-1">${count} / ${target}</div>
+          <div class="text-[10px] text-gray-400 mt-0.5">8+E ${e8}% · 环金 ${ring}%</div>
+        </td>`;
+      }).join('')}
+    </tr>`;
+  }).join('') || '<tr><td class="px-4 py-8 text-center text-gray-400 text-sm">無週管理資料</td></tr>';
 }
 
 /* ── 管理雷達 ── */
@@ -510,7 +672,7 @@ function renderSleepingClients(clients) {
 
 /* ── 圖表 ── */
 function renderWeeklyChart(trend) {
-  const weekly  = parseInt(document.getElementById('target-weekly')?.value)   || 2;
+  const weekly  = parseFloat(document.getElementById('target-weekly')?.value) || 1.5;
   const rmCount = parseInt(document.getElementById('target-rm-count')?.value) || 13;
   const weekTarget = weekly * rmCount;
 
@@ -634,6 +796,76 @@ function render8EChart(radar) {
 function redraw(id, type, data, options) {
   if (charts[id]) charts[id].destroy();
   charts[id] = new Chart(document.getElementById(id).getContext('2d'), { type, data, options:{ responsive:true, ...options } });
+}
+
+/* ── 匯出管理報表 HTML ── */
+function exportManagementReportHTML() {
+  if (!statsData) return;
+  const { weeks, groups, groupMap } = buildGroupWeeklyModel(statsData.groupWeeklyMatrix);
+  const t = statsData.totals || {};
+  const e8pct = t.total > 0 ? Math.round((t.total_8e || 0) * 100 / t.total) : 0;
+  const ringPct = t.total > 0 ? Math.round((t.total_ring || 0) * 100 / t.total) : 0;
+  const target = Number(String(document.getElementById('weekly-target-count')?.textContent || WEEKLY_TEAM_TARGET).replace(/[^\d.]/g, '')) || WEEKLY_TEAM_TARGET;
+  const achievePct = target > 0 ? Math.round((t.total || 0) / target * 100) : 0;
+  const q = statsData.dataQuality || {};
+  const daily = getLast10Workdays().map(d => {
+    const found = (statsData.dailyTrend || []).find(r => r.visit_date === d);
+    return { date:d, count:found?.count || 0 };
+  });
+
+  const matrixRows = groups.map(group => {
+    const groupTarget = GROUP_TARGETS[group] || 1.5;
+    return `<tr><th>${group}</th>${weeks.map(w => {
+      const r = groupMap.get(group)?.get(w.key);
+      const count = r?.count || 0;
+      const pct = Math.round(count / groupTarget * 100);
+      const e8 = count ? Math.round((r?.e8_count || 0) * 100 / count) : 0;
+      const ring = count ? Math.round((r?.ring_count || 0) * 100 / count) : 0;
+      return `<td class="${pct >= 100 ? 'ok' : pct >= 70 ? 'warn' : count ? 'bad' : ''}">
+        <b>${pct}%</b><br><small>${count}/${groupTarget} · 8+E ${e8}% · 环金 ${ring}%</small>
+      </td>`;
+    }).join('')}</tr>`;
+  }).join('');
+
+  const html = `<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><title>RM 週管理報表</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Microsoft JhengHei",Arial,sans-serif;margin:28px;color:#111827;background:#f8fafc;}
+    h1{margin:0 0 4px;font-size:24px;} h2{font-size:16px;margin:24px 0 10px;}
+    .sub{color:#6b7280;font-size:12px;margin-bottom:18px;}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+    .card{background:white;border:1px solid #e5e7eb;border-radius:12px;padding:14px;}
+    .label{font-size:12px;color:#6b7280}.num{font-size:26px;font-weight:800;margin-top:4px;}
+    table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;}
+    th,td{border:1px solid #e5e7eb;padding:9px;text-align:center;font-size:12px;} th{background:#f3f4f6;}
+    td.ok{background:#ecfdf5;color:#166534}td.warn{background:#fffbeb;color:#92400e}td.bad{background:#fef2f2;color:#991b1b}
+    small{color:#6b7280}.quality{display:flex;gap:8px;flex-wrap:wrap}.pill{border-radius:999px;background:white;border:1px solid #e5e7eb;padding:7px 10px;font-size:12px;}
+  </style></head><body>
+    <h1>RM 週管理報表</h1>
+    <div class="sub">${document.getElementById('header-since').textContent || ''} · 會議不列入統計</div>
+    <div class="grid">
+      <div class="card"><div class="label">拜訪數</div><div class="num">${t.total || 0}</div></div>
+      <div class="card"><div class="label">週目標達成率</div><div class="num">${achievePct}%</div></div>
+      <div class="card"><div class="label">8+E 比率</div><div class="num">${e8pct}%</div></div>
+      <div class="card"><div class="label">环金比率</div><div class="num">${ringPct}%</div></div>
+    </div>
+    <h2>資料品質提醒</h2>
+    <div class="quality">
+      <span class="pill">組代號未填：${q.missing_rm_group || 0}</span>
+      <span class="pill">組代號異常：${q.invalid_rm_group || 0}</span>
+      <span class="pill">已排除會議：${q.excluded_meetings || 0}</span>
+    </div>
+    <h2>RM 組別週管理</h2>
+    <table><thead><tr><th>RM 組別</th>${weeks.map(w => `<th>${fmtWeekLabel(w.start)}週</th>`).join('')}</tr></thead><tbody>${matrixRows}</tbody></table>
+    <h2>近 10 工作日拜訪趨勢</h2>
+    <table><thead><tr>${daily.map(d => `<th>${d.date.slice(5)}</th>`).join('')}</tr></thead><tbody><tr>${daily.map(d => `<td><b>${d.count}</b></td>`).join('')}</tr></tbody></table>
+  </body></html>`;
+
+  const blob = new Blob([html], { type:'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `rm-weekly-management-${new Date().toISOString().slice(0,10)}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 /* ── 跟進提醒清單 ── */
