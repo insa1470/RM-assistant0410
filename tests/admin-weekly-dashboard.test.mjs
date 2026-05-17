@@ -16,8 +16,11 @@ assert.doesNotMatch(adminHtml, /資料品質提醒|組代號未填|組代號異�
 assert.doesNotMatch(adminHtml, /行銷目標設定|活動類型|chart-type|renderTypeChart/, 'admin dashboard should remove target settings and activity type sections');
 assert.match(adminHtml, /匯出管理報表 HTML/, 'admin dashboard should provide HTML management report export');
 assert.match(adminHtml, /function exportManagementReportHTML\(/, 'admin dashboard should implement HTML management report export');
-assert.match(adminHtml, /<option value="7" selected>/, 'admin dashboard should default to the recent 7 day weekly view');
+assert.match(adminHtml, /<option value="all" selected>全部資料<\/option>/, 'admin dashboard should default to all-time stats');
 assert.match(adminHtml, /ADMIN_WEEKLY_VISITS = 1\.5/, 'weekly target should be fixed at 1.5 visits per person');
+assert.match(adminHtml, /const range = 'all'/, 'admin dashboard should request all-time stats by default');
+assert.match(adminHtml, /formatSegmentLine/, 'RM weekly cells should conditionally show only non-zero customer segment ratios');
+assert.doesNotMatch(adminHtml, new RegExp(String.raw`\$\{count\} / \$\{target\}|\$\{count\}/\$\{groupTarget\}`), 'RM weekly cells should not show raw count over target text');
 
 assert.match(workerJs, /groupWeeklyMatrix/, 'stats API should return group weekly matrix data');
 assert.doesNotMatch(workerJs, /dataQuality|unmanaged_rm_group|missing_rm_group|invalid_rm_group|excluded_meetings/, 'stats API should not return data quality reminder fields');
@@ -25,3 +28,5 @@ assert.match(workerJs, /json_extract\(.*customerSegments/, 'stats API should rea
 assert.match(workerJs, /type IN \('report','site'\)/, 'marketing stats should include reports and site visits while excluding meetings');
 assert.match(workerJs, /ALLOWED_RM_GROUPS/, 'stats API should define the 8 managed RM groups');
 assert.match(workerJs, /rm_group IN \(\$\{allowedGroupSql\}\)/, 'stats API should count only the managed RM groups');
+assert.match(workerJs, /range\) === 'all'/, 'stats API should support all-time dashboard stats');
+assert.doesNotMatch(workerJs, /date\\('now', '-84 days'\\)|date\\('now', '-91 days'\\)/, 'weekly data should not be limited to recent 84 or 91 days');

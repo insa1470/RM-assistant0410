@@ -258,12 +258,14 @@ async function handleStats(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
 
   const url   = new URL(request.url);
-  const days  = parseInt(url.searchParams.get('range') || '30');
+  const range = url.searchParams.get('range') || '30';
+  const isAllTime = String(range) === 'all';
+  const days  = parseInt(range || '30');
   const sleep = parseInt(url.searchParams.get('sleep') || '30');
   // 支援 from/to 週別篩選；若無則用 range 天數
   const fromP  = url.searchParams.get('from') || null;
   const toP    = url.searchParams.get('to')   || null;
-  const since  = fromP || daysAgo(days);
+  const since  = isAllTime && !fromP ? '0000-01-01' : (fromP || daysAgo(days));
   const until  = toP   || null;
   const prev   = daysAgo(days * 2);
   const allowedGroupSql = ALLOWED_RM_GROUPS.map(g => `'${g}'`).join(',');
@@ -376,7 +378,7 @@ async function handleStats(request, env) {
            MIN(visit_date) as week_start,
            COUNT(*) as count
     FROM records
-    WHERE type IN ('report','site') AND ${managedGroupWhere} AND visit_date >= date('now', '-91 days')
+    WHERE type IN ('report','site') AND ${managedGroupWhere} AND visit_date >= '${since}'
     GROUP BY week_key
     ORDER BY week_key ASC
   `).all();
@@ -393,7 +395,7 @@ async function handleStats(request, env) {
              WHERE value IN ('环金','环金陆企','環金陸企')
            ) THEN 1 ELSE 0 END) as ring_count
     FROM records
-    WHERE type IN ('report','site') AND visit_date >= date('now', '-84 days')
+    WHERE type IN ('report','site') AND visit_date >= '${since}'
       AND rm_group IN (${allowedGroupSql})
     GROUP BY rm_group, week_key
     ORDER BY week_key DESC, rm_group ASC

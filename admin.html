@@ -73,7 +73,8 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
     <div class="flex items-center gap-2 flex-wrap">
       <select id="range-select" onchange="onRangeChange()" class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
-        <option value="7" selected>近 7 天</option>
+        <option value="all" selected>全部資料</option>
+        <option value="7">近 7 天</option>
         <option value="30">近 30 天</option>
         <option value="90">近 90 天</option>
         <option value="365">近一年</option>
@@ -386,7 +387,7 @@ async function loadData() {
     url = `${WORKER_URL}/api/stats?password=${enc(PASSWORD)}&from=${from}&to=${to}&sleep=${sleep}`;
     headerText = `${weekMonth.replace('-','年')}月 第${weekNum}週（${from} ～ ${to}）`;
   } else {
-    const range = document.getElementById('range-select').value;
+    const range = 'all';
     url = `${WORKER_URL}/api/stats?password=${enc(PASSWORD)}&range=${range}&sleep=${sleep}`;
     headerText = null;
   }
@@ -406,8 +407,7 @@ async function loadData() {
   if (weekMonth && weekNum) {
     weekCount = 1; // 週別模式 = 1 週
   } else {
-    const range = parseInt(document.getElementById('range-select').value) || 30;
-    weekCount = Math.max(1, Math.round(range / 7));
+    weekCount = Math.max(1, new Set((statsData.weeklyTrend || []).map(w => w.week_key)).size);
   }
   const teamTarget = rmCount * weekly * weekCount;
   const achievePct = teamTarget > 0 ? Math.round((t.total || 0) / teamTarget * 100) : 0;
@@ -453,6 +453,13 @@ function statusLabel(pct) {
   if (pct >= 70) return '追趕中';
   if (pct > 0) return '落後';
   return '無資料';
+}
+
+function formatSegmentLine(e8, ring) {
+  const parts = [];
+  if (e8 > 0) parts.push(`8+E ${e8}%`);
+  if (ring > 0) parts.push(`环金 ${ring}%`);
+  return parts.join(' · ');
 }
 
 function renderWeeklyOverview(data, target, achievePct, e8pct, ringPct) {
@@ -505,10 +512,10 @@ function renderGroupWeeklyMatrix(rows) {
         const pct = Math.round(count / target * 100);
         const e8 = count ? Math.round((r?.e8_count || 0) * 100 / count) : 0;
         const ring = count ? Math.round((r?.ring_count || 0) * 100 / count) : 0;
+        const segmentLine = formatSegmentLine(e8, ring);
         return `<td class="matrix-cell px-3 py-3 text-center border-l border-gray-50">
           <div class="status-chip ${statusClass(pct)} mx-auto">${pct}%</div>
-          <div class="text-[11px] text-gray-500 mt-1">${count} / ${target}</div>
-          <div class="text-[10px] text-gray-400 mt-0.5">8+E ${e8}% · 环金 ${ring}%</div>
+          ${segmentLine ? `<div class="text-[10px] text-gray-400 mt-1">${segmentLine}</div>` : ''}
         </td>`;
       }).join('')}
     </tr>`;
@@ -730,8 +737,9 @@ function exportManagementReportHTML() {
       const pct = Math.round(count / groupTarget * 100);
       const e8 = count ? Math.round((r?.e8_count || 0) * 100 / count) : 0;
       const ring = count ? Math.round((r?.ring_count || 0) * 100 / count) : 0;
+      const segmentLine = formatSegmentLine(e8, ring);
       return `<td class="${pct >= 100 ? 'ok' : pct >= 70 ? 'warn' : count ? 'bad' : ''}">
-        <b>${pct}%</b><br><small>${count}/${groupTarget} · 8+E ${e8}% · 环金 ${ring}%</small>
+        <b>${pct}%</b>${segmentLine ? `<br><small>${segmentLine}</small>` : ''}
       </td>`;
     }).join('')}</tr>`;
   }).join('');
