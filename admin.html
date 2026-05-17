@@ -161,12 +161,12 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
   </div>
 
-  <!-- RM 組別週管理 -->
+  <!-- RM 組動能逐週管理 -->
   <div class="card overflow-hidden">
     <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h2 class="text-[15px] font-bold text-gray-800">RM 組別週管理</h2>
-        <p class="text-xs text-gray-400 mt-0.5">左側為 RM 組別，上方由近到遠；每格顯示達成率、8+E 與环金比率，點選可看客戶名稱</p>
+        <h2 class="text-[15px] font-bold text-gray-800">RM 組動能逐週管理</h2>
+        <p class="text-xs text-gray-400 mt-0.5">此表固定呈現全部逐週情況，不受上方週別篩選影響；點選可看客戶名稱</p>
       </div>
       <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">週目標：每人 1.5 次，322 資深 TH 不計</span>
     </div>
@@ -486,7 +486,7 @@ function buildGroupWeeklyModel(rows) {
     if (!groupMap.has(g)) groupMap.set(g, new Map());
     groupMap.get(g).set(r.week_key, r);
   });
-  const weeks = [...weekMap.values()].sort((a,b) => b.key.localeCompare(a.key)).slice(0, 8);
+  const weeks = [...weekMap.values()].sort((a,b) => b.key.localeCompare(a.key));
   const groups = ALLOWED_RM_GROUPS;
   return { weeks, groups, groupMap };
 }
@@ -726,7 +726,7 @@ function exportManagementReportHTML() {
       <div class="card"><div class="label">8+E 比率</div><div class="num">${e8pct}%</div></div>
       <div class="card"><div class="label">环金比率</div><div class="num">${ringPct}%</div></div>
     </div>
-    <h2>RM 組別週管理</h2>
+    <h2>RM 組動能逐週管理</h2>
     <table><thead><tr><th>RM 組別</th>${weeks.map(w => `<th>${fmtWeekLabel(w.start)}週</th>`).join('')}</tr></thead><tbody>${matrixRows}</tbody></table>
     <h2>近 10 工作日拜訪趨勢</h2>
     <table><thead><tr>${daily.map(d => `<th>${d.date.slice(5)}</th>`).join('')}</tr></thead><tbody><tr>${daily.map(d => `<td><b>${d.count}</b></td>`).join('')}</tr></tbody></table>

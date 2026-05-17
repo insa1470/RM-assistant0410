@@ -5,7 +5,7 @@ const adminHtml = readFileSync(new URL('../admin.html', import.meta.url), 'utf8'
 const workerJs = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
 
 assert.match(adminHtml, /週管理總覽/, 'admin dashboard should lead with weekly management overview');
-assert.match(adminHtml, /RM 組別週管理/, 'admin dashboard should include the RM group weekly matrix');
+assert.match(adminHtml, /RM 組動能逐週管理/, 'admin dashboard should include the RM group weekly momentum matrix');
 assert.match(adminHtml, /近 10 工作日拜訪趨勢/, 'admin dashboard should preserve the recent 10 workday trend');
 assert.match(adminHtml, /renderGroupWeeklyMatrix/, 'admin dashboard should render the group weekly matrix');
 assert.match(adminHtml, /GROUP_TARGETS/, 'admin dashboard should define weekly targets by RM group');
@@ -29,12 +29,15 @@ assert.doesNotMatch(adminHtml, new RegExp(String.raw`\$\{count\} / \$\{target\}|
 assert.match(adminHtml, /matrixStatusClass/, 'RM weekly matrix should have its own color threshold');
 assert.match(adminHtml, /pct >= 60/, 'RM weekly matrix should mark 60 percent and above as green');
 assert.match(adminHtml, /showCustomerTooltip/, 'RM weekly matrix cells should reveal customer names on hover or click');
+assert.doesNotMatch(adminHtml, /slice\(0, 8\)/, 'RM weekly matrix should show all available weeks, not only the latest 8 weeks');
 assert.match(adminHtml, /record-page-info/, 'records section should show page navigation');
 assert.match(adminHtml, /getCurrentMonthRange/, 'records section should default to the current month');
 assert.doesNotMatch(adminHtml, /擊中領先指標|leading-hit-badge|chart-weekly|renderWeeklyChart\(statsData\.weeklyTrend\)/, 'leading indicator chart block should be removed from the dashboard');
 
 assert.match(workerJs, /groupWeeklyMatrix/, 'stats API should return group weekly matrix data');
 assert.match(workerJs, /customer_names/, 'group weekly matrix should include customer names for cell drilldown');
+assert.match(workerJs, /visit_date >= '0000-01-01'[\s\S]*GROUP BY rm_group, week_key/, 'group weekly matrix should always use all-time weekly data');
+assert.doesNotMatch(workerJs, /groupWeeklyMatrix[\s\S]{0,700}visit_date >= '\$\{since\}'/, 'group weekly matrix should not be constrained by the selected dashboard range');
 assert.match(workerJs, /fromDate|toDate/, 'records API should support date-range filtering for current-month records');
 assert.doesNotMatch(workerJs, /dataQuality|unmanaged_rm_group|missing_rm_group|invalid_rm_group|excluded_meetings/, 'stats API should not return data quality reminder fields');
 assert.match(workerJs, /json_extract\(.*customerSegments/, 'stats API should read customer segments from tmpl_json');

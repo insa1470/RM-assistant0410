@@ -383,7 +383,7 @@ async function handleStats(request, env) {
     ORDER BY week_key ASC
   `).all();
 
-  // ── RM 組別 x 週別矩陣（最近 12 週，近到遠由前端排序）
+  // ── RM 組別 x 週別矩陣（全部逐週資料，不受上方日期篩選影響）
   const groupWeeklyMatrix = await env.DB.prepare(`
     SELECT rm_group,
            strftime('%Y-%W', visit_date) as week_key,
@@ -396,7 +396,7 @@ async function handleStats(request, env) {
              WHERE value IN ('环金','环金陆企','環金陸企')
            ) THEN 1 ELSE 0 END) as ring_count
     FROM records
-    WHERE type IN ('report','site') AND visit_date >= '${since}'
+    WHERE type IN ('report','site') AND visit_date >= '0000-01-01'
       AND rm_group IN (${allowedGroupSql})
     GROUP BY rm_group, week_key
     ORDER BY week_key DESC, rm_group ASC
