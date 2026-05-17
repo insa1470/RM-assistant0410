@@ -164,7 +164,6 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
             <th class="px-4 py-3 text-center">本期拜訪</th>
             <th class="px-4 py-3 text-center">動能</th>
             <th class="px-4 py-3 text-center">8+E 比率</th>
-            <th class="px-4 py-3 text-center">業務多樣性</th>
             <th class="px-4 py-3 text-center">跟進頻率</th>
             <th class="px-4 py-3 text-center">月度目標</th>
             <th class="px-4 py-3 text-center">最後拜訪</th>
@@ -517,10 +516,6 @@ function renderRadar(radar, lastVisit, target) {
                   : daysSince <= 14 ? `<span class="text-yellow-500 text-xs">${lastD}</span>`
                   :                   `<span class="text-red-400 text-xs">${lastD}</span>`;
 
-    const BIZ_SHORT = { '放款':'放款','金流存款':'金流','TMU':'TMU','跨境轉介':'跨境','網銀自動化':'網銀','貿融':'貿融' };
-    const bizLabel = (r.biz_list && r.biz_list.length)
-      ? r.biz_list.map(b => `<span style="display:inline-block;font-size:9px;font-weight:600;padding:1px 5px;border-radius:4px;background:rgba(0,125,80,0.10);color:#007d50;margin:1px;">${BIZ_SHORT[b]||b}</span>`).join('')
-      : `<span class="text-gray-300">—</span>`;
     const followLabel = (r.high_freq || r.regular)
       ? `<span class="text-red-400 font-semibold">高頻 ${r.high_freq}</span><span class="text-gray-300 mx-1">/</span><span class="text-yellow-500 font-semibold">定期 ${r.regular}</span>`
       : `<span class="text-gray-300">—</span>`;
@@ -539,7 +534,6 @@ function renderRadar(radar, lastVisit, target) {
         <span class="${r.e8_ratio >= 30 ? 'text-green-600' : 'text-gray-500'} font-semibold">${r.e8_ratio}%</span>
         <span class="text-xs text-gray-300 ml-1">(${r.e8_count}次)</span>
       </td>
-      <td class="px-4 py-3 text-center text-[13px] text-gray-600">${bizLabel}</td>
       <td class="px-4 py-3 text-center text-[12px]">${followLabel}</td>
       <td class="px-4 py-3 text-center">
         <span style="font-weight:700;color:${barColor}">${pct}%</span>
@@ -548,7 +542,7 @@ function renderRadar(radar, lastVisit, target) {
     </tr>`;
   }).join('');
 
-  document.getElementById('radar-body').innerHTML = rows || '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400 text-sm">此區間無資料</td></tr>';
+  document.getElementById('radar-body').innerHTML = rows || '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400 text-sm">此區間無資料</td></tr>';
 }
 
 /* ── 沉睡客戶 ── */
@@ -703,6 +697,7 @@ function exportManagementReportHTML() {
 /* ── 明細 ── */
 const TYPE_LABEL = { report:'訪談', meeting:'會議', site:'現場' };
 const TYPE_CLASS = { report:'badge-report', meeting:'badge-meeting', site:'badge-site' };
+const BIZ_SHORT = { '放款':'放款','金流存款':'金流','TMU':'TMU','跨境轉介':'跨境','網銀自動化':'網銀','貿融':'貿融' };
 
 /* 提醒日計算 */
 function calcReminder(visitDate, followUp) {
@@ -769,6 +764,16 @@ function applyFollowFilter(rows, followFilter) {
     .map(({ row }) => row);
 }
 
+function businessBadges(tmplJson) {
+  let tmpl = {};
+  try { tmpl = tmplJson ? JSON.parse(tmplJson) : {}; } catch { tmpl = {}; }
+  const items = Array.isArray(tmpl.targetBusiness) ? tmpl.targetBusiness.filter(Boolean) : [];
+  if (!items.length) return '';
+  return `<span class="inline-flex flex-wrap gap-1 align-middle ml-2">${items.map(b =>
+    `<span style="display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:rgba(0,125,80,0.10);color:#007d50;">${BIZ_SHORT[b] || b}</span>`
+  ).join('')}</span>`;
+}
+
 async function loadRecords() {
   recordsPage = 1;
   recordsOffset = 0;
@@ -818,11 +823,12 @@ async function fetchRecords() {
   rows.forEach(r => { _recordMap[r.id] = r; });
   const html = rows.map(r => {
     const remind = reminderBadge(r.visit_date, r.follow_up);
+    const biz = businessBadges(r.tmpl_json);
     return `
     <div class="flex items-center gap-3 px-5 py-3 cursor-pointer active:bg-gray-50 hover:bg-gray-50 transition-colors" onclick="showDetail('${r.id}')">
       <span class="badge ${TYPE_CLASS[r.type]||'badge-report'} flex-shrink-0">${TYPE_LABEL[r.type]||r.type}</span>
       <div class="flex-1 min-w-0">
-        <p class="text-[14px] font-semibold text-gray-800 truncate">${r.client_name||r.meeting_name||'—'}</p>
+        <p class="text-[14px] font-semibold text-gray-800">${r.client_name||r.meeting_name||'—'}${biz}</p>
         <p class="text-[12px] text-gray-400">${r.user_name} · ${r.visit_date||'-'} · ${r.city||r.branch||'-'}${r.is_8_plus_e ? ' · <span style="color:#007d50;font-weight:600">8+E</span>' : ''}</p>
       </div>
       <div class="flex flex-col items-end gap-1 flex-shrink-0">

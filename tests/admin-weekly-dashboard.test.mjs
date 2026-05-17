@@ -7,6 +7,7 @@ const workerJs = readFileSync(new URL('../worker/index.js', import.meta.url), 'u
 assert.doesNotMatch(adminHtml, /週管理總覽|weekly-overview|weekly-current-count|weekly-target-count|weekly-8e-ratio|weekly-ring-ratio|renderWeeklyOverview/, 'admin dashboard should not duplicate top summary cards with a weekly overview section');
 assert.match(adminHtml, /RM 組動能逐週管理/, 'admin dashboard should include the RM group weekly momentum matrix');
 assert.match(adminHtml, /行銷人員管理雷達/, 'admin radar section should use the clearer marketing staff title');
+assert.doesNotMatch(adminHtml, />業務多樣性<|bizLabel/, 'admin radar should not show business diversity as a staff-level column');
 assert.match(adminHtml, /近 10 工作日拜訪趨勢/, 'admin dashboard should preserve the recent 10 workday trend');
 assert.match(adminHtml, /renderGroupWeeklyMatrix/, 'admin dashboard should render the group weekly matrix');
 assert.match(adminHtml, /GROUP_TARGETS/, 'admin dashboard should define weekly targets by RM group');
@@ -33,6 +34,8 @@ assert.match(adminHtml, /showCustomerTooltip/, 'RM weekly matrix cells should re
 assert.doesNotMatch(adminHtml, /slice\(0, 8\)/, 'RM weekly matrix should show all available weeks, not only the latest 8 weeks');
 assert.match(adminHtml, /record-page-info/, 'records section should show page navigation');
 assert.match(adminHtml, /renderRecordPageButtons/, 'records section should render numeric page buttons');
+assert.match(adminHtml, /businessBadges/, 'records section should show business opportunity tags beside each company');
+assert.match(adminHtml, /targetBusiness/, 'records business tags should come from each record targetBusiness field');
 assert.match(adminHtml, /exclude_meeting=1/, 'records pagination should use the same non-meeting scope as the visible list');
 assert.doesNotMatch(adminHtml, /getCurrentMonthRange|from=\$\{enc\(from\)\}|to=\$\{enc\(to\)\}|本月明細/, 'records section should not be limited to the current month');
 assert.doesNotMatch(adminHtml, /擊中領先指標|leading-hit-badge|chart-weekly|renderWeeklyChart\(statsData\.weeklyTrend\)/, 'leading indicator chart block should be removed from the dashboard');
