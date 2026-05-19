@@ -2060,7 +2060,7 @@
             finalizeSave(false);
         }
 
-        function downloadSiteTextWord(dateStr, datePure) {
+        async function downloadSiteTextWord(dateStr, datePure) {
             const fileName = `${draft.rmGroup||'RM'}-现场访察记录(文字版)-${draft.clientName}-${datePure}.doc`;
             const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
             <head><meta charset="utf-8"><style>body{font-family:SimSun,serif;font-size:11pt;}table{border-collapse:collapse;width:100%;}td{border:0.5pt solid black;padding:6pt;vertical-align:top;}.label{background:#f2f2f2;font-weight:bold;width:22%;}.h{font-family:SimHei;font-weight:bold;color:black;font-size:14pt;}</style></head>
@@ -2072,11 +2072,11 @@
             <p class="h">三、最新接单与营收获利表现</p><div style="padding:10pt;border:0.5pt solid #ddd;">${(draft.businessPerf||'无').replace(/\n/g,'<br>')}</div>
             <p class="h">四、综合评述</p><div style="padding:10pt;border:0.5pt solid #ddd;">${(draft.summary||'无').replace(/\n/g,'<br>')}</div>
             <p style="color:#999;font-size:9pt;margin-top:24pt;">注：现场检查照片请参阅随附之 PDF 文件。</p></body></html>`;
-            triggerDownload(html, fileName);
+            await triggerDownload(html, fileName);
             finalizeSave(false);
         }
 
-        function downloadWordUniversal() {
+        async function downloadWordUniversal() {
             const datePure = (draft.visitDate||'').replace(/-/g,'');
             const dateStr  = (draft.visitDate||'').replace(/-/g,'/');
             const timeStr  = draft.visitHour !== undefined ? `${draft.visitHour.toString().padStart(2,'0')}:00 - ${draft.visitEndHour.toString().padStart(2,'0')}:00` : '';
@@ -2130,16 +2130,49 @@
                 <tr><td colspan="4" style="background:#F2F2F2;text-align:center;font-weight:bold;height:18pt;border-top:1.5pt solid black;">待办与后续规划</td></tr>
                 <tr><td colspan="4" class="ca" style="height:160pt;">${tHtml||'无'}</td></tr></table></body></html>`;
             }
-            triggerDownload(html, fileName);
+            await triggerDownload(html, fileName);
             finalizeSave(true);
         }
 
-        function triggerDownload(html, fileName) {
+        function isAndroidLikeExportHost() {
+            const ua = navigator.userAgent || '';
+            return /Android/i.test(ua) && /(MicroMessenger|WeChat|QQ|MQQBrowser|wv|; wv\))/i.test(ua);
+        }
+
+        function showDownloadFallbackPanel(url, fileName) {
+            let panel = document.getElementById('download-fallback-panel');
+            if (!panel) {
+                panel = document.createElement('div');
+                panel.id = 'download-fallback-panel';
+                panel.style.cssText = 'position:fixed;left:14px;right:14px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:9999;background:white;border-radius:18px;box-shadow:0 10px 36px rgba(0,0,0,.22);padding:16px;color:#111827;font-size:15px;line-height:1.5;';
+                document.body.appendChild(panel);
+            }
+            panel.innerHTML = `
+                <div style="font-weight:700;font-size:16px;margin-bottom:5px;">文件已生成</div>
+                <div style="color:#6b7280;margin-bottom:12px;">如果没有自动打开，请点下面按钮手动下载文件，或选择 WPS Office 打开。</div>
+                <div style="display:flex;gap:8px;">
+                    <a href="${url}" download="${fileName}" style="flex:1;text-align:center;text-decoration:none;background:#007d50;color:white;border-radius:13px;padding:11px 10px;font-weight:700;">手动下载文件</a>
+                    <button type="button" onclick="this.closest('#download-fallback-panel').remove()" style="width:86px;border:0;border-radius:13px;background:#f3f4f6;color:#374151;font-weight:700;">关闭</button>
+                </div>`;
+        }
+
+        async function triggerDownload(html, fileName) {
             const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+            const file = new File([blob], fileName, { type: 'application/msword' });
+            if (isAndroidLikeExportHost() && navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+                try {
+                    await navigator.share({ files: [file], title: fileName });
+                    return;
+                } catch (e) {
+                    if (e && e.name === 'AbortError') return;
+                }
+            }
+
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = fileName;
             link.click();
+            if (isAndroidLikeExportHost()) showDownloadFallbackPanel(link.href, fileName);
         }
 
         function finalizeSave(clearDraft) {
