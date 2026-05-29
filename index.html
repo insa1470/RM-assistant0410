@@ -2209,7 +2209,15 @@
                         is8PlusE:     customerSegments.includes('8+E') ? true : false,
                         companyType:  record.companyType  || null,
                         industryDesc: record.industryDesc || null,
-                        tmpl:         record.tmpl ? {
+                        tmpl:         record.type === 'meeting' ? {
+                                          meetingName:    record.meetingName    || null,
+                                          chairman:       record.chairman       || null,
+                                          recorder:       record.recorder       || null,
+                                          attendeeText:   record.attendeeText   || null,
+                                          dailySections:  Array.isArray(record.dailySections) ? record.dailySections : [],
+                                          discussions:    record.discussions    || {},
+                                          todoQuadrants:  record.todoQuadrants  || {},
+                                      } : (record.tmpl ? {
                                           ...record.tmpl,
                                           contentList:    record.contentList    || [],
                                           todoList:       record.todoList       || [],
@@ -2221,7 +2229,7 @@
                                           businessPerf: record.businessPerf || null,
                                           summary:      record.summary      || null,
                                           photoDate:    record.photoDate    || null,
-                                      } : null),
+                                      } : null)),
                         followUp:     record.followUp     || null,
                         hqLeader:     record.hqLeader     ? true : false,
                     })

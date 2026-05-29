@@ -1067,6 +1067,52 @@ async function exportCSV() {
 /* ── 工具 ── */
 function enc(s) { return encodeURIComponent(s); }
 
+function renderMeetingDetail(tmpl, row, section, block) {
+  let html = section('会议信息',
+    row('主席', tmpl.chairman) +
+    row('记录', tmpl.recorder) +
+    row('出席人员', tmpl.attendeeText)
+  );
+
+  let hasBody = false;
+  const dailySections = Array.isArray(tmpl.dailySections)
+    ? tmpl.dailySections.filter(i => (i && ((i.dept && String(i.dept).trim()) || (i.content && String(i.content).trim()))))
+    : [];
+  if (dailySections.length) {
+    hasBody = true;
+    html += section('会议内容摘要', dailySections.map(i => {
+      const dept = i.dept || '未分类';
+      const content = i.content || '';
+      return block(`${dept}\n${content}`);
+    }).join(''));
+  }
+
+  const discussions = tmpl.discussions && typeof tmpl.discussions === 'object' ? tmpl.discussions : {};
+  const discussionKeys = Object.keys(discussions).filter(k => discussions[k] && String(discussions[k]).trim());
+  if (discussionKeys.length) {
+    hasBody = true;
+    html += section('各部门讨论事项', discussionKeys.map(k => block(`${k}\n${discussions[k]}`)).join(''));
+  }
+
+  const q = tmpl.todoQuadrants && typeof tmpl.todoQuadrants === 'object' ? tmpl.todoQuadrants : {};
+  const todoLines = [
+    ['紧急且重要', q.urgentImportant],
+    ['重要不紧急', q.importantNotUrgent],
+    ['紧急不重要', q.urgentNotImportant],
+    ['不重要不紧急', q.notUrgentNotImportant],
+  ].filter(([, val]) => val && String(val).trim()).map(([label, val]) => `${label}：${val}`);
+  if (todoLines.length) {
+    hasBody = true;
+    html += section('待办四象限', block(todoLines.join('\n')));
+  }
+
+  if (!hasBody && !tmpl.chairman && !tmpl.recorder && !tmpl.attendeeText) {
+    html += section('会议内容', block('此会议尚未保存正文内容'));
+  }
+
+  return html;
+}
+
 /* ── 紀錄詳情 ── */
 function showDetail(id) {
   const r = _recordMap[id];
@@ -1104,6 +1150,13 @@ function showDetail(id) {
     row('总行领导', r.hq_leader ? '是' : '') +
     row('参与人员', [r.customer_staff ? '顾客: '+r.customer_staff : '', r.bank_staff ? '我行: '+r.bank_staff : ''].filter(Boolean).join(' / '))
   );
+
+  if (r.type === 'meeting') {
+    html += renderMeetingDetail(tmpl, row, section, block);
+    document.getElementById('detail-body').innerHTML = html;
+    document.getElementById('detail-modal').classList.remove('hidden');
+    return;
+  }
 
   // 供应链 / 财务
   if (tmpl.group || tmpl.buyer || tmpl.supplier || tmpl.revenue) {
