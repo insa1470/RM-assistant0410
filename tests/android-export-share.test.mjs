@@ -12,3 +12,6 @@ assert.match(indexHtml, /isAndroidLikeExportHost\(\) && navigator\.canShare/, 'n
 assert.match(indexHtml, /download-fallback-panel/, 'download helper should provide an in-page fallback when direct download is blocked');
 assert.match(indexHtml, /手动下载文件/, 'fallback panel should give users a manual download action');
 assert.match(indexHtml, /await triggerDownload\(html, fileName\)/, 'call report export should wait for the export path to complete');
+assert.match(indexHtml, /function persistCurrentDraft/, 'record persistence should be separated from the export completion toast');
+assert.match(indexHtml, /persistCurrentDraft\(true\);[\s\S]*await triggerDownload\(html, fileName\)/, 'call report records should be uploaded before Android share or browser export can block');
+assert.match(indexHtml, /persistCurrentDraft\(false\);[\s\S]*await triggerDownload\(html, fileName\)/, 'site text records should be uploaded before Android share or browser export can block');

@@ -2072,8 +2072,9 @@
             <p class="h">三、最新接单与营收获利表现</p><div style="padding:10pt;border:0.5pt solid #ddd;">${(draft.businessPerf||'无').replace(/\n/g,'<br>')}</div>
             <p class="h">四、综合评述</p><div style="padding:10pt;border:0.5pt solid #ddd;">${(draft.summary||'无').replace(/\n/g,'<br>')}</div>
             <p style="color:#999;font-size:9pt;margin-top:24pt;">注：现场检查照片请参阅随附之 PDF 文件。</p></body></html>`;
+            persistCurrentDraft(false);
             await triggerDownload(html, fileName);
-            finalizeSave(false);
+            showToast('✅ 文件已导出');
         }
 
         async function downloadWordUniversal() {
@@ -2130,8 +2131,9 @@
                 <tr><td colspan="4" style="background:#F2F2F2;text-align:center;font-weight:bold;height:18pt;border-top:1.5pt solid black;">待办与后续规划</td></tr>
                 <tr><td colspan="4" class="ca" style="height:160pt;">${tHtml||'无'}</td></tr></table></body></html>`;
             }
+            persistCurrentDraft(true);
             await triggerDownload(html, fileName);
-            finalizeSave(true);
+            showToast('✅ 文件已导出');
         }
 
         function isAndroidLikeExportHost() {
@@ -2175,14 +2177,18 @@
             if (isAndroidLikeExportHost()) showDownloadFallbackPanel(link.href, fileName);
         }
 
-        function finalizeSave(clearDraft) {
-            showToast('✅ 文件已导出');
+        function persistCurrentDraft(clearDraft) {
             if (!reports.some(r => r.timestamp === draft.timestamp)) { reports.unshift({...draft}); saveHistory(); }
             if (clearDraft) {
                 drafts = drafts.filter(d => d.id !== draft.id);
                 localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
             }
             uploadToWorker(draft);
+        }
+
+        function finalizeSave(clearDraft) {
+            persistCurrentDraft(clearDraft);
+            showToast('✅ 文件已导出');
         }
 
         async function uploadToWorker(record) {
