@@ -1183,7 +1183,7 @@
                         </div>
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">会议类型</span>
-                            <select onchange="updateDraft('meetingName',this.value); switchView('edit-meeting');" class="text-right flex-1 text-[15px]">
+                            <select onchange="changeMeetingType(this.value)" class="text-right flex-1 text-[15px]">
                                 <option value="主管会议" ${mName==='主管会议'?'selected':''}>主管会议</option>
                                 <option value="待办会议" ${mName==='待办会议'?'selected':''}>待办会议</option>
                                 <option value="日常会议" ${mName==='日常会议'?'selected':''}>日常会议</option>
@@ -1238,10 +1238,10 @@
 
                 <!-- Content Section -->
                 ${isDaily ? `
-                <div class="space-y-3">
+                <div id="meeting-daily-section" class="space-y-3">
                     <p class="form-section-label">会议内容（可按部门分组）</p>
                     ${draft.dailySections.map((sec,idx)=>`
-                    <div class="ios-group relative">
+                    <div id="meeting-daily-section-${idx}" class="ios-group relative">
                         ${idx>0?`<button onclick="removeDailySection(${idx})" class="absolute top-3 right-3 z-10 text-[color:var(--ios-red)]"><i data-lucide="x-circle" class="w-5 h-5"></i></button>`:''}
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">部门/组</span>
@@ -1264,7 +1264,7 @@
                     </button>
                 </div>
                 ` : isTodo ? `
-                <div class="space-y-2">
+                <div id="meeting-todo-section" class="space-y-2">
                     <p class="form-section-label">待办四象限分析</p>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="quad-card" style="background:rgba(255,59,48,0.06)">
@@ -1290,7 +1290,7 @@
                     </div>
                 </div>
                 ` : `
-                <div class="space-y-3">
+                <div id="meeting-discussion-section" class="space-y-3">
                     <p class="form-section-label">各部门讨论事项</p>
                     <div class="flex flex-wrap gap-2 px-1">
                         ${DEPARTMENTS_LIST.map((d,i)=>`
@@ -2022,7 +2022,23 @@
         function addListItem(list)    { draft[list].push(''); switchView(`edit-${draft.type}`); }
         function removeListItem(list, idx) { draft[list].splice(idx,1); if(!draft[list].length) draft[list]=['']; switchView(`edit-${draft.type}`); }
 
-        function addDailySection()     { if(!draft.dailySections) draft.dailySections=[]; draft.dailySections.push({dept:'',content:''}); switchView('edit-meeting'); }
+        function changeMeetingType(value) {
+            updateDraft('meetingName', value);
+            switchView('edit-meeting');
+            const anchor = value.includes('待办') ? 'meeting-todo-section'
+                : value.includes('日常') ? 'meeting-daily-section'
+                : 'meeting-discussion-section';
+            scrollMeetingAnchorIntoView(anchor, 'start');
+        }
+
+        function addDailySection() {
+            if(!draft.dailySections) draft.dailySections=[];
+            draft.dailySections.push({dept:'',content:''});
+            const idx = draft.dailySections.length - 1;
+            saveDraft();
+            switchView('edit-meeting');
+            scrollMeetingDailySectionIntoView(idx);
+        }
         function removeDailySection(i) { draft.dailySections.splice(i,1); if(!draft.dailySections.length) draft.dailySections=[{dept:'',content:''}]; switchView('edit-meeting'); }
         function updateDailySection(i, k, v) { draft.dailySections[i][k] = v; saveDraft(); }
 
@@ -2036,10 +2052,18 @@
         function updateQuadrant(key, val)  { draft.todoQuadrants[key] = val; saveDraft(); }
 
         function scrollMeetingDeptIntoView(dept) {
+            scrollMeetingAnchorIntoView(`meeting-dept-${dept}`, 'center');
+        }
+
+        function scrollMeetingDailySectionIntoView(idx) {
+            scrollMeetingAnchorIntoView(`meeting-daily-section-${idx}`, 'center');
+        }
+
+        function scrollMeetingAnchorIntoView(anchorId, block='center') {
             setTimeout(() => {
-                const target = document.getElementById(`meeting-dept-${dept}`);
+                const target = document.getElementById(anchorId);
                 if (!target) return;
-                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.scrollIntoView({ behavior: 'smooth', block });
             }, 80);
         }
 
