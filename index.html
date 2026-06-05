@@ -1222,11 +1222,11 @@
                 </div>
 
                 <!-- Attendees -->
-                <div class="space-y-2">
+                <div id="meeting-attendee-section" class="space-y-2">
                     <p class="form-section-label">出席人员</p>
                     <div class="ios-group">
                         <div class="ios-row items-start py-3">
-                            <textarea oninput="updateDraft('attendeeText',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[70px] leading-relaxed" placeholder="请输入出席者姓名...">${draft.attendeeText||''}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-attendee-section')" onblur="restoreMeetingEditAnchor()" oninput="updateDraft('attendeeText',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[70px] leading-relaxed" placeholder="请输入出席者姓名...">${draft.attendeeText||''}</textarea>
                         </div>
                         <div class="px-4 pb-3 meeting-expand-row">
                             <button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('attendeeText',null,'出席人员')">
@@ -1248,7 +1248,7 @@
                             <input type="text" value="${sec.dept||''}" oninput="updateDailySection(${idx},'dept',this.value)" placeholder="例：深圳二组">
                         </div>
                         <div class="ios-row items-start py-3">
-                            <textarea oninput="updateDailySection(${idx},'content',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[100px] leading-relaxed" placeholder="讨论内容与决议...">${sec.content||''}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-daily-section-${idx}')" onblur="restoreMeetingEditAnchor()" oninput="updateDailySection(${idx},'content',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[100px] leading-relaxed" placeholder="讨论内容与决议...">${sec.content||''}</textarea>
                         </div>
                         <div class="px-4 pb-3 meeting-expand-row">
                             <button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('dailySection',${idx},'会议内容')">
@@ -1269,22 +1269,22 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div class="quad-card" style="background:rgba(255,59,48,0.06)">
                             <p class="quad-label text-red-600">紧急且重要</p>
-                            <textarea oninput="updateQuadrant('urgentImportant',this.value)" placeholder="立即处理...">${draft.todoQuadrants.urgentImportant}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" oninput="updateQuadrant('urgentImportant',this.value)" placeholder="立即处理...">${draft.todoQuadrants.urgentImportant}</textarea>
                             <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','urgentImportant','紧急且重要')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                         <div class="quad-card" style="background:rgba(255,149,0,0.06)">
                             <p class="quad-label text-orange-600">重要不紧急</p>
-                            <textarea oninput="updateQuadrant('importantNotUrgent',this.value)" placeholder="计划安排...">${draft.todoQuadrants.importantNotUrgent}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" oninput="updateQuadrant('importantNotUrgent',this.value)" placeholder="计划安排...">${draft.todoQuadrants.importantNotUrgent}</textarea>
                             <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','importantNotUrgent','重要不紧急')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                         <div class="quad-card" style="background:rgba(0,122,255,0.06)">
                             <p class="quad-label text-blue-600">紧急不重要</p>
-                            <textarea oninput="updateQuadrant('urgentNotImportant',this.value)" placeholder="委托处理...">${draft.todoQuadrants.urgentNotImportant}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" oninput="updateQuadrant('urgentNotImportant',this.value)" placeholder="委托处理...">${draft.todoQuadrants.urgentNotImportant}</textarea>
                             <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','urgentNotImportant','紧急不重要')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                         <div class="quad-card" style="background:rgba(142,142,147,0.06)">
                             <p class="quad-label text-gray-500">不重要不紧急</p>
-                            <textarea oninput="updateQuadrant('notUrgentNotImportant',this.value)" placeholder="低优先...">${draft.todoQuadrants.notUrgentNotImportant}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" oninput="updateQuadrant('notUrgentNotImportant',this.value)" placeholder="低优先...">${draft.todoQuadrants.notUrgentNotImportant}</textarea>
                             <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','notUrgentNotImportant','不重要不紧急')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                     </div>
@@ -1308,7 +1308,7 @@
                                 <button onclick="toggleDeptDiscussion('${dept}',false)" class="text-[color:var(--ios-gray2)]"><i data-lucide="x" class="w-4 h-4"></i></button>
                             </div>
                             <div class="ios-row items-start py-3">
-                                <textarea oninput="updateDeptContent('${dept}',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[90px] leading-relaxed" placeholder="部门报告或讨论内容...">${draft.discussions[dept]}</textarea>
+                                <textarea onfocus="rememberMeetingEditAnchor('meeting-dept-${dept}')" onblur="restoreMeetingEditAnchor()" oninput="updateDeptContent('${dept}',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[90px] leading-relaxed" placeholder="部门报告或讨论内容...">${draft.discussions[dept]}</textarea>
                             </div>
                             <div class="px-4 pb-3 meeting-expand-row">
                                 <button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('discussion','${dept}','${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(dept)]} 部门')">
@@ -2067,6 +2067,16 @@
             }, 80);
         }
 
+        let meetingActiveAnchorId = null;
+        function rememberMeetingEditAnchor(anchorId) {
+            meetingActiveAnchorId = anchorId;
+        }
+
+        function restoreMeetingEditAnchor() {
+            if (!meetingActiveAnchorId) return;
+            scrollMeetingAnchorIntoView(meetingActiveAnchorId, 'center');
+        }
+
         let meetingEditorTarget = null;
         function getMeetingTextEditorValue(kind, key) {
             if (!draft) return '';
@@ -2076,8 +2086,15 @@
             if (kind === 'quadrant') return draft.todoQuadrants?.[key] || '';
             return '';
         }
+        function getMeetingTextEditorAnchor(kind, key) {
+            if (kind === 'attendeeText') return 'meeting-attendee-section';
+            if (kind === 'dailySection') return `meeting-daily-section-${key}`;
+            if (kind === 'discussion') return `meeting-dept-${key}`;
+            if (kind === 'quadrant') return 'meeting-todo-section';
+            return null;
+        }
         function openMeetingTextEditor(kind, key, title) {
-            meetingEditorTarget = { kind, key };
+            meetingEditorTarget = { kind, key, returnAnchorId: getMeetingTextEditorAnchor(kind, key) };
             document.getElementById('meeting-editor-title').textContent = title || '会议内容';
             const textarea = document.getElementById('meeting-editor-textarea');
             textarea.value = getMeetingTextEditorValue(kind, key);
@@ -2095,9 +2112,13 @@
             saveDraft();
         }
         function closeMeetingTextEditor() {
+            const returnAnchorId = meetingEditorTarget?.returnAnchorId || meetingActiveAnchorId;
             document.getElementById('meeting-editor-modal').classList.add('hidden');
             meetingEditorTarget = null;
-            if (draft?.type === 'meeting') switchView('edit-meeting');
+            if (draft?.type === 'meeting') {
+                switchView('edit-meeting');
+                if (returnAnchorId) scrollMeetingAnchorIntoView(returnAnchorId, 'center');
+            }
         }
 
         function goPreview() {

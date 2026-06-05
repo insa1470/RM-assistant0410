@@ -16,6 +16,9 @@ assert.match(indexHtml, /changeMeetingType/, 'meeting type changes should keep t
 assert.match(indexHtml, /scrollMeetingAnchorIntoView/, 'meeting buttons should keep the user near the newly opened editor block');
 assert.match(indexHtml, /scrollMeetingDeptIntoView/, 'selecting any department should keep the user near the new editor block');
 assert.match(indexHtml, /scrollMeetingDailySectionIntoView/, 'adding a daily meeting section should keep the user near the new section');
+assert.match(indexHtml, /rememberMeetingEditAnchor/, 'editing a meeting text area should remember its current block');
+assert.match(indexHtml, /restoreMeetingEditAnchor/, 'finishing inline meeting edits should keep the user near the current block');
+assert.match(indexHtml, /returnAnchorId/, 'closing the expanded meeting editor should return to the original block');
 assert.match(indexHtml, /updateDailySection\([\s\S]*saveDraft/, 'daily meeting sections should keep existing draft-saving behavior');
 assert.match(indexHtml, /updateDeptContent\([\s\S]*saveDraft/, 'department discussion updates should keep existing draft-saving behavior');
 assert.match(indexHtml, /updateQuadrant\([\s\S]*saveDraft/, 'todo quadrant updates should keep existing draft-saving behavior');
