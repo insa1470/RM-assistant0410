@@ -1302,7 +1302,7 @@
                     ${Object.keys(draft.discussions).length > 0 ? `
                     <div class="space-y-3 mt-1">
                         ${Object.keys(draft.discussions).sort((a,b)=>DEPARTMENTS_LIST.indexOf(a)-DEPARTMENTS_LIST.indexOf(b)).map(dept=>`
-                        <div class="ios-group relative">
+                        <div id="meeting-dept-${dept}" class="ios-group relative">
                             <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color:var(--separator)">
                                 <span class="text-[15px] font-semibold text-[color:var(--brand)]">${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(dept)]} 部门</span>
                                 <button onclick="toggleDeptDiscussion('${dept}',false)" class="text-[color:var(--ios-gray2)]"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -2030,9 +2030,18 @@
             if (checked) { if (draft.discussions[dept]===undefined) draft.discussions[dept]=''; }
             else { delete draft.discussions[dept]; }
             saveDraft(); switchView('edit-meeting');
+            if (checked) scrollMeetingDeptIntoView(dept);
         }
         function updateDeptContent(dept, val) { draft.discussions[dept] = val; saveDraft(); }
         function updateQuadrant(key, val)  { draft.todoQuadrants[key] = val; saveDraft(); }
+
+        function scrollMeetingDeptIntoView(dept) {
+            setTimeout(() => {
+                const target = document.getElementById(`meeting-dept-${dept}`);
+                if (!target) return;
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 80);
+        }
 
         let meetingEditorTarget = null;
         function getMeetingTextEditorValue(kind, key) {

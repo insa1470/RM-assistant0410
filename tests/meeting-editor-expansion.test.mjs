@@ -9,6 +9,8 @@ assert.match(indexHtml, /applyMeetingTextEditorValue/, 'expanded meeting editor 
 assert.match(indexHtml, /closeMeetingTextEditor/, 'expanded meeting editor should close without changing the meeting flow');
 assert.match(indexHtml, /展开编辑/, 'meeting fields should expose a compact expand action');
 assert.match(indexHtml, /会议预览/, 'meeting edit screen should offer a preview entry before export');
+assert.match(indexHtml, /meeting-dept-/, 'selected department blocks should have stable anchors');
+assert.match(indexHtml, /scrollMeetingDeptIntoView/, 'selecting a department should keep the user near the new editor block');
 assert.match(indexHtml, /updateDailySection\([\s\S]*saveDraft/, 'daily meeting sections should keep existing draft-saving behavior');
 assert.match(indexHtml, /updateDeptContent\([\s\S]*saveDraft/, 'department discussion updates should keep existing draft-saving behavior');
 assert.match(indexHtml, /updateQuadrant\([\s\S]*saveDraft/, 'todo quadrant updates should keep existing draft-saving behavior');
