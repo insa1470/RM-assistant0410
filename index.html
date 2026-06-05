@@ -458,6 +458,36 @@
             font-family: inherit;
         }
         .quad-label { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+        .meeting-expand-row {
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 6px;
+        }
+        .meeting-expand-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border: none;
+            background: var(--fill2);
+            color: var(--ios-blue);
+            border-radius: 999px;
+            padding: 5px 9px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .meeting-editor-textarea {
+            width: 100%;
+            flex: 1;
+            min-height: 0;
+            border: none;
+            outline: none;
+            resize: none;
+            background: transparent;
+            font-size: 17px !important;
+            line-height: 1.65;
+            color: var(--label);
+            font-family: inherit;
+        }
 
         /* ─── History Row ─── */
         .history-row {
@@ -691,6 +721,22 @@
             <div class="flex">
                 <button onclick="hideModal()" class="ios-alert-btn cancel flex-1" style="border-right:0.5px solid var(--separator-opaque)">取消</button>
                 <button id="modal-confirm-btn" class="ios-alert-btn destructive flex-1">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Meeting Focus Editor -->
+    <div id="meeting-editor-modal" class="fixed inset-0 bg-[color:var(--bg-grouped)] hidden z-[230] max-w-md mx-auto flex flex-col">
+        <div class="ios-navbar px-4 pt-[calc(12px+env(safe-area-inset-top))] pb-3 text-white flex items-center justify-between">
+            <button onclick="closeMeetingTextEditor()" class="flex items-center gap-1 text-[15px] font-semibold">
+                <i data-lucide="chevron-left" class="w-5 h-5"></i><span>返回</span>
+            </button>
+            <h3 id="meeting-editor-title" class="text-[17px] font-semibold truncate px-3">会议内容</h3>
+            <button onclick="closeMeetingTextEditor()" class="text-[15px] font-semibold">完成</button>
+        </div>
+        <div class="flex-1 p-4 pb-[calc(18px+env(safe-area-inset-bottom))] min-h-0">
+            <div class="ios-group h-full p-4 flex flex-col">
+                <textarea id="meeting-editor-textarea" class="meeting-editor-textarea" placeholder="请输入会议内容..." oninput="applyMeetingTextEditorValue(this.value)"></textarea>
             </div>
         </div>
     </div>
@@ -1122,6 +1168,9 @@
                         <i data-lucide="chevron-left" class="w-5 h-5"></i><span>返回</span>
                     </button>
                     <h2 class="text-[17px] font-semibold text-gray-900 ml-1">会议记录</h2>
+                    <button onclick="goPreview()" class="ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[13px] font-semibold">
+                        <i data-lucide="eye" class="w-4 h-4"></i><span>会议预览</span>
+                    </button>
                 </div>
 
                 <!-- Basic Info -->
@@ -1179,6 +1228,11 @@
                         <div class="ios-row items-start py-3">
                             <textarea oninput="updateDraft('attendeeText',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[70px] leading-relaxed" placeholder="请输入出席者姓名...">${draft.attendeeText||''}</textarea>
                         </div>
+                        <div class="px-4 pb-3 meeting-expand-row">
+                            <button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('attendeeText',null,'出席人员')">
+                                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1196,6 +1250,11 @@
                         <div class="ios-row items-start py-3">
                             <textarea oninput="updateDailySection(${idx},'content',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[100px] leading-relaxed" placeholder="讨论内容与决议...">${sec.content||''}</textarea>
                         </div>
+                        <div class="px-4 pb-3 meeting-expand-row">
+                            <button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('dailySection',${idx},'会议内容')">
+                                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span>
+                            </button>
+                        </div>
                     </div>`).join('')}
                     <button onclick="addDailySection()" class="ios-group w-full">
                         <div class="add-item-btn justify-center">
@@ -1211,18 +1270,22 @@
                         <div class="quad-card" style="background:rgba(255,59,48,0.06)">
                             <p class="quad-label text-red-600">紧急且重要</p>
                             <textarea oninput="updateQuadrant('urgentImportant',this.value)" placeholder="立即处理...">${draft.todoQuadrants.urgentImportant}</textarea>
+                            <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','urgentImportant','紧急且重要')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                         <div class="quad-card" style="background:rgba(255,149,0,0.06)">
                             <p class="quad-label text-orange-600">重要不紧急</p>
                             <textarea oninput="updateQuadrant('importantNotUrgent',this.value)" placeholder="计划安排...">${draft.todoQuadrants.importantNotUrgent}</textarea>
+                            <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','importantNotUrgent','重要不紧急')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                         <div class="quad-card" style="background:rgba(0,122,255,0.06)">
                             <p class="quad-label text-blue-600">紧急不重要</p>
                             <textarea oninput="updateQuadrant('urgentNotImportant',this.value)" placeholder="委托处理...">${draft.todoQuadrants.urgentNotImportant}</textarea>
+                            <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','urgentNotImportant','紧急不重要')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                         <div class="quad-card" style="background:rgba(142,142,147,0.06)">
                             <p class="quad-label text-gray-500">不重要不紧急</p>
                             <textarea oninput="updateQuadrant('notUrgentNotImportant',this.value)" placeholder="低优先...">${draft.todoQuadrants.notUrgentNotImportant}</textarea>
+                            <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','notUrgentNotImportant','不重要不紧急')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                     </div>
                 </div>
@@ -1246,6 +1309,11 @@
                             </div>
                             <div class="ios-row items-start py-3">
                                 <textarea oninput="updateDeptContent('${dept}',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[90px] leading-relaxed" placeholder="部门报告或讨论内容...">${draft.discussions[dept]}</textarea>
+                            </div>
+                            <div class="px-4 pb-3 meeting-expand-row">
+                                <button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('discussion','${dept}','${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(dept)]} 部门')">
+                                    <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span>
+                                </button>
                             </div>
                         </div>`).join('')}
                     </div>` : `
@@ -1965,6 +2033,39 @@
         }
         function updateDeptContent(dept, val) { draft.discussions[dept] = val; saveDraft(); }
         function updateQuadrant(key, val)  { draft.todoQuadrants[key] = val; saveDraft(); }
+
+        let meetingEditorTarget = null;
+        function getMeetingTextEditorValue(kind, key) {
+            if (!draft) return '';
+            if (kind === 'attendeeText') return draft.attendeeText || '';
+            if (kind === 'dailySection') return draft.dailySections?.[key]?.content || '';
+            if (kind === 'discussion') return draft.discussions?.[key] || '';
+            if (kind === 'quadrant') return draft.todoQuadrants?.[key] || '';
+            return '';
+        }
+        function openMeetingTextEditor(kind, key, title) {
+            meetingEditorTarget = { kind, key };
+            document.getElementById('meeting-editor-title').textContent = title || '会议内容';
+            const textarea = document.getElementById('meeting-editor-textarea');
+            textarea.value = getMeetingTextEditorValue(kind, key);
+            document.getElementById('meeting-editor-modal').classList.remove('hidden');
+            setTimeout(() => textarea.focus(), 50);
+            lucide.createIcons();
+        }
+        function applyMeetingTextEditorValue(value) {
+            if (!meetingEditorTarget || !draft) return;
+            const { kind, key } = meetingEditorTarget;
+            if (kind === 'attendeeText') draft.attendeeText = value;
+            else if (kind === 'dailySection' && draft.dailySections?.[key]) draft.dailySections[key].content = value;
+            else if (kind === 'discussion' && draft.discussions) draft.discussions[key] = value;
+            else if (kind === 'quadrant' && draft.todoQuadrants) draft.todoQuadrants[key] = value;
+            saveDraft();
+        }
+        function closeMeetingTextEditor() {
+            document.getElementById('meeting-editor-modal').classList.add('hidden');
+            meetingEditorTarget = null;
+            if (draft?.type === 'meeting') switchView('edit-meeting');
+        }
 
         function goPreview() {
             const title = draft.type==='meeting' ? draft.meetingName : draft.clientName;
