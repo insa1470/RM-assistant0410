@@ -190,8 +190,14 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
         <p class="text-xs text-gray-400 mt-0.5" id="records-subtitle">當月明細優先顯示；歷史明細在下方分頁</p>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <select id="follow-filter" onchange="loadRecords()" class="text-sm px-3 py-1.5 rounded-xl border border-gray-200 bg-white outline-none">
-          <option value="all">全部紀錄</option>
+        <select id="record-type-filter" onchange="onRecordTypeChange()" class="text-sm px-3 py-1.5 rounded-xl border border-gray-200 bg-white outline-none">
+          <option value="">全部類型</option>
+          <option value="report">訪談紀錄</option>
+          <option value="site">現場紀錄</option>
+          <option value="meeting">會議紀錄</option>
+        </select>
+        <select id="follow-filter" onchange="onFollowFilterChange()" class="text-sm px-3 py-1.5 rounded-xl border border-gray-200 bg-white outline-none">
+          <option value="all">全部跟進狀態</option>
           <option value="pending">待跟進</option>
           <option value="expired">過期</option>
           <option value="high">高頻追蹤</option>
@@ -666,7 +672,7 @@ async function exportManagementReportHTML() {
     const found = (statsData.dailyTrend || []).find(r => r.visit_date === d);
     return { date:d, count:found?.count || 0 };
   });
-  const recordsData = await fetchRecordBatch({ limit: 1000 });
+  const recordsData = await fetchRecordBatch({ limit: 1000, excludeMeeting: true });
   const reportRecords = (recordsData.records || []).map(r => {
     let tmpl = {};
     try { tmpl = r.tmpl_json ? JSON.parse(r.tmpl_json) : {}; } catch { tmpl = {}; }
@@ -999,17 +1005,34 @@ function recordRowsHtml(rows) {
   }).join('');
 }
 
-async function fetchRecordBatch({ limit, offset = 0, from = '', to = '', user = '' }) {
-  let url = `${WORKER_URL}/api/records?password=${enc(PASSWORD)}&limit=${limit}&offset=${offset}&exclude_meeting=1`;
+async function fetchRecordBatch({ limit, offset = 0, from = '', to = '', user = '', type = '', excludeMeeting = false }) {
+  let url = `${WORKER_URL}/api/records?password=${enc(PASSWORD)}&limit=${limit}&offset=${offset}`;
   if (from) url += `&from=${enc(from)}`;
   if (to) url += `&to=${enc(to)}`;
   if (user) url += `&user=${enc(user)}`;
+  if (type) url += `&type=${enc(type)}`;
+  if (excludeMeeting) url += '&exclude_meeting=1';
   const res = await fetch(url);
   return await res.json();
 }
 
+function onRecordTypeChange() {
+  const recordType = document.getElementById('record-type-filter').value;
+  const followFilter = document.getElementById('follow-filter');
+  if (recordType && recordType !== 'report') followFilter.value = 'all';
+  followFilter.disabled = recordType === 'meeting' || recordType === 'site';
+  loadRecords();
+}
+
+function onFollowFilterChange() {
+  const followFilter = document.getElementById('follow-filter').value;
+  if (followFilter !== 'all') document.getElementById('record-type-filter').value = 'report';
+  loadRecords();
+}
+
 async function fetchRecords() {
   const user = document.getElementById('user-filter').value;
+  const recordType = document.getElementById('record-type-filter')?.value || '';
   const followFilter = document.getElementById('follow-filter')?.value || 'all';
   recordsSeenKeys.clear();
   const currentBody = document.getElementById('current-records-body');
@@ -1017,13 +1040,15 @@ async function fetchRecords() {
   const historySection = document.getElementById('history-records-section');
   currentBody.innerHTML = '';
   historyBody.innerHTML = '';
-  document.getElementById('records-subtitle').textContent =
-    followFilter === 'all' ? '當月明細優先顯示；歷史明細在下方分頁' : '待跟進會依提醒日排序；新增同客戶的新紀錄後，舊提醒自然消失';
+  const typeLabel = { report:'訪談紀錄', site:'現場紀錄', meeting:'會議紀錄' }[recordType] || '全部紀錄';
+  document.getElementById('records-subtitle').textContent = followFilter === 'all'
+    ? `${typeLabel}：當月明細優先顯示；歷史明細在下方分頁`
+    : '待跟進會依提醒日排序；新增同客戶的新紀錄後，舊提醒自然消失';
 
   if (followFilter !== 'all') {
     historySection.classList.add('hidden');
-    const data = await fetchRecordBatch({ limit: 500, user });
-    const sourceRows = (data.records || []).filter(r => r.type !== 'meeting');
+    const data = await fetchRecordBatch({ limit: 500, user, type: 'report' });
+    const sourceRows = data.records || [];
     const rows = applyFollowFilter(sourceRows, followFilter);
     rows.forEach(r => { _recordMap[r.id] = r; });
     currentBody.innerHTML = recordRowsHtml(rows) || '<div class="px-5 py-8 text-center text-gray-400 text-sm">目前沒有符合條件的跟進紀錄</div>';
@@ -1034,13 +1059,13 @@ async function fetchRecords() {
 
   historySection.classList.remove('hidden');
   const { from, to, label } = getCurrentMonthRange();
-  const currentData = await fetchRecordBatch({ limit: 500, from, to, user });
-  const currentRows = (currentData.records || []).filter(r => r.type !== 'meeting');
+  const currentData = await fetchRecordBatch({ limit: 500, from, to, user, type: recordType });
+  const currentRows = currentData.records || [];
   currentRows.forEach(r => { _recordMap[r.id] = r; });
   currentBody.innerHTML = recordRowsHtml(currentRows) || `<div class="px-5 py-8 text-center text-gray-400 text-sm">${label}暫無明細</div>`;
 
-  const historyData = await fetchRecordBatch({ limit: RECORDS_LIMIT, offset: recordsOffset, to: from, user });
-  const sourceRows = (historyData.records || []).filter(r => r.type !== 'meeting');
+  const historyData = await fetchRecordBatch({ limit: RECORDS_LIMIT, offset: recordsOffset, to: from, user, type: recordType });
+  const sourceRows = historyData.records || [];
   recordsTotalPages = Math.max(1, Math.ceil((historyData.total || sourceRows.length || 0) / RECORDS_LIMIT));
   const allRows = sourceRows;
   // 去重：同用戶 + 同客戶/會議 + 同日期 + 同類型，只保留第一筆（API 已按 created_at DESC，即最新）

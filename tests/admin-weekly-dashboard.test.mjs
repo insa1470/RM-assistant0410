@@ -18,6 +18,11 @@ assert.doesNotMatch(adminHtml, /資料品質提醒|組代號未填|組代號異�
 assert.doesNotMatch(adminHtml, /行銷目標設定|活動類型|chart-type|renderTypeChart/, 'admin dashboard should remove target settings and activity type sections');
 assert.doesNotMatch(adminHtml, /跟進提醒清單|followup-high|followup-regular|loadFollowUpList|逾期/, 'follow-up reminders should be merged into records and use 過期 wording');
 assert.match(adminHtml, /follow-filter/, 'records section should include follow-up filters');
+assert.match(adminHtml, /record-type-filter/, 'records section should include a record type filter');
+assert.match(adminHtml, /<option value="meeting">會議紀錄<\/option>/, 'record type filter should offer meeting records');
+assert.match(adminHtml, /type:\s*recordType/, 'record list requests should pass the selected record type');
+assert.match(adminHtml, /excludeMeeting = false/, 'record list should include meetings unless a caller explicitly excludes them');
+assert.match(adminHtml, /fetchRecordBatch\(\{ limit: 1000, excludeMeeting: true \}\)/, 'management report export should continue excluding meetings');
 assert.match(adminHtml, /待跟進/, 'records section should include a pending follow-up filter');
 assert.match(adminHtml, /過期/, 'records reminders should use 過期 wording');
 assert.match(adminHtml, /latestReportByClient/, 'follow-up reminders should be based on each client latest report');
@@ -53,8 +58,7 @@ assert.match(adminHtml, /環金型陸企|环金型陆企/, 'ring customer segmen
 assert.match(adminHtml, /function segmentLabel\(name,\s*companyType\)/, 'ring segment labels should consider company type');
 assert.match(adminHtml, /isMainlandCompanyType\(companyType\)[\s\S]*環金型陸企/, 'only mainland companies with the ring segment should display as ring mainland enterprises');
 assert.match(adminHtml, /segmentLabel\(s,\s*tmpl\.companyType\)/, 'record badges should pass company type into ring segment labeling');
-assert.match(adminHtml, /exclude_meeting=1/, 'records pagination should use the same non-meeting scope as the visible list');
-assert.match(adminHtml, /fetchRecordBatch\(\{ limit: RECORDS_LIMIT, offset: recordsOffset, to: from, user \}\)/, 'history pagination should start before the current month');
+assert.match(adminHtml, /fetchRecordBatch\(\{ limit: RECORDS_LIMIT, offset: recordsOffset, to: from, user, type: recordType \}\)/, 'history pagination should preserve the selected record type');
 assert.doesNotMatch(adminHtml, /擊中領先指標|leading-hit-badge|chart-weekly|renderWeeklyChart\(statsData\.weeklyTrend\)/, 'leading indicator chart block should be removed from the dashboard');
 assert.match(adminHtml, /<html lang="zh-CN">/, 'exported management report should use Simplified Chinese locale');
 assert.match(adminHtml, /交互式管理报表/, 'exported management report should use Simplified Chinese wording');
@@ -73,6 +77,8 @@ assert.doesNotMatch(workerJs, /groupWeeklyMatrix[\s\S]{0,700}visit_date >= '\$\{
 assert.match(workerJs, /fromDate|toDate/, 'records API should support date-range filtering for current-month records');
 assert.match(workerJs, /total/, 'records API should return total count for numeric pagination');
 assert.match(workerJs, /excludeMeeting/, 'records API should support excluding meetings from paginated totals');
+assert.match(workerJs, /recordType/, 'records API should support filtering by record type');
+assert.match(workerJs, /where\.push\('type = \?'\)/, 'records API should apply record type filtering to rows and totals');
 assert.doesNotMatch(workerJs, /dataQuality|unmanaged_rm_group|missing_rm_group|invalid_rm_group|excluded_meetings/, 'stats API should not return data quality reminder fields');
 assert.match(workerJs, /json_extract\(.*customerSegments/, 'stats API should read customer segments from tmpl_json');
 assert.match(workerJs, /json_extract\([^)]*tmpl_json[^)]*companyType[^)]*\)[\s\S]*IN \('陸資','陆资'\)/, 'ring statistics should require a mainland company type');
