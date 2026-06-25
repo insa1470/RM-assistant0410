@@ -285,7 +285,12 @@ async function handleStats(request, env) {
            COUNT(DISTINCT client_name) as clients,
            SUM(is_8_plus_e) as total_8e,
            SUM(hq_leader) as total_hq,
-           SUM(CASE WHEN instr(COALESCE(tmpl_json,''), '环金') > 0 OR instr(COALESCE(tmpl_json,''), '環金') > 0 THEN 1 ELSE 0 END) as total_ring
+           SUM(CASE WHEN json_extract(tmpl_json, '$.companyType') IN ('陸資','陆资')
+             AND EXISTS (
+               SELECT 1 FROM json_each(json_extract(records.tmpl_json, '$.customerSegments'))
+               WHERE value IN ('环金','環金','环金陆企','環金陸企')
+             )
+             THEN 1 ELSE 0 END) as total_ring
     FROM records WHERE type IN ('report','site') AND ${managedGroupWhere} AND ${dateWhere()}
   `).first();
 
@@ -391,9 +396,10 @@ async function handleStats(request, env) {
            COUNT(*) as count,
            SUM(is_8_plus_e) as e8_count,
            GROUP_CONCAT(DISTINCT COALESCE(NULLIF(client_name,''), NULLIF(meeting_name,''))) as customer_names,
-           SUM(CASE WHEN EXISTS (
+           SUM(CASE WHEN json_extract(records.tmpl_json, '$.companyType') IN ('陸資','陆资')
+             AND EXISTS (
              SELECT 1 FROM json_each(json_extract(records.tmpl_json, '$.customerSegments'))
-             WHERE value IN ('环金','环金陆企','環金陸企')
+             WHERE value IN ('环金','環金','环金陆企','環金陸企')
            ) THEN 1 ELSE 0 END) as ring_count
     FROM records
     WHERE type IN ('report','site') AND visit_date >= '0000-01-01'

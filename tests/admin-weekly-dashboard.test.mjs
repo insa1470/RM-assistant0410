@@ -50,6 +50,9 @@ assert.match(adminHtml, /segmentBadges/, 'records section should show customer s
 assert.match(adminHtml, /SEGMENT_COLORS/, 'customer segment tags should use a segment color map');
 assert.match(adminHtml, /环金[\s\S]*#db2777/, 'ring customer segment should use vivid pink styling');
 assert.match(adminHtml, /環金型陸企|环金型陆企/, 'ring customer segment should display as a ring mainland-enterprise label');
+assert.match(adminHtml, /function segmentLabel\(name,\s*companyType\)/, 'ring segment labels should consider company type');
+assert.match(adminHtml, /isMainlandCompanyType\(companyType\)[\s\S]*環金型陸企/, 'only mainland companies with the ring segment should display as ring mainland enterprises');
+assert.match(adminHtml, /segmentLabel\(s,\s*tmpl\.companyType\)/, 'record badges should pass company type into ring segment labeling');
 assert.match(adminHtml, /exclude_meeting=1/, 'records pagination should use the same non-meeting scope as the visible list');
 assert.match(adminHtml, /fetchRecordBatch\(\{ limit: RECORDS_LIMIT, offset: recordsOffset, to: from, user \}\)/, 'history pagination should start before the current month');
 assert.doesNotMatch(adminHtml, /擊中領先指標|leading-hit-badge|chart-weekly|renderWeeklyChart\(statsData\.weeklyTrend\)/, 'leading indicator chart block should be removed from the dashboard');
@@ -72,6 +75,7 @@ assert.match(workerJs, /total/, 'records API should return total count for numer
 assert.match(workerJs, /excludeMeeting/, 'records API should support excluding meetings from paginated totals');
 assert.doesNotMatch(workerJs, /dataQuality|unmanaged_rm_group|missing_rm_group|invalid_rm_group|excluded_meetings/, 'stats API should not return data quality reminder fields');
 assert.match(workerJs, /json_extract\(.*customerSegments/, 'stats API should read customer segments from tmpl_json');
+assert.match(workerJs, /json_extract\([^)]*tmpl_json[^)]*companyType[^)]*\)[\s\S]*IN \('陸資','陆资'\)/, 'ring statistics should require a mainland company type');
 assert.match(workerJs, /type IN \('report','site'\)/, 'marketing stats should include reports and site visits while excluding meetings');
 assert.match(workerJs, /ALLOWED_RM_GROUPS/, 'stats API should define the 8 managed RM groups');
 assert.match(workerJs, /rm_group IN \(\$\{allowedGroupSql\}\)/, 'stats API should count only the managed RM groups');

@@ -679,6 +679,7 @@ async function exportManagementReportHTML() {
       city: r.city || r.branch || '',
       purpose: r.purpose || '',
       segments: Array.isArray(tmpl.customerSegments) ? tmpl.customerSegments : [],
+      companyType: tmpl.companyType || '',
       business: Array.isArray(tmpl.targetBusiness) ? tmpl.targetBusiness : [],
       follow: r.follow_up || ''
     };
@@ -767,14 +768,19 @@ async function exportManagementReportHTML() {
         const c = segmentColors[name] || { bg:'#f3f4f6', fg:'#4b5563' };
         return 'background:' + c.bg + ';color:' + c.fg + ';';
       }
-      function segmentLabel(name){
-        if (name === '环金' || name === '環金' || name === '环金陆企' || name === '環金陸企') return '环金型陆企';
+      function isMainlandCompanyType(companyType){
+        return companyType === '陆资' || companyType === '陸資';
+      }
+      function segmentLabel(name, companyType){
+        if (name === '环金' || name === '環金' || name === '环金陆企' || name === '環金陸企') {
+          return isMainlandCompanyType(companyType) ? '环金型陆企' : '环金';
+        }
         return name;
       }
-      function segmentTags(items){
+      function segmentTags(items, companyType){
         const seen = {};
         return (items || []).filter(Boolean).map(function(x){
-          const label = segmentLabel(x);
+          const label = segmentLabel(x, companyType);
           if (seen[label]) return '';
           seen[label] = true;
           return '<span class="tag" style="' + segmentStyle(x) + '">' + label + '</span>';
@@ -804,7 +810,7 @@ async function exportManagementReportHTML() {
           return (!q || text.includes(q)) && (!g || r.group === g) && (!s || segs.includes(s) || (s === '8+E' && segs.includes('8+E')));
         });
         document.querySelector('#records-table tbody').innerHTML = rows.map(function(r){
-          return '<tr><td>' + r.date + '</td><td style="text-align:left"><b>' + r.client + '</b><br>' + segmentTags(r.segments) + '</td><td>' + r.user + '</td><td>' + r.group + '</td><td>' + r.city + '</td><td>' + bizTags(r.business) + '</td><td>' + r.follow + '</td></tr>';
+          return '<tr><td>' + r.date + '</td><td style="text-align:left"><b>' + r.client + '</b><br>' + segmentTags(r.segments, r.companyType) + '</td><td>' + r.user + '</td><td>' + r.group + '</td><td>' + r.city + '</td><td>' + bizTags(r.business) + '</td><td>' + r.follow + '</td></tr>';
         }).join('') || '<tr><td colspan="7">无符合条件的记录</td></tr>';
       }
       renderRadarReport();
@@ -850,8 +856,14 @@ function segmentStyle(name) {
   return `background:${c.bg};color:${c.fg};`;
 }
 
-function segmentLabel(name) {
-  if (name === '环金' || name === '環金' || name === '环金陆企' || name === '環金陸企') return '環金型陸企';
+function isMainlandCompanyType(companyType) {
+  return companyType === '陆资' || companyType === '陸資';
+}
+
+function segmentLabel(name, companyType) {
+  if (name === '环金' || name === '環金' || name === '环金陆企' || name === '環金陸企') {
+    return isMainlandCompanyType(companyType) ? '環金型陸企' : '環金';
+  }
   return name;
 }
 
@@ -937,7 +949,7 @@ function segmentBadges(tmplJson) {
   if (!items.length) return '';
   const seen = new Set();
   const chips = items.map(s => {
-    const label = segmentLabel(s);
+    const label = segmentLabel(s, tmpl.companyType);
     if (seen.has(label)) return '';
     seen.add(label);
     return `<span style="display:inline-block;font-size:10px;font-weight:800;padding:1px 6px;border-radius:999px;${segmentStyle(s)}">${label}</span>`;
