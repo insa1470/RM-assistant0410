@@ -19,6 +19,7 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 const ALLOWED_RM_GROUPS = ['301','302','303','305','306','321','322','323'];
+const WEEKLY_VISIT_TARGET = 1.5;
 
 export default {
   async fetch(request, env) {
@@ -270,6 +271,8 @@ async function handleStats(request, env) {
   const prev   = isAllTime ? '0000-01-01' : daysAgo(days * 2);
   const allowedGroupSql = ALLOWED_RM_GROUPS.map(g => `'${g}'`).join(',');
   const managedGroupWhere = `rm_group IN (${allowedGroupSql})`;
+  const currentWeek = getShanghaiWeekRange();
+  const fourWeeksFrom = addDays(currentWeek.from, -21);
 
   // 日期條件 helper
   const dateWhere = (alias = '') => {
@@ -296,7 +299,7 @@ async function handleStats(request, env) {
 
   // ── 每人行銷拜訪數
   const perUser = await env.DB.prepare(`
-    SELECT user_name, COUNT(*) as count,
+    SELECT user_name, MIN(rm_group) as rm_group, COUNT(*) as count,
            SUM(is_8_plus_e) as e8_count,
            COUNT(DISTINCT client_name) as unique_clients
     FROM records WHERE type IN ('report','site') AND ${managedGroupWhere} AND ${dateWhere()}
@@ -320,6 +323,72 @@ async function handleStats(request, env) {
     GROUP BY user_name
   `).all();
   const followUpMap = Object.fromEntries((followUpRes.results || []).map(r => [r.user_name, r]));
+
+  const buildScopedRadar = async ({ fromDate, toDate, weekCount }) => {
+    const scopedDateWhere = (alias = '') => {
+      const col = alias ? `${alias}.visit_date` : 'visit_date';
+      return toDate ? `${col} >= ? AND ${col} <= ?` : `${col} >= ?`;
+    };
+    const dateArgs = toDate ? [fromDate, toDate] : [fromDate];
+    const visitRows = await env.DB.prepare(`
+      SELECT user_name,
+             MIN(rm_group) as rm_group,
+             COUNT(*) as count,
+             SUM(is_8_plus_e) as e8_count,
+             SUM(CASE WHEN purpose IN ('新户开发','新戶開發') THEN 1 ELSE 0 END) as new_client_count,
+             SUM(CASE WHEN json_extract(records.tmpl_json, '$.companyType') IN ('陸資','陆资')
+               AND EXISTS (
+                 SELECT 1 FROM json_each(json_extract(records.tmpl_json, '$.customerSegments'))
+                 WHERE value IN ('环金','環金','环金陆企','環金陸企')
+               )
+               THEN 1 ELSE 0 END) as ring_count,
+             SUM(CASE WHEN follow_up IN ('高頻追蹤','強追蹤') THEN 1 ELSE 0 END) as high_freq,
+             SUM(CASE WHEN follow_up = '定期追蹤' THEN 1 ELSE 0 END) as regular
+      FROM records
+      WHERE type IN ('report','site') AND ${managedGroupWhere} AND ${scopedDateWhere()}
+      GROUP BY user_name
+    `).bind(...dateArgs).all();
+
+    const meetingRows = await env.DB.prepare(`
+      SELECT user_name,
+             COUNT(*) as meeting_count
+      FROM records
+      WHERE type = 'meeting'
+        AND ${scopedDateWhere()}
+        AND (
+          meeting_name LIKE '%待办会议%' OR meeting_name LIKE '%待辦會議%' OR
+          meeting_name LIKE '%日常会议%' OR meeting_name LIKE '%日常會議%' OR
+          json_extract(tmpl_json, '$.meetingName') LIKE '%待办会议%' OR
+          json_extract(tmpl_json, '$.meetingName') LIKE '%待辦會議%' OR
+          json_extract(tmpl_json, '$.meetingName') LIKE '%日常会议%' OR
+          json_extract(tmpl_json, '$.meetingName') LIKE '%日常會議%'
+        )
+        AND COALESCE(meeting_name, json_extract(tmpl_json, '$.meetingName'), '') NOT LIKE '%主管%'
+      GROUP BY user_name
+    `).bind(...dateArgs).all();
+
+    const meetingMap = Object.fromEntries((meetingRows.results || []).map(r => [r.user_name, r.meeting_count || 0]));
+    const visitMap = new Map((visitRows.results || []).map(r => [r.user_name, r]));
+    for (const [userName, meetingCount] of Object.entries(meetingMap)) {
+      if (!visitMap.has(userName)) visitMap.set(userName, { user_name:userName, rm_group:null, count:0, e8_count:0, new_client_count:0, ring_count:0, high_freq:0, regular:0 });
+      visitMap.get(userName).meeting_count = meetingCount;
+    }
+
+    const rows = [...visitMap.values()].map(r => ({
+      user_name: r.user_name,
+      rm_group: r.rm_group || '',
+      count: r.count || 0,
+      e8_count: r.e8_count || 0,
+      e8_ratio: r.count > 0 ? Math.round((r.e8_count || 0) * 100 / r.count) : 0,
+      new_client_count: r.new_client_count || 0,
+      ring_count: r.ring_count || 0,
+      high_freq: r.high_freq || 0,
+      regular: r.regular || 0,
+      meeting_count: r.meeting_count || 0,
+    })).sort((a,b) => b.count - a.count || b.meeting_count - a.meeting_count || String(a.rm_group).localeCompare(String(b.rm_group)));
+
+    return { fromDate, toDate, weekCount, weeklyTarget: WEEKLY_VISIT_TARGET, rows };
+  };
 
   // ── 業務多樣性：從 tmpl_json 的 targetBusiness 陣列取不重複種類
   let bizDivMap = {};
@@ -412,6 +481,7 @@ async function handleStats(request, env) {
   const avg   = users.length > 0 ? users.reduce((s, u) => s + u.count, 0) / users.length : 0;
   const radar = users.map(u => ({
     user_name:     u.user_name,
+    rm_group:      u.rm_group || '',
     count:         u.count,
     prev_count:    prevMap[u.user_name] || 0,
     momentum:      u.count - (prevMap[u.user_name] || 0),
@@ -424,10 +494,16 @@ async function handleStats(request, env) {
     biz_diversity: bizDivMap[u.user_name]?.count || 0,
     biz_list:      bizDivMap[u.user_name]?.list  || [],
   }));
+  const allWeekCount = Math.max(1, new Set((groupWeeklyMatrix.results || []).map(w => w.week_key)).size);
+  const radarScopes = {
+    week: await buildScopedRadar({ fromDate: currentWeek.from, toDate: currentWeek.to, weekCount: 1 }),
+    fourWeeks: await buildScopedRadar({ fromDate: fourWeeksFrom, toDate: currentWeek.to, weekCount: 4 }),
+    all: await buildScopedRadar({ fromDate: '0000-01-01', toDate: null, weekCount: allWeekCount }),
+  };
 
   return jsonRes({
     range: days, since, until, sleep,
-    totals, radar,
+    totals, radar, radarScopes,
     avg_visits: Math.round(avg * 10) / 10,
     dailyTrend:       dailyTrend.results,
     weeklyTrend:      weeklyTrend.results,
@@ -698,6 +774,29 @@ function jsonRes(data, status = 200) {
 }
 function daysAgo(n) {
   return new Date(Date.now() - n * 86400000).toISOString().split('T')[0];
+}
+function formatDateUTC(date) {
+  return date.toISOString().split('T')[0];
+}
+function parseDateUTC(dateStr) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+function addDays(dateStr, n) {
+  const d = parseDateUTC(dateStr);
+  d.setUTCDate(d.getUTCDate() + n);
+  return formatDateUTC(d);
+}
+function getShanghaiToday() {
+  return new Date(Date.now() + 8 * 3600000).toISOString().split('T')[0];
+}
+function getShanghaiWeekRange() {
+  const today = parseDateUTC(getShanghaiToday());
+  const dow = today.getUTCDay(); // 0=Sun
+  const diffToMon = dow === 0 ? -6 : 1 - dow;
+  today.setUTCDate(today.getUTCDate() + diffToMon);
+  const from = formatDateUTC(today);
+  return { from, to: addDays(from, 6) };
 }
 function sanitizeRmGroup(value) {
   return String(value || '').trim().replace(/\D/g, '');

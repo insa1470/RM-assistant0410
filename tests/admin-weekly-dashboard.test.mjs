@@ -7,6 +7,13 @@ const workerJs = readFileSync(new URL('../worker/index.js', import.meta.url), 'u
 assert.doesNotMatch(adminHtml, /週管理總覽|weekly-overview|weekly-current-count|weekly-target-count|weekly-8e-ratio|weekly-ring-ratio|renderWeeklyOverview/, 'admin dashboard should not duplicate top summary cards with a weekly overview section');
 assert.match(adminHtml, /RM 組動能逐週管理/, 'admin dashboard should include the RM group weekly momentum matrix');
 assert.match(adminHtml, /行銷人員管理雷達/, 'admin radar section should use the clearer marketing staff title');
+assert.match(adminHtml, /radar-scope/, 'admin radar should expose a personal scope switch');
+assert.match(adminHtml, /data-radar-scope="week"/, 'admin radar should support a current-week personal view');
+assert.match(adminHtml, /data-radar-scope="fourWeeks"/, 'admin radar should support a recent four-week personal view');
+assert.match(adminHtml, /data-radar-scope="all"/, 'admin radar should preserve an all-time personal view');
+assert.match(adminHtml, /let radarScope = 'week'/, 'admin radar should default to the current-week personal view');
+assert.match(adminHtml, /renderRadar\(getScopedRadarData\(\)/, 'admin radar should render from scoped personal data rather than only the dashboard range');
+assert.match(adminHtml, /本週會議/, 'admin radar should show whether a person submitted a weekly meeting');
 assert.doesNotMatch(adminHtml, />業務多樣性<|bizLabel/, 'admin radar should not show business diversity as a staff-level column');
 assert.match(adminHtml, /近 10 工作日拜訪趨勢/, 'admin dashboard should preserve the recent 10 workday trend');
 assert.match(adminHtml, /renderGroupWeeklyMatrix/, 'admin dashboard should render the group weekly matrix');
@@ -71,6 +78,10 @@ assert.match(adminHtml, /function sortRadarReport/, 'exported management report 
 assert.match(adminHtml, /function filterReportRecords/, 'exported management report should support interactive record filtering');
 
 assert.match(workerJs, /groupWeeklyMatrix/, 'stats API should return group weekly matrix data');
+assert.match(workerJs, /radarScopes/, 'stats API should return scoped personal radar data');
+assert.match(workerJs, /meeting_count/, 'scoped personal radar should include meeting counts');
+assert.match(workerJs, /ring_count/, 'scoped personal radar should include ring-mainland visit counts');
+assert.match(workerJs, /new_client_count/, 'scoped personal radar should include new-customer visit counts');
 assert.match(workerJs, /customer_names/, 'group weekly matrix should include customer names for cell drilldown');
 assert.match(workerJs, /visit_date >= '0000-01-01'[\s\S]*GROUP BY rm_group, week_key/, 'group weekly matrix should always use all-time weekly data');
 assert.doesNotMatch(workerJs, /groupWeeklyMatrix[\s\S]{0,700}visit_date >= '\$\{since\}'/, 'group weekly matrix should not be constrained by the selected dashboard range');
