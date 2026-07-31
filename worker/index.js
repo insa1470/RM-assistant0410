@@ -10,6 +10,7 @@
  *   GET  /api/export    — 匯出 CSV
  *   GET  /api/hint      — AI 助手：供應鏈關聯提示（含 Claude 洞察）
  *   POST /api/group-auth — 本組紀錄通行碼驗證
+ *   POST /api/group-passcode — 組長重設本組查看碼
  *   GET  /api/group-records — 本組完整紀錄（只讀）
  *   POST /api/setup     — 初始化資料表
  *   POST /api/migrate   — 資料庫升級
@@ -39,10 +40,11 @@ export default {
       if (path === '/api/export'  && request.method === 'GET')  return await handleExport(request, env);
       if (path === '/api/hint'    && request.method === 'GET')  return await handleHint(request, env);
       if (path === '/api/group-auth' && request.method === 'POST') return await handleGroupAuth(request, env);
+      if (path === '/api/group-passcode' && request.method === 'POST') return await handleLeaderSetGroupPasscode(request, env);
       if (path === '/api/group-records' && request.method === 'GET') return await handleGroupRecords(request, env);
       if (path === '/api/setup'   && request.method === 'POST') return await handleSetup(request, env);
       if (path === '/api/migrate') return await handleMigrate(request, env);
-      if (path === '/api/admin/group-passcode' && request.method === 'POST') return await handleSetGroupPasscode(request, env);
+      if (path === '/api/admin/group-leader-passcode' && request.method === 'POST') return await handleSetGroupLeaderPasscode(request, env);
       if (path === '/api/admin/purge-user'  && request.method === 'POST') return await handlePurgeUser(request, env);
       if (path === '/api/admin/delete-record' && request.method === 'POST') return await handleDeleteRecord(request, env);
       return jsonRes({ error: '找不到路由' }, 404);
@@ -619,15 +621,23 @@ async function handleGroupRecords(request, env) {
 }
 
 /* ──────────────────────────────────────────
-   POST /api/admin/group-passcode — 重設組別通行碼
+   POST /api/group-passcode — 組長重設本組查看碼
 ────────────────────────────────────────── */
-async function handleSetGroupPasscode(request, env) {
-  if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
-  const { rmGroup, passcode } = await request.json();
+async function handleLeaderSetGroupPasscode(request, env) {
+  const { rmGroup, leaderPasscode, passcode } = await request.json();
   const group = sanitizeRmGroup(rmGroup);
   if (!ALLOWED_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
+  if (!leaderPasscode) return jsonRes({ error: '請輸入組長管理碼' }, 400);
+
+  const row = await env.DB.prepare(
+    `SELECT leader_passcode_hash FROM group_passcodes WHERE rm_group = ?`
+  ).bind(group).first();
+  if (!row?.leader_passcode_hash) return jsonRes({ error: '此組尚未設定組長管理碼，請洽管理員' }, 404);
+  const leaderHash = await hashPasscode(leaderPasscode, env);
+  if (leaderHash !== row.leader_passcode_hash) return jsonRes({ error: '組長管理碼錯誤' }, 401);
+
   const plain = String(passcode || '').trim() || generatePasscode();
-  if (plain.length < 4) return jsonRes({ error: '通行碼至少 4 碼' }, 400);
+  if (plain.length < 4) return jsonRes({ error: '本組查看碼至少 4 碼' }, 400);
   const passcodeHash = await hashPasscode(plain, env);
   await env.DB.prepare(`
     INSERT INTO group_passcodes (rm_group, passcode_hash, updated_at)
@@ -635,6 +645,25 @@ async function handleSetGroupPasscode(request, env) {
     ON CONFLICT(rm_group) DO UPDATE SET passcode_hash = excluded.passcode_hash, updated_at = datetime('now')
   `).bind(group, passcodeHash).run();
   return jsonRes({ success: true, rmGroup: group, passcode: plain });
+}
+
+/* ──────────────────────────────────────────
+   POST /api/admin/group-leader-passcode — 重設組長管理碼
+────────────────────────────────────────── */
+async function handleSetGroupLeaderPasscode(request, env) {
+  if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
+  const { rmGroup, passcode } = await request.json();
+  const group = sanitizeRmGroup(rmGroup);
+  if (!ALLOWED_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
+  const plain = String(passcode || '').trim() || generatePasscode();
+  if (plain.length < 4) return jsonRes({ error: '組長管理碼至少 4 碼' }, 400);
+  const leaderPasscodeHash = await hashPasscode(plain, env);
+  await env.DB.prepare(`
+    INSERT INTO group_passcodes (rm_group, passcode_hash, leader_passcode_hash, updated_at)
+    VALUES (?, '', ?, datetime('now'))
+    ON CONFLICT(rm_group) DO UPDATE SET leader_passcode_hash = excluded.leader_passcode_hash, updated_at = datetime('now')
+  `).bind(group, leaderPasscodeHash).run();
+  return jsonRes({ success: true, rmGroup: group, leaderPasscode: plain });
 }
 
 /* ──────────────────────────────────────────
@@ -763,7 +792,8 @@ async function handleSetup(request, env) {
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS group_passcodes (
       rm_group      TEXT PRIMARY KEY,
-      passcode_hash TEXT NOT NULL,
+      passcode_hash TEXT,
+      leader_passcode_hash TEXT,
       updated_at    TEXT DEFAULT (datetime('now'))
     )
   `).run();
@@ -810,9 +840,11 @@ async function handleMigrate(request, env) {
     // v5：本組紀錄通行碼
     `CREATE TABLE IF NOT EXISTS group_passcodes (
        rm_group      TEXT PRIMARY KEY,
-       passcode_hash TEXT NOT NULL,
+       passcode_hash TEXT,
+       leader_passcode_hash TEXT,
        updated_at    TEXT DEFAULT (datetime('now'))
      )`,
+    `ALTER TABLE group_passcodes ADD COLUMN leader_passcode_hash TEXT`,
   ];
   for (const sql of ops) {
     try {

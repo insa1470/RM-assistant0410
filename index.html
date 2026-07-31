@@ -1684,6 +1684,7 @@
         function renderGroupRecordsPanel(typeConf) {
             if (!groupRecordsAuth) {
                 return `
+                ${renderLeaderSettingsPanel()}
                 <div id="group-records" class="ios-card p-4 space-y-4">
                     <div>
                         <p class="text-[16px] font-bold text-gray-900">本组记录</p>
@@ -1708,6 +1709,7 @@
             const filteredRows = groupRecords;
             return `
             <div id="group-records" class="space-y-4">
+                ${renderLeaderSettingsPanel()}
                 <div class="ios-card p-4">
                     <div class="flex items-center justify-between gap-3">
                         <div>
@@ -1736,6 +1738,37 @@
             </div>`;
         }
 
+        function renderLeaderSettingsPanel() {
+            return `
+            <details class="ios-card p-4">
+                <summary class="text-[15px] font-bold text-gray-900 cursor-pointer list-none flex items-center justify-between">
+                    <span>组长设置</span>
+                    <span class="text-[12px] text-[color:var(--label-secondary)] font-medium">设置本组查看码</span>
+                </summary>
+                <div class="mt-4 space-y-3">
+                    <p class="text-[13px] text-[color:var(--label-secondary)]">输入组长管理码后，可重设本组查看码。新查看码只显示一次。</p>
+                    <div class="ios-group">
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">RM组别</span>
+                            <input id="leader-setting-rm" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="例：305" oninput="this.value=sanitizeRmGroup(this.value)">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">管理码</span>
+                            <input id="leader-setting-passcode" type="password" placeholder="请输入组长管理码">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">查看码</span>
+                            <input id="leader-setting-view-passcode" type="text" placeholder="留空则自动生成">
+                        </div>
+                    </div>
+                    <button onclick="leaderSetGroupPasscode()" class="btn-secondary">
+                        <i data-lucide="key-round" class="w-5 h-5"></i> 重设本组查看码
+                    </button>
+                    <p id="leader-setting-result" class="text-[12px] text-[color:var(--label-secondary)]"></p>
+                </div>
+            </details>`;
+        }
+
         async function authenticateGroupRecords() {
             const rmGroup = sanitizeRmGroup(document.getElementById('group-auth-rm')?.value || '');
             const passcode = document.getElementById('group-auth-passcode')?.value || '';
@@ -1755,6 +1788,31 @@
                 await loadGroupRecords();
             } catch(e) {
                 showToast(`❌ ${e.message || '验证失败'}`);
+            }
+        }
+
+        async function leaderSetGroupPasscode() {
+            const rmGroup = sanitizeRmGroup(document.getElementById('leader-setting-rm')?.value || '');
+            const leaderPasscode = document.getElementById('leader-setting-passcode')?.value || '';
+            const passcode = document.getElementById('leader-setting-view-passcode')?.value.trim() || '';
+            const resultEl = document.getElementById('leader-setting-result');
+            if (!rmGroup || !leaderPasscode) return showToast('⚠️ 请填写组别和组长管理码');
+            resultEl.textContent = '处理中...';
+            try {
+                const res = await fetch(`${WORKER_URL}/api/group-passcode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rmGroup, leaderPasscode, passcode })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '重设失败');
+                document.getElementById('leader-setting-passcode').value = '';
+                document.getElementById('leader-setting-view-passcode').value = '';
+                resultEl.innerHTML = `${data.rmGroup} 本组查看码：<b>${escapeHtml(data.passcode)}</b>（请立即保存并转告组员）`;
+                showToast('✅ 本组查看码已重设');
+            } catch(e) {
+                resultEl.textContent = `重设失败：${e.message || e}`;
+                showToast(`❌ ${e.message || '重设失败'}`);
             }
         }
 
