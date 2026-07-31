@@ -704,6 +704,7 @@
             </div>
             <div class="ios-alert-sep"></div>
             <div id="name-modal-btns" class="flex">
+                <button id="name-cancel-btn" onclick="hideNamePrompt()" class="hidden flex-1 ios-alert-btn cancel" style="border-right:0.5px solid var(--separator-opaque)">取消</button>
                 <button id="name-save-btn" disabled onclick="saveUserName()"
                     class="flex-1 ios-alert-btn text-[color:var(--brand)] font-semibold disabled:opacity-40">
                     確定
@@ -2751,30 +2752,21 @@
         function showNamePrompt(isEdit = false) {
             const modal = document.getElementById('name-modal');
             const input = document.getElementById('name-input');
-            const btn   = document.getElementById('name-save-btn');
-            const btns  = document.getElementById('name-modal-btns');
-            const title = document.getElementById('name-modal-title');
-            const desc  = document.getElementById('name-modal-desc');
             input.value  = isEdit ? currentUserName : '';
-            btn.disabled = isEdit ? false : true;
-            // 編輯模式：顯示取消鍵 + 更新標題
-            if (isEdit) {
-                title.textContent = '修改你的名字';
-                desc.textContent  = '更改後所有新紀錄將使用新名字';
-                btns.innerHTML = `
-                    <button onclick="hideNamePrompt()" class="flex-1 ios-alert-btn cancel" style="border-right:0.5px solid var(--separator-opaque)">取消</button>
-                    <button id="name-save-btn" onclick="saveUserName()" class="flex-1 ios-alert-btn text-[color:var(--brand)] font-semibold">確定</button>`;
-            } else {
-                title.textContent = '你好，請輸入你的名字';
-                desc.textContent  = '方便管理者識別紀錄來源，可隨時更改';
-                btns.innerHTML = `<button id="name-save-btn" disabled onclick="saveUserName()" class="flex-1 ios-alert-btn text-[color:var(--brand)] font-semibold disabled:opacity-40">確定</button>`;
-                // 重新綁定 oninput（因為 innerHTML 重建了元素）
-                document.getElementById('name-input').oninput = function() {
-                    document.getElementById('name-save-btn').disabled = this.value.trim().length === 0;
-                };
-            }
+            setNameModalMode(isEdit);
             modal.classList.remove('hidden');
             setTimeout(() => input.focus(), 100);
+        }
+
+        function setNameModalMode(isEdit) {
+            const title = document.getElementById('name-modal-title');
+            const desc = document.getElementById('name-modal-desc');
+            const saveBtn = document.getElementById('name-save-btn');
+            const cancelBtn = document.getElementById('name-cancel-btn');
+            title.textContent = isEdit ? '修改你的名字' : '你好，請輸入你的名字';
+            desc.textContent = isEdit ? '更改後所有新紀錄將使用新名字' : '方便管理者識別紀錄來源，可隨時更改';
+            saveBtn.disabled = isEdit ? false : true;
+            cancelBtn.classList.toggle('hidden', !isEdit);
         }
 
         function hideNamePrompt() {

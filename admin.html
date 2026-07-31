@@ -159,6 +159,27 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     <p id="group-leader-passcode-result" class="text-xs text-gray-500 mt-3"></p>
   </div>
 
+  <!-- 資料填寫人改名 -->
+  <div class="card p-5">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-[15px] font-bold text-gray-800">資料填寫人改名</h2>
+        <p class="text-xs text-gray-400 mt-0.5">批次更新既有紀錄的填寫人名稱；不刪除任何紀錄</p>
+      </div>
+      <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">例如：暴龍 → 彭楚鴻</span>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_160px] gap-3">
+      <input id="rename-user-from" type="text" placeholder="原名稱"
+        class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
+      <input id="rename-user-to" type="text" placeholder="新名稱"
+        class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
+      <button onclick="renameUserRecords()" class="px-3 py-2 rounded-xl text-sm font-semibold text-white active:opacity-80" style="background:var(--brand)">
+        更新名稱
+      </button>
+    </div>
+    <p id="rename-user-result" class="text-xs text-gray-500 mt-3"></p>
+  </div>
+
   <!-- RM 組動能逐週管理 -->
   <div class="card overflow-hidden">
     <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
@@ -480,6 +501,37 @@ async function resetGroupLeaderPasscode() {
     resultEl.innerHTML = `已重設 ${data.rmGroup} 組組長管理碼：<span class="font-bold text-gray-900">${escapeHtml(data.leaderPasscode)}</span>（請立即保存並交給組長）`;
   } catch(e) {
     resultEl.textContent = `重設失敗：${e.message || e}`;
+  }
+}
+
+async function renameUserRecords() {
+  const fromName = document.getElementById('rename-user-from')?.value.trim() || '';
+  const toName = document.getElementById('rename-user-to')?.value.trim() || '';
+  const resultEl = document.getElementById('rename-user-result');
+  if (!fromName || !toName) {
+    resultEl.textContent = '請輸入原名稱與新名稱';
+    return;
+  }
+  if (fromName === toName) {
+    resultEl.textContent = '原名稱與新名稱相同，無需更新';
+    return;
+  }
+  resultEl.textContent = '處理中...';
+  try {
+    const res = await fetch(`${WORKER_URL}/api/admin/rename-user?password=${enc(PASSWORD)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromName, toName })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '更新失敗');
+    resultEl.innerHTML = `已將 <span class="font-bold text-gray-900">${escapeHtml(data.fromName)}</span> 更新為 <span class="font-bold text-gray-900">${escapeHtml(data.toName)}</span>，共 ${data.updated || 0} 筆`;
+    document.getElementById('rename-user-from').value = '';
+    document.getElementById('rename-user-to').value = '';
+    await loadStats();
+    await loadRecords();
+  } catch(e) {
+    resultEl.textContent = `更新失敗：${e.message || e}`;
   }
 }
 

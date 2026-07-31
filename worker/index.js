@@ -45,6 +45,7 @@ export default {
       if (path === '/api/setup'   && request.method === 'POST') return await handleSetup(request, env);
       if (path === '/api/migrate') return await handleMigrate(request, env);
       if (path === '/api/admin/group-leader-passcode' && request.method === 'POST') return await handleSetGroupLeaderPasscode(request, env);
+      if (path === '/api/admin/rename-user' && request.method === 'POST') return await handleRenameUser(request, env);
       if (path === '/api/admin/purge-user'  && request.method === 'POST') return await handlePurgeUser(request, env);
       if (path === '/api/admin/delete-record' && request.method === 'POST') return await handleDeleteRecord(request, env);
       return jsonRes({ error: '找不到路由' }, 404);
@@ -896,6 +897,25 @@ async function handlePurgeUser(request, env) {
   ).bind(userName).run();
 
   return jsonRes({ success: true, deleted: ids.length, userName });
+}
+
+/* ──────────────────────────────────────────
+   POST /api/admin/rename-user — 批次更新填寫人名稱（管理員）
+   Body: { fromName, toName }
+────────────────────────────────────────── */
+async function handleRenameUser(request, env) {
+  if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
+  const { fromName, toName } = await request.json();
+  const from = String(fromName || '').trim();
+  const to = String(toName || '').trim();
+  if (!from || !to) return jsonRes({ error: '缺少原名稱或新名稱' }, 400);
+  if (from === to) return jsonRes({ error: '原名稱與新名稱相同' }, 400);
+
+  const upd = await env.DB.prepare(
+    `UPDATE records SET user_name = ? WHERE user_name = ?`
+  ).bind(to, from).run();
+
+  return jsonRes({ success: true, fromName: from, toName: to, updated: upd.meta?.changes || 0 });
 }
 
 /* ── 工具 ── */
