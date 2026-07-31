@@ -1165,6 +1165,7 @@
             const mName = draft.meetingName || '';
             const isTodo = mName.includes('待办');
             const isDaily = mName.includes('日常');
+            const isGroupMeeting = isTodo || isDaily;
             if (isDaily && (!draft.dailySections || draft.dailySections.length === 0))
                 draft.dailySections = [{ dept:'', content:'' }];
 
@@ -1197,6 +1198,15 @@
                             </select>
                             <i data-lucide="chevron-right" class="w-4 h-4 text-[color:var(--ios-gray3)] flex-shrink-0"></i>
                         </div>
+                        ${isGroupMeeting ? `
+                        <div id="meeting-rm-group-row" class="ios-row">
+                            <span class="ios-row-label text-[15px]">RM组别</span>
+                            <select onchange="updateMeetingRmGroup(this.value)" class="text-right flex-1 text-[15px]">
+                                <option value="" ${!draft.rmGroup?'selected':''}>请选择</option>
+                                ${['301','302','303','305','306','321','322','323'].map(g => `<option value="${g}" ${draft.rmGroup===g?'selected':''}>${g}</option>`).join('')}
+                            </select>
+                            <i data-lucide="chevron-right" class="w-4 h-4 text-[color:var(--ios-gray3)] flex-shrink-0"></i>
+                        </div>` : ''}
                         <div class="ios-row">
                             <span class="ios-row-label text-[15px]">日期</span>
                             <input type="date" value="${draft.visitDate}" oninput="updateDraft('visitDate',this.value)" class="text-right flex-1">
@@ -1487,6 +1497,9 @@
                 </div>`;
             } else {
                 const mName = draft.meetingName||'';
+                const meetingRmGroupRow = isGroupMeetingName(mName)
+                    ? `<tr><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;font-weight:bold;">RM组别</td><td colspan="3" style="border:1px solid black;padding:5px 7px;">${draft.rmGroup||'-'}</td></tr>`
+                    : '';
                 let mainContentHtml = '';
                 if (mName.includes('日常')) {
                     mainContentHtml = `<div style="font-weight:bold;margin:12px 0 8px;">会议讨论事项摘要：</div>
@@ -1507,6 +1520,7 @@
                     <table style="width:100%;border-collapse:collapse;border:1px solid black;margin-bottom:11px;">
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;width:15%;font-weight:bold;">会议名称</td><td style="border:1px solid black;padding:5px 7px;width:35%;">${draft.meetingName}</td><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;width:15%;font-weight:bold;">日期时间</td><td style="border:1px solid black;padding:5px 7px;">${dateStr} ${timeStr}</td></tr>
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;font-weight:bold;">会议地点</td><td style="border:1px solid black;padding:5px 7px;">${draft.city||'-'}</td><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;font-weight:bold;">主席/记录</td><td style="border:1px solid black;padding:5px 7px;">${draft.chairman||'-'} / ${draft.recorder||'-'}</td></tr>
+                        ${meetingRmGroupRow}
                         <tr><td style="background:#f5f5f5;border:1px solid black;padding:5px 7px;font-weight:bold;">出席人员</td><td colspan="3" style="border:1px solid black;padding:5px 7px;">${draft.attendeeText||'-'}</td></tr>
                     </table>
                     ${mainContentHtml}
@@ -2340,13 +2354,23 @@
         function addListItem(list)    { draft[list].push(''); switchView(`edit-${draft.type}`); }
         function removeListItem(list, idx) { draft[list].splice(idx,1); if(!draft[list].length) draft[list]=['']; switchView(`edit-${draft.type}`); }
 
+        function isGroupMeetingName(name) {
+            const mName = name || '';
+            return mName.includes('待办') || mName.includes('日常');
+        }
+
         function changeMeetingType(value) {
             updateDraft('meetingName', value);
+            if (value.includes('主管')) updateDraft('rmGroup','');
             switchView('edit-meeting');
             const anchor = value.includes('待办') ? 'meeting-todo-section'
                 : value.includes('日常') ? 'meeting-daily-section'
                 : 'meeting-discussion-section';
             scrollMeetingAnchorIntoView(anchor, 'start');
+        }
+
+        function updateMeetingRmGroup(value) {
+            updateDraft('rmGroup', sanitizeRmGroup(value));
         }
 
         function addDailySection() {
@@ -2443,6 +2467,7 @@
             const title = draft.type==='meeting' ? draft.meetingName : draft.clientName;
             if (!title||!title.trim()) return showToast('⚠️ 请填写标题或客户名称');
             if (draft.type !== 'meeting' && !/^[0-9]+$/.test(draft.rmGroup || '')) return showToast('⚠️ 請輸入數字組別');
+            if (draft.type === 'meeting' && isGroupMeetingName(draft.meetingName) && !draft.rmGroup) return showToast('⚠️ 请选择RM组别');
             switchView('preview');
         }
 
@@ -2559,6 +2584,9 @@
             if (draft.type === 'meeting') {
                 fileName = `会议记录-${draft.branch||'分行'}-${datePure}.doc`;
                 const mName = draft.meetingName||'';
+                const meetingRmGroupRow = isGroupMeetingName(mName)
+                    ? `<tr><td style="background:#F2F2F2;font-weight:bold;">RM组别</td><td colspan="3">${draft.rmGroup||'-'}</td></tr>`
+                    : '';
                 let meetingBody = '';
                 if (mName.includes('日常')) {
                     meetingBody = `<p style="font-family:SimHei;font-weight:bold;margin:14pt 0 8pt;">会议内容摘要：</p>` +
@@ -2579,6 +2607,7 @@
                 <body><h2 style="text-align:center;font-family:SimHei;font-size:17pt;margin-bottom:11pt;">玉山银行 ${draft.branch||''} 会议记录</h2>
                 <table><tr><td style="background:#F2F2F2;font-weight:bold;width:15%;">会议名称</td><td width="35%">${draft.meetingName}</td><td style="background:#F2F2F2;font-weight:bold;width:15%;">日期时间</td><td>${dateStr} ${timeStr}</td></tr>
                 <tr><td style="background:#F2F2F2;font-weight:bold;">会议地点</td><td>${draft.city||'-'}</td><td style="background:#F2F2F2;font-weight:bold;">主席/记录</td><td>${draft.chairman||'-'} / ${draft.recorder||'-'}</td></tr>
+                ${meetingRmGroupRow}
                 <tr><td style="background:#F2F2F2;font-weight:bold;">出席人员</td><td colspan="3">${draft.attendeeText||'-'}</td></tr></table>
                 ${meetingBody}</body></html>`;
             } else {
@@ -2677,7 +2706,7 @@
                         type:         record.type,
                         clientName:   record.clientName   || null,
                         meetingName:  record.meetingName  || null,
-                        rmGroup:      record.rmGroup      || null,
+                        rmGroup:      record.type === 'meeting' ? (isGroupMeetingName(record.meetingName) ? record.rmGroup : null) : (record.rmGroup || null),
                         owner:        record.owner        || null,
                         visitDate:    record.visitDate    || null,
                         visitHour:    record.visitHour    ?? null,
@@ -2799,7 +2828,8 @@
                 if (mName.includes('日常')) detail = `【会议内容摘要】\n${draft.dailySections.map(s=>`[${s.dept||'小组'}]: ${s.content||'无'}`).join('\n')}`;
                 else if (mName.includes('待办')) detail = `【待办四象限】\n● 紧急且重要：${draft.todoQuadrants.urgentImportant||'无'}\n● 重要不紧急：${draft.todoQuadrants.importantNotUrgent||'无'}\n● 紧急不重要：${draft.todoQuadrants.urgentNotImportant||'无'}\n● 不重不紧：${draft.todoQuadrants.notUrgentNotImportant||'无'}`;
                 else detail = `【各部门摘要】\n${Object.keys(draft.discussions).map(d=>`[${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(d)]}]: ${draft.discussions[d]}`).join('\n')}`;
-                text = `玉山银行 ${draft.branch||''} 会议记录\n──────────────────\n【会议名称】${draft.meetingName}\n【时间】${dateStr} ${timeStr}\n【出席】${draft.attendeeText||'-'}\n\n${detail}\n──────────────────\nRM 随行助手生成`;
+                const meetingGroupLine = isGroupMeetingName(mName) ? `\n【RM组别】${draft.rmGroup||'-'}` : '';
+                text = `玉山银行 ${draft.branch||''} 会议记录\n──────────────────\n【会议名称】${draft.meetingName}${meetingGroupLine}\n【时间】${dateStr} ${timeStr}\n【出席】${draft.attendeeText||'-'}\n\n${detail}\n──────────────────\nRM 随行助手生成`;
             } else {
                 const t = draft.tmpl || {};
                 const bizStr    = Array.isArray(draft.targetBusiness) && draft.targetBusiness.length ? draft.targetBusiness.join('、') : '';
