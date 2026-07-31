@@ -9,6 +9,8 @@
  *   POST /api/targets   — 儲存月度目標設定
  *   GET  /api/export    — 匯出 CSV
  *   GET  /api/hint      — AI 助手：供應鏈關聯提示（含 Claude 洞察）
+ *   POST /api/group-auth — 本組紀錄通行碼驗證
+ *   GET  /api/group-records — 本組完整紀錄（只讀）
  *   POST /api/setup     — 初始化資料表
  *   POST /api/migrate   — 資料庫升級
  */
@@ -36,8 +38,11 @@ export default {
       if (path === '/api/targets' && request.method === 'POST') return await handleSetTargets(request, env);
       if (path === '/api/export'  && request.method === 'GET')  return await handleExport(request, env);
       if (path === '/api/hint'    && request.method === 'GET')  return await handleHint(request, env);
+      if (path === '/api/group-auth' && request.method === 'POST') return await handleGroupAuth(request, env);
+      if (path === '/api/group-records' && request.method === 'GET') return await handleGroupRecords(request, env);
       if (path === '/api/setup'   && request.method === 'POST') return await handleSetup(request, env);
       if (path === '/api/migrate') return await handleMigrate(request, env);
+      if (path === '/api/admin/group-passcode' && request.method === 'POST') return await handleSetGroupPasscode(request, env);
       if (path === '/api/admin/purge-user'  && request.method === 'POST') return await handlePurgeUser(request, env);
       if (path === '/api/admin/delete-record' && request.method === 'POST') return await handleDeleteRecord(request, env);
       return jsonRes({ error: '找不到路由' }, 404);
@@ -548,6 +553,91 @@ async function handleRecords(request, env) {
 }
 
 /* ──────────────────────────────────────────
+   POST /api/group-auth — 本組紀錄通行碼驗證
+────────────────────────────────────────── */
+async function handleGroupAuth(request, env) {
+  const { rmGroup, passcode } = await request.json();
+  const group = sanitizeRmGroup(rmGroup);
+  if (!ALLOWED_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
+  if (!passcode) return jsonRes({ error: '請輸入組別通行碼' }, 400);
+
+  const row = await env.DB.prepare(
+    `SELECT passcode_hash FROM group_passcodes WHERE rm_group = ?`
+  ).bind(group).first();
+  if (!row?.passcode_hash) return jsonRes({ error: '此組尚未設定通行碼，請洽管理員' }, 404);
+
+  const passcodeHash = await hashPasscode(passcode, env);
+  if (passcodeHash !== row.passcode_hash) return jsonRes({ error: '組別通行碼錯誤' }, 401);
+
+  return jsonRes({ success: true, rmGroup: group, token: makeGroupToken(group, passcodeHash) });
+}
+
+/* ──────────────────────────────────────────
+   GET /api/group-records — 同組完整紀錄（只讀）
+────────────────────────────────────────── */
+async function handleGroupRecords(request, env) {
+  const url = new URL(request.url);
+  const group = sanitizeRmGroup(url.searchParams.get('rmGroup') || '');
+  const token = url.searchParams.get('token') || '';
+  const q = (url.searchParams.get('q') || '').trim();
+  const fromDate = url.searchParams.get('from') || null;
+  const toDate = url.searchParams.get('to') || null;
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+  const offset = parseInt(url.searchParams.get('offset') || '0');
+
+  if (!ALLOWED_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
+  const row = await env.DB.prepare(
+    `SELECT passcode_hash FROM group_passcodes WHERE rm_group = ?`
+  ).bind(group).first();
+  if (!row?.passcode_hash || token !== makeGroupToken(group, row.passcode_hash)) {
+    return jsonRes({ error: '本組紀錄授權已失效，請重新驗證' }, 401);
+  }
+
+  const where = ["rm_group = ?", "type IN ('report','site')"];
+  const params = [group];
+  if (fromDate) { where.push('visit_date >= ?'); params.push(fromDate); }
+  if (toDate) { where.push('visit_date <= ?'); params.push(toDate); }
+  if (q) {
+    where.push(`(client_name LIKE ? OR user_name LIKE ? OR owner LIKE ? OR city LIKE ? OR purpose LIKE ?)`);
+    const pat = `%${normalize(q)}%`;
+    params.push(pat, pat, pat, pat, pat);
+  }
+
+  const whereSql = where.join(' AND ');
+  const totalRow = await env.DB.prepare(`SELECT COUNT(*) as total FROM records WHERE ${whereSql}`).bind(...params).first();
+  const result = await env.DB.prepare(`
+    SELECT id, user_name, type, client_name, meeting_name, rm_group, owner,
+           visit_date, visit_hour, visit_end_hour, purpose, city, branch,
+           is_8_plus_e, tmpl_json, follow_up, hq_leader, created_at
+    FROM records
+    WHERE ${whereSql}
+    ORDER BY visit_date DESC, created_at DESC
+    LIMIT ? OFFSET ?
+  `).bind(...params, limit, offset).all();
+
+  return jsonRes({ records: result.results || [], total: totalRow?.total || 0, rmGroup: group });
+}
+
+/* ──────────────────────────────────────────
+   POST /api/admin/group-passcode — 重設組別通行碼
+────────────────────────────────────────── */
+async function handleSetGroupPasscode(request, env) {
+  if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
+  const { rmGroup, passcode } = await request.json();
+  const group = sanitizeRmGroup(rmGroup);
+  if (!ALLOWED_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
+  const plain = String(passcode || '').trim() || generatePasscode();
+  if (plain.length < 4) return jsonRes({ error: '通行碼至少 4 碼' }, 400);
+  const passcodeHash = await hashPasscode(plain, env);
+  await env.DB.prepare(`
+    INSERT INTO group_passcodes (rm_group, passcode_hash, updated_at)
+    VALUES (?, ?, datetime('now'))
+    ON CONFLICT(rm_group) DO UPDATE SET passcode_hash = excluded.passcode_hash, updated_at = datetime('now')
+  `).bind(group, passcodeHash).run();
+  return jsonRes({ success: true, rmGroup: group, passcode: plain });
+}
+
+/* ──────────────────────────────────────────
    GET /api/targets
 ────────────────────────────────────────── */
 async function handleGetTargets(request, env) {
@@ -670,9 +760,16 @@ async function handleSetup(request, env) {
       created_at    TEXT DEFAULT (datetime('now'))
     )
   `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS group_passcodes (
+      rm_group      TEXT PRIMARY KEY,
+      passcode_hash TEXT NOT NULL,
+      updated_at    TEXT DEFAULT (datetime('now'))
+    )
+  `).run();
   await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_graph_rel  ON company_graph(rel_name)`).run();
   await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_graph_focal ON company_graph(focal_co)`).run();
-  return jsonRes({ success: true, message: '資料表建立完成（含 company_graph）' });
+  return jsonRes({ success: true, message: '資料表建立完成（含 company_graph、group_passcodes）' });
 }
 
 /* ──────────────────────────────────────────
@@ -710,6 +807,12 @@ async function handleMigrate(request, env) {
     // v4：targets 加入 rm_count 和 weekly_visits
     `ALTER TABLE targets ADD COLUMN rm_count INTEGER DEFAULT 12`,
     `ALTER TABLE targets ADD COLUMN weekly_visits INTEGER DEFAULT 2`,
+    // v5：本組紀錄通行碼
+    `CREATE TABLE IF NOT EXISTS group_passcodes (
+       rm_group      TEXT PRIMARY KEY,
+       passcode_hash TEXT NOT NULL,
+       updated_at    TEXT DEFAULT (datetime('now'))
+     )`,
   ];
   for (const sql of ops) {
     try {
@@ -774,6 +877,19 @@ function jsonRes(data, status = 200) {
 }
 function daysAgo(n) {
   return new Date(Date.now() - n * 86400000).toISOString().split('T')[0];
+}
+async function hashPasscode(passcode, env) {
+  const salt = env.GROUP_PASSCODE_SALT || env.ADMIN_PASSWORD || 'rm-assistant';
+  const input = new TextEncoder().encode(`${salt}:${String(passcode || '')}`);
+  const digest = await crypto.subtle.digest('SHA-256', input);
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function makeGroupToken(rmGroup, passcodeHash) {
+  return btoa(`${rmGroup}:${String(passcodeHash || '').slice(0, 24)}`);
+}
+function generatePasscode() {
+  const n = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000;
+  return String(n).padStart(6, '0');
 }
 function formatDateUTC(date) {
   return date.toISOString().split('T')[0];

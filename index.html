@@ -748,6 +748,7 @@
         const DRAFT_KEY      = 'rm_assistant_v17_cache';   // 舊版相容保留
         const DRAFTS_KEY     = 'rm_drafts_v1';             // 新版多草稿
         const USER_NAME_KEY  = 'rm_user_name';
+        const GROUP_AUTH_KEY = 'rm_group_records_auth_v1';
         // ⚠️ 部署 Worker 後，填入你的 Worker URL（例：https://rm-assistant-api.yourname.workers.dev）
         const WORKER_URL     = 'https://rm-api.deepmystic.net';
 
@@ -758,6 +759,12 @@
         let draft    = null;
         let activePhotoIdx   = -1;
         let historySearchTerm = '';
+        let historyMode = 'mine';
+        let groupRecordsSearchTerm = '';
+        let groupRecords = [];
+        let groupRecordsLoading = false;
+        let groupRecordsAuth = JSON.parse(localStorage.getItem(GROUP_AUTH_KEY) || 'null');
+        let readOnlyGroupRecord = null;
         let currentUserName  = localStorage.getItem(USER_NAME_KEY) || '';
         let _pendingCopyAfterName = false;
 
@@ -1553,6 +1560,7 @@
                 const title = r.type === 'meeting' ? r.meetingName : (r.clientName||'未命名');
                 return title.toLowerCase().includes(historySearchTerm.toLowerCase());
             });
+            const mineActive = historyMode === 'mine';
 
             return `
             <div class="space-y-5 anim-fade-in">
@@ -1569,6 +1577,13 @@
                         <p class="text-[11px] text-[color:var(--ios-gray)] mt-1">存储 ${usage}%</p>
                     </div>
                 </div>
+
+                <div class="ios-card p-1 flex gap-1">
+                    <button onclick="setHistoryMode('mine')" class="flex-1 py-2 rounded-[14px] text-[14px] font-semibold ${mineActive ? 'bg-[color:var(--brand)] text-white' : 'text-[color:var(--label-secondary)]'}">我的记录</button>
+                    <button onclick="setHistoryMode('group')" class="flex-1 py-2 rounded-[14px] text-[14px] font-semibold ${!mineActive ? 'bg-[color:var(--brand)] text-white' : 'text-[color:var(--label-secondary)]'}">本组记录</button>
+                </div>
+
+                ${!mineActive ? renderGroupRecordsPanel(typeConf) : `
 
                 <!-- Search -->
                 <div class="ios-search">
@@ -1607,6 +1622,35 @@
                         </div>`;
                     }).join('')}
                 </div>
+                `}
+            </div>`;
+        },
+
+        'group-record-detail': function() {
+            if (!readOnlyGroupRecord) return `<div class="ios-card py-12 text-center text-[15px] text-[color:var(--label-secondary)]">记录不存在</div>`;
+            const r = readOnlyGroupRecord;
+            const tmpl = parseRecordTmpl(r);
+            const typeLabel = r.type === 'site' ? '现场记录' : '访谈报告';
+            return `
+            <div class="space-y-5 anim-fade-in">
+                <div class="flex items-center gap-2 -mx-1">
+                    <button onclick="setHistoryMode('group')" class="ios-back-btn">
+                        <i data-lucide="chevron-left" class="w-5 h-5"></i><span>返回</span>
+                    </button>
+                    <div class="min-w-0">
+                        <h2 class="text-[17px] font-semibold text-gray-900 truncate">本组记录</h2>
+                        <p class="text-[12px] text-[color:var(--label-secondary)]">只读 · 不可编辑</p>
+                    </div>
+                </div>
+
+                <div class="ios-card overflow-hidden">
+                    <div class="px-4 py-4 border-b border-[color:var(--separator)]">
+                        <p class="text-[18px] font-bold text-gray-900 leading-snug">${escapeHtml(r.client_name || '未命名')}</p>
+                        <p class="text-[13px] text-[color:var(--label-secondary)] mt-1">${escapeHtml(r.user_name || '-')} · ${typeLabel} · ${escapeHtml(r.visit_date || '-')}</p>
+                        <div class="flex flex-wrap gap-1.5 mt-2">${recordSegmentBadges(r, tmpl)}</div>
+                    </div>
+                    ${renderReadOnlyGroupRecord(r, tmpl)}
+                </div>
             </div>`;
         }
         };
@@ -1622,6 +1666,232 @@
         }
 
         function searchHistory(val) { historySearchTerm = val; switchView('history'); }
+        function setHistoryMode(mode) {
+            historyMode = mode;
+            switchView('history');
+            if (mode === 'group' && groupRecordsAuth && groupRecords.length === 0) loadGroupRecords();
+        }
+        function searchGroupRecords(val) {
+            groupRecordsSearchTerm = val;
+            if (groupRecordsAuth) loadGroupRecords();
+            else switchView('history');
+        }
+
+        function escapeHtml(val) {
+            return String(val ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        }
+
+        function renderGroupRecordsPanel(typeConf) {
+            if (!groupRecordsAuth) {
+                return `
+                <div id="group-records" class="ios-card p-4 space-y-4">
+                    <div>
+                        <p class="text-[16px] font-bold text-gray-900">本组记录</p>
+                        <p class="text-[13px] text-[color:var(--label-secondary)] mt-1">输入组别通行码后，可查看同组完整访谈与现场记录。</p>
+                    </div>
+                    <div class="ios-group">
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">RM组别</span>
+                            <input id="group-auth-rm" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="例：305" oninput="this.value=sanitizeRmGroup(this.value)">
+                        </div>
+                        <div class="ios-row">
+                            <span class="ios-row-label text-[15px]">通行码</span>
+                            <input id="group-auth-passcode" type="password" placeholder="请输入组别通行码" onkeydown="if(event.key==='Enter')authenticateGroupRecords()">
+                        </div>
+                    </div>
+                    <button onclick="authenticateGroupRecords()" class="btn-primary">
+                        <i data-lucide="unlock" class="w-5 h-5"></i> 查看本组记录
+                    </button>
+                </div>`;
+            }
+
+            const filteredRows = groupRecords;
+            return `
+            <div id="group-records" class="space-y-4">
+                <div class="ios-card p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p class="text-[16px] font-bold text-gray-900">${groupRecordsAuth.rmGroup} 本组记录</p>
+                            <p class="text-[12px] text-[color:var(--label-secondary)] mt-0.5">只读 · 仅访谈与现场记录</p>
+                        </div>
+                        <button onclick="clearGroupRecordsAuth()" class="text-[13px] font-semibold text-[color:var(--ios-red)]">退出</button>
+                    </div>
+                    <div class="ios-search mt-4">
+                        <i data-lucide="search" class="w-4 h-4 text-[color:var(--label-tertiary)] flex-shrink-0"></i>
+                        <input type="text" value="${escapeHtml(groupRecordsSearchTerm)}" oninput="searchGroupRecords(this.value)" placeholder="搜索公司、人员、地点">
+                        ${groupRecordsSearchTerm ? `<button onclick="searchGroupRecords('')" class="text-[color:var(--ios-gray2)] flex-shrink-0"><i data-lucide="x-circle" class="w-4 h-4"></i></button>` : ''}
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    ${groupRecordsLoading ? `
+                    <div class="ios-card py-12 text-center text-[15px] text-[color:var(--label-secondary)]">载入中...</div>` :
+                    filteredRows.length === 0 ? `
+                    <div class="ios-card py-14 text-center">
+                        <i data-lucide="folder-search" class="w-10 h-10 text-[color:var(--ios-gray3)] mx-auto mb-3"></i>
+                        <p class="text-[15px] text-[color:var(--label-secondary)]">本组目前没有符合条件的记录</p>
+                    </div>` :
+                    renderGroupRecordsList(filteredRows, typeConf)}
+                </div>
+            </div>`;
+        }
+
+        async function authenticateGroupRecords() {
+            const rmGroup = sanitizeRmGroup(document.getElementById('group-auth-rm')?.value || '');
+            const passcode = document.getElementById('group-auth-passcode')?.value || '';
+            if (!rmGroup || !passcode) return showToast('⚠️ 请填写组别和通行码');
+            try {
+                const res = await fetch(`${WORKER_URL}/api/group-auth`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rmGroup, passcode })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '验证失败');
+                groupRecordsAuth = { rmGroup: data.rmGroup, token: data.token };
+                localStorage.setItem(GROUP_AUTH_KEY, JSON.stringify(groupRecordsAuth));
+                groupRecords = [];
+                showToast('✅ 已进入本组记录');
+                await loadGroupRecords();
+            } catch(e) {
+                showToast(`❌ ${e.message || '验证失败'}`);
+            }
+        }
+
+        function clearGroupRecordsAuth() {
+            groupRecordsAuth = null;
+            groupRecords = [];
+            localStorage.removeItem(GROUP_AUTH_KEY);
+            switchView('history');
+        }
+
+        async function loadGroupRecords() {
+            if (!groupRecordsAuth) return;
+            groupRecordsLoading = true;
+            switchView('history');
+            try {
+                const url = new URL(`${WORKER_URL}/api/group-records`);
+                url.searchParams.set('rmGroup', groupRecordsAuth.rmGroup);
+                url.searchParams.set('token', groupRecordsAuth.token);
+                url.searchParams.set('limit', '80');
+                if (groupRecordsSearchTerm.trim()) url.searchParams.set('q', groupRecordsSearchTerm.trim());
+                const res = await fetch(url.toString());
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '载入失败');
+                groupRecords = data.records || [];
+            } catch(e) {
+                showToast(`❌ ${e.message || '本组记录载入失败'}`);
+                if (String(e.message || '').includes('授权')) clearGroupRecordsAuth();
+            } finally {
+                groupRecordsLoading = false;
+                switchView('history');
+            }
+        }
+
+        function renderGroupRecordsList(rows, typeConf) {
+            return rows.map(r => {
+                const tc = typeConf[r.type] || typeConf.report;
+                const tmpl = parseRecordTmpl(r);
+                const segments = recordSegmentBadges(r, tmpl);
+                return `<div class="history-row">
+                    <div class="type-badge" style="background:${tc.bg}">
+                        <i data-lucide="${tc.icon}" class="w-5 h-5" style="color:${tc.color}"></i>
+                    </div>
+                    <div class="flex-1 min-w-0 cursor-pointer" onclick="openGroupRecordDetail('${r.id}')">
+                        <p class="text-[15px] font-semibold text-gray-900 truncate">${escapeHtml(r.client_name || '未命名')}</p>
+                        <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <p class="text-[12px] text-[color:var(--label-secondary)]">${escapeHtml(r.user_name || '-')} · ${escapeHtml(r.visit_date || '-')}</p>
+                            <span class="text-[11px] font-semibold" style="color:${tc.color}">${tc.label}</span>
+                            ${segments}
+                        </div>
+                    </div>
+                    <button onclick="openGroupRecordDetail('${r.id}')" class="p-1">
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-[color:var(--ios-gray3)]"></i>
+                    </button>
+                </div>`;
+            }).join('');
+        }
+
+        function parseRecordTmpl(record) {
+            try { return record.tmpl_json ? JSON.parse(record.tmpl_json) : {}; } catch { return {}; }
+        }
+
+        function recordSegmentBadges(record, tmpl) {
+            const badges = [];
+            if (record.is_8_plus_e) badges.push('<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">8+E</span>');
+            const segs = Array.isArray(tmpl.customerSegments) ? tmpl.customerSegments : [];
+            const isRing = segs.some(s => ['环金','環金','环金陆企','環金陸企'].includes(s));
+            const isMainland = tmpl.companyType === '陆资' || tmpl.companyType === '陸資';
+            if (isRing && isMainland) badges.push('<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-100 text-pink-700">环金陆企</span>');
+            return badges.join('');
+        }
+
+        function openGroupRecordDetail(id) {
+            readOnlyGroupRecord = groupRecords.find(r => String(r.id) === String(id)) || null;
+            if (readOnlyGroupRecord) switchView('group-record-detail');
+        }
+
+        function renderReadOnlyGroupRecord(r, tmpl) {
+            const row = (label, val) => val ? `
+                <div class="flex gap-3 py-2 border-b border-gray-100 last:border-b-0">
+                    <span class="text-[13px] text-[color:var(--label-secondary)] w-20 flex-shrink-0">${label}</span>
+                    <span class="text-[14px] text-gray-900 font-medium flex-1">${escapeHtml(val)}</span>
+                </div>` : '';
+            const section = (title, content) => content ? `
+                <div class="px-4 py-4 border-b border-[color:var(--separator)] last:border-b-0">
+                    <p class="text-[12px] font-bold text-[color:var(--ios-gray)] uppercase tracking-wide mb-2">${title}</p>
+                    ${content}
+                </div>` : '';
+            const block = (val) => val ? `<div class="text-[14px] leading-relaxed text-gray-900 whitespace-pre-wrap bg-gray-50 rounded-xl p-3">${escapeHtml(val)}</div>` : '';
+
+            let html = '';
+            html += section('基本信息',
+                row('负责人', r.owner) +
+                row('RM组别', r.rm_group) +
+                row('日期', r.visit_date) +
+                row('时间', r.visit_hour != null ? `${String(r.visit_hour).padStart(2,'0')}:00 - ${String(r.visit_end_hour ?? r.visit_hour).padStart(2,'0')}:00` : '') +
+                row('目的', r.purpose) +
+                row('地点', r.city || r.branch) +
+                row('型态', tmpl.companyType) +
+                row('跟进', r.follow_up)
+            );
+
+            html += section('供应链与财务',
+                row('所属集团', tmpl.group) +
+                row('主要买方', tmpl.buyer) +
+                row('收款条件', tmpl.buyerTerms) +
+                row('主要供应商', tmpl.supplier) +
+                row('付款条件', tmpl.supplierTerms) +
+                row('年营收', tmpl.revenue) +
+                row('毛利', tmpl.grossMargin) +
+                row('员工人数', tmpl.headcount)
+            );
+
+            if (r.type === 'site') {
+                html += section('现场访察内容',
+                    block(tmpl.mgmtTalk ? `一、与高管面谈情形\n${tmpl.mgmtTalk}` : '') +
+                    block(tmpl.factoryEnv ? `二、访厂及库存情况\n${tmpl.factoryEnv}` : '') +
+                    block(tmpl.businessPerf ? `三、营收与获利表现\n${tmpl.businessPerf}` : '') +
+                    block(tmpl.summary ? `四、综合评述\n${tmpl.summary}` : '')
+                );
+            }
+
+            const summaryLines = [];
+            if (tmpl.customerNeed) summaryLines.push(`1. ${tmpl.customerNeed}`);
+            if (Array.isArray(tmpl.contentList)) {
+                tmpl.contentList.filter(x => x && x.trim()).forEach((x, idx) => summaryLines.push(`${idx + 2}. ${x}`));
+            }
+            html += section('访谈记录摘要', block(summaryLines.join('\n')));
+
+            const todoLines = Array.isArray(tmpl.todoList)
+                ? tmpl.todoList.filter(x => x && x.trim()).map((x, idx) => `${idx + 1}. ${x}`)
+                : [];
+            html += section('待办与后续规划', block(todoLines.join('\n')));
+
+            const biz = Array.isArray(tmpl.targetBusiness) ? tmpl.targetBusiness.filter(Boolean).join('、') : '';
+            html += section('业务机会', row('争取业务', biz));
+            return html || `<div class="px-4 py-10 text-center text-[14px] text-[color:var(--label-secondary)]">此记录暂无详细内容</div>`;
+        }
 
         function switchView(name) {
             const content = document.getElementById('app-content');

@@ -130,6 +130,35 @@ input[type=number]::-webkit-inner-spin-button { opacity:1; }
     </div>
   </div>
 
+  <!-- 本組紀錄通行碼 -->
+  <div class="card p-5">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-[15px] font-bold text-gray-800">本組紀錄通行碼</h2>
+        <p class="text-xs text-gray-400 mt-0.5">重設後只顯示一次；同仁可用於查看本組訪談與現場紀錄</p>
+      </div>
+      <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">只讀 · 不含會議紀錄</span>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-[120px_1fr_160px] gap-3">
+      <select id="group-passcode-rm" class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
+        <option value="301">301</option>
+        <option value="302">302</option>
+        <option value="303">303</option>
+        <option value="305">305</option>
+        <option value="306">306</option>
+        <option value="321">321</option>
+        <option value="322">322</option>
+        <option value="323">323</option>
+      </select>
+      <input id="group-passcode-input" type="text" placeholder="可輸入新通行碼；留空則自動生成"
+        class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
+      <button onclick="resetGroupPasscode()" class="px-3 py-2 rounded-xl text-sm font-semibold text-white active:opacity-80" style="background:var(--brand)">
+        重設通行碼
+      </button>
+    </div>
+    <p id="group-passcode-result" class="text-xs text-gray-500 mt-3"></p>
+  </div>
+
   <!-- RM 組動能逐週管理 -->
   <div class="card overflow-hidden">
     <div class="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
@@ -432,6 +461,26 @@ function updateRadarScopeButtons() {
       ? 'px-2.5 py-1.5 rounded-lg bg-white text-[color:var(--brand)] shadow-sm'
       : 'px-2.5 py-1.5 rounded-lg text-gray-500';
   });
+}
+
+async function resetGroupPasscode() {
+  const rmGroup = document.getElementById('group-passcode-rm')?.value || '';
+  const passcode = document.getElementById('group-passcode-input')?.value.trim() || '';
+  const resultEl = document.getElementById('group-passcode-result');
+  resultEl.textContent = '處理中...';
+  try {
+    const res = await fetch(`${WORKER_URL}/api/admin/group-passcode?password=${enc(PASSWORD)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rmGroup, passcode })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '重設失敗');
+    document.getElementById('group-passcode-input').value = '';
+    resultEl.innerHTML = `已重設 ${data.rmGroup} 組通行碼：<span class="font-bold text-gray-900">${escapeHtml(data.passcode)}</span>（請立即保存）`;
+  } catch(e) {
+    resultEl.textContent = `重設失敗：${e.message || e}`;
+  }
 }
 
 /* ── 管理狀態 ── */
