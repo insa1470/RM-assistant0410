@@ -28,6 +28,10 @@ assert.match(indexHtml, /请输入本组查看码/, 'group records login should 
 assert.doesNotMatch(indexHtml, /组别通行码|通行码/, 'group records user UI should not mix passcode wording with view code wording');
 assert.match(indexHtml, /设置本组查看码/, 'leader settings action should use setup wording');
 assert.doesNotMatch(indexHtml, /重设本组查看码/, 'leader settings action should not use reset wording');
+assert.match(indexHtml, /id="group-records-search"/, 'group records search input should have a stable id for focus restore');
+assert.match(indexHtml, /groupRecordsSearchTimer/, 'group records search should debounce remote loading so typing is not interrupted');
+assert.match(indexHtml, /clearTimeout\(groupRecordsSearchTimer\)/, 'group records search should cancel pending search loads while typing');
+assert.match(indexHtml, /restoreGroupRecordsSearchFocus/, 'group records reload should restore focus to the search field');
 
 assert.match(adminHtml, /組長管理碼|组长管理码/, 'admin should expose group leader management code reset');
 assert.match(adminHtml, /api\/admin\/group-leader-passcode/, 'admin should reset group leader management codes through the worker');
