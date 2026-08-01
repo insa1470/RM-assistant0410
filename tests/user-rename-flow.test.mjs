@@ -16,6 +16,6 @@ assert.match(workerJs, /api\/admin\/rename-user/, 'worker should expose an admin
 assert.match(workerJs, /handleRenameUser/, 'worker should implement admin user rename handler');
 assert.match(workerJs, /UPDATE records SET user_name = \? WHERE user_name = \?/, 'rename should update existing record owner names');
 
-assert.match(adminHtml, /資料填寫人改名|资料填写人改名/, 'admin should expose user rename management');
-assert.match(adminHtml, /api\/admin\/rename-user/, 'admin should call the rename-user API');
-assert.match(adminHtml, /renameUserRecords/, 'admin should implement rename action');
+assert.doesNotMatch(adminHtml, /資料填寫人改名|资料填写人改名/, 'admin should not expose low-frequency user rename management on the dashboard');
+assert.doesNotMatch(adminHtml, /api\/admin\/rename-user/, 'admin UI should not call the hidden rename-user maintenance API');
+assert.doesNotMatch(adminHtml, /renameUserRecords/, 'admin UI should not include a rename action');

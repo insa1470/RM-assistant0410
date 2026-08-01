@@ -24,6 +24,8 @@ assert.match(indexHtml, /组长设置/, 'frontend should expose a leader setting
 assert.match(indexHtml, /api\/group-passcode/, 'frontend should let leaders reset the group view passcode');
 assert.match(indexHtml, /leaderPasscode/, 'leader settings should use the group leader management code');
 assert.match(indexHtml, /readOnlyGroupRecord/, 'frontend should render group records as read-only');
+assert.match(indexHtml, /请输入本组查看码/, 'group records login should ask for the same group view code');
+assert.doesNotMatch(indexHtml, /组别通行码|通行码/, 'group records user UI should not mix passcode wording with view code wording');
 
 assert.match(adminHtml, /組長管理碼|组长管理码/, 'admin should expose group leader management code reset');
 assert.match(adminHtml, /api\/admin\/group-leader-passcode/, 'admin should reset group leader management codes through the worker');

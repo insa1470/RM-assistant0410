@@ -1712,7 +1712,7 @@
                 <div id="group-records" class="ios-card p-4 space-y-4">
                     <div>
                         <p class="text-[16px] font-bold text-gray-900">本组记录</p>
-                        <p class="text-[13px] text-[color:var(--label-secondary)] mt-1">输入组别通行码后，可查看同组完整访谈与现场记录。</p>
+                        <p class="text-[13px] text-[color:var(--label-secondary)] mt-1">输入本组查看码后，可查看同组完整访谈与现场记录。</p>
                     </div>
                     <div class="ios-group">
                         <div class="ios-row">
@@ -1720,8 +1720,8 @@
                             <input id="group-auth-rm" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="例：305" oninput="this.value=sanitizeRmGroup(this.value)">
                         </div>
                         <div class="ios-row">
-                            <span class="ios-row-label text-[15px]">通行码</span>
-                            <input id="group-auth-passcode" type="password" placeholder="请输入组别通行码" onkeydown="if(event.key==='Enter')authenticateGroupRecords()">
+                            <span class="ios-row-label text-[15px]">查看码</span>
+                            <input id="group-auth-passcode" type="password" placeholder="请输入本组查看码" onkeydown="if(event.key==='Enter')authenticateGroupRecords()">
                         </div>
                     </div>
                     <button onclick="authenticateGroupRecords()" class="btn-primary">
@@ -1796,7 +1796,7 @@
         async function authenticateGroupRecords() {
             const rmGroup = sanitizeRmGroup(document.getElementById('group-auth-rm')?.value || '');
             const passcode = document.getElementById('group-auth-passcode')?.value || '';
-            if (!rmGroup || !passcode) return showToast('⚠️ 请填写组别和通行码');
+            if (!rmGroup || !passcode) return showToast('⚠️ 请填写组别和本组查看码');
             try {
                 const res = await fetch(`${WORKER_URL}/api/group-auth`, {
                     method: 'POST',

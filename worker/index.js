@@ -9,7 +9,7 @@
  *   POST /api/targets   — 儲存月度目標設定
  *   GET  /api/export    — 匯出 CSV
  *   GET  /api/hint      — AI 助手：供應鏈關聯提示（含 Claude 洞察）
- *   POST /api/group-auth — 本組紀錄通行碼驗證
+ *   POST /api/group-auth — 本組查看碼驗證
  *   POST /api/group-passcode — 組長重設本組查看碼
  *   GET  /api/group-records — 本組完整紀錄（只讀）
  *   POST /api/setup     — 初始化資料表
@@ -556,21 +556,21 @@ async function handleRecords(request, env) {
 }
 
 /* ──────────────────────────────────────────
-   POST /api/group-auth — 本組紀錄通行碼驗證
+   POST /api/group-auth — 本組查看碼驗證
 ────────────────────────────────────────── */
 async function handleGroupAuth(request, env) {
   const { rmGroup, passcode } = await request.json();
   const group = sanitizeRmGroup(rmGroup);
   if (!ALLOWED_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
-  if (!passcode) return jsonRes({ error: '請輸入組別通行碼' }, 400);
+  if (!passcode) return jsonRes({ error: '請輸入本組查看碼' }, 400);
 
   const row = await env.DB.prepare(
     `SELECT passcode_hash FROM group_passcodes WHERE rm_group = ?`
   ).bind(group).first();
-  if (!row?.passcode_hash) return jsonRes({ error: '此組尚未設定通行碼，請洽管理員' }, 404);
+  if (!row?.passcode_hash) return jsonRes({ error: '此組尚未設定本組查看碼，請洽組長' }, 404);
 
   const passcodeHash = await hashPasscode(passcode, env);
-  if (passcodeHash !== row.passcode_hash) return jsonRes({ error: '組別通行碼錯誤' }, 401);
+  if (passcodeHash !== row.passcode_hash) return jsonRes({ error: '本組查看碼錯誤' }, 401);
 
   return jsonRes({ success: true, rmGroup: group, token: makeGroupToken(group, passcodeHash) });
 }
@@ -838,7 +838,7 @@ async function handleMigrate(request, env) {
     // v4：targets 加入 rm_count 和 weekly_visits
     `ALTER TABLE targets ADD COLUMN rm_count INTEGER DEFAULT 12`,
     `ALTER TABLE targets ADD COLUMN weekly_visits INTEGER DEFAULT 2`,
-    // v5：本組紀錄通行碼
+    // v5：本組查看碼
     `CREATE TABLE IF NOT EXISTS group_passcodes (
        rm_group      TEXT PRIMARY KEY,
        passcode_hash TEXT,
