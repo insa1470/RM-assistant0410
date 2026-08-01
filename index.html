@@ -2509,8 +2509,14 @@
             textarea.dispatchEvent(new Event('input', { bubbles: true }));
             showToast('✅ 表格已转换为整齐文字');
         }
+        function meetingTextFontSize(text) {
+            const maxLineWidth = Math.max(1, ...String(text || '').split('\n').map(line => displayWidth(line)));
+            const targetWidth = 44;
+            return Math.max(9, Math.min(12, Math.floor((targetWidth / maxLineWidth) * 12)));
+        }
         function meetingTextHtml(text) {
-            return `<span style="white-space:pre-wrap;font-family:Consolas, 'Courier New', monospace;">${escapeHtml(text || '')}</span>`;
+            const fontSize = meetingTextFontSize(text);
+            return `<div class="meeting-plain-table" style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><span style="display:inline-block;min-width:100%;white-space:pre;font-family:Consolas, 'Courier New', monospace;font-size:${fontSize}px;line-height:1.45;">${escapeHtml(text || '')}</span></div>`;
         }
         function getMeetingTextEditorValue(kind, key) {
             if (!draft) return '';
