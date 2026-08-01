@@ -596,14 +596,17 @@ async function handleGroupRecords(request, env) {
     return jsonRes({ error: '本組紀錄授權已失效，請重新驗證' }, 401);
   }
 
-  const where = ["rm_group = ?", "type IN ('report','site')"];
+  const where = [
+    "rm_group = ?",
+    "(type IN ('report','site') OR (type = 'meeting' AND meeting_name IN ('待办会议','待辦會議','日常会议','日常會議')))"
+  ];
   const params = [group];
   if (fromDate) { where.push('visit_date >= ?'); params.push(fromDate); }
   if (toDate) { where.push('visit_date <= ?'); params.push(toDate); }
   if (q) {
-    where.push(`(client_name LIKE ? OR user_name LIKE ? OR owner LIKE ? OR city LIKE ? OR purpose LIKE ?)`);
+    where.push(`(client_name LIKE ? OR meeting_name LIKE ? OR user_name LIKE ? OR owner LIKE ? OR city LIKE ? OR branch LIKE ? OR purpose LIKE ? OR tmpl_json LIKE ?)`);
     const pat = `%${normalize(q)}%`;
-    params.push(pat, pat, pat, pat, pat);
+    params.push(pat, pat, pat, pat, pat, pat, pat, pat);
   }
 
   const whereSql = where.join(' AND ');

@@ -1656,7 +1656,8 @@
             if (!readOnlyGroupRecord) return `<div class="ios-card py-12 text-center text-[15px] text-[color:var(--label-secondary)]">记录不存在</div>`;
             const r = readOnlyGroupRecord;
             const tmpl = parseRecordTmpl(r);
-            const typeLabel = r.type === 'site' ? '现场记录' : '访谈报告';
+            const typeLabel = r.type === 'meeting' ? '会议记录' : (r.type === 'site' ? '现场记录' : '访谈报告');
+            const title = getGroupRecordTitle(r);
             return `
             <div class="space-y-5 anim-fade-in">
                 <div class="flex items-center gap-2 -mx-1">
@@ -1671,7 +1672,7 @@
 
                 <div class="ios-card overflow-hidden">
                     <div class="px-4 py-4 border-b border-[color:var(--separator)]">
-                        <p class="text-[18px] font-bold text-gray-900 leading-snug">${escapeHtml(r.client_name || '未命名')}</p>
+                        <p class="text-[18px] font-bold text-gray-900 leading-snug">${escapeHtml(title)}</p>
                         <p class="text-[13px] text-[color:var(--label-secondary)] mt-1">${escapeHtml(r.user_name || '-')} · ${typeLabel} · ${escapeHtml(r.visit_date || '-')}</p>
                         <div class="flex flex-wrap gap-1.5 mt-2">${recordSegmentBadges(r, tmpl)}</div>
                     </div>
@@ -1917,12 +1918,13 @@
                 const tc = typeConf[r.type] || typeConf.report;
                 const tmpl = parseRecordTmpl(r);
                 const segments = recordSegmentBadges(r, tmpl);
+                const title = getGroupRecordTitle(r);
                 return `<div class="history-row">
                     <div class="type-badge" style="background:${tc.bg}">
                         <i data-lucide="${tc.icon}" class="w-5 h-5" style="color:${tc.color}"></i>
                     </div>
                     <div class="flex-1 min-w-0 cursor-pointer" onclick="openGroupRecordDetail('${r.id}')">
-                        <p class="text-[15px] font-semibold text-gray-900 truncate">${escapeHtml(r.client_name || '未命名')}</p>
+                        <p class="text-[15px] font-semibold text-gray-900 truncate">${escapeHtml(title)}</p>
                         <div class="flex items-center gap-2 mt-0.5 flex-wrap">
                             <p class="text-[12px] text-[color:var(--label-secondary)]">${escapeHtml(r.user_name || '-')} · ${escapeHtml(r.visit_date || '-')}</p>
                             <span class="text-[11px] font-semibold" style="color:${tc.color}">${tc.label}</span>
@@ -1938,6 +1940,11 @@
 
         function parseRecordTmpl(record) {
             try { return record.tmpl_json ? JSON.parse(record.tmpl_json) : {}; } catch { return {}; }
+        }
+
+        function getGroupRecordTitle(record) {
+            if (record.type === 'meeting') return record.meeting_name || '会议记录';
+            return record.client_name || '未命名';
         }
 
         function recordSegmentBadges(record, tmpl) {
@@ -1956,6 +1963,7 @@
         }
 
         function renderReadOnlyGroupRecord(r, tmpl) {
+            if (r.type === 'meeting') return renderReadOnlyMeetingRecord(r, tmpl);
             const row = (label, val) => val ? `
                 <div class="flex gap-3 py-2 border-b border-gray-100 last:border-b-0">
                     <span class="text-[13px] text-[color:var(--label-secondary)] w-20 flex-shrink-0">${label}</span>
@@ -2015,6 +2023,61 @@
             const biz = Array.isArray(tmpl.targetBusiness) ? tmpl.targetBusiness.filter(Boolean).join('、') : '';
             html += section('业务机会', row('争取业务', biz));
             return html || `<div class="px-4 py-10 text-center text-[14px] text-[color:var(--label-secondary)]">此记录暂无详细内容</div>`;
+        }
+
+        function renderReadOnlyMeetingRecord(r, tmpl) {
+            const row = (label, val) => val ? `
+                <div class="flex gap-3 py-2 border-b border-gray-100 last:border-b-0">
+                    <span class="text-[13px] text-[color:var(--label-secondary)] w-20 flex-shrink-0">${label}</span>
+                    <span class="text-[14px] text-gray-900 font-medium flex-1 whitespace-pre-wrap">${escapeHtml(val)}</span>
+                </div>` : '';
+            const section = (title, content) => content ? `
+                <div class="px-4 py-4 border-b border-[color:var(--separator)] last:border-b-0">
+                    <p class="text-[12px] font-bold text-[color:var(--ios-gray)] uppercase tracking-wide mb-2">${title}</p>
+                    ${content}
+                </div>` : '';
+            const block = (val) => val ? `<div class="text-[14px] leading-relaxed text-gray-900 whitespace-pre-wrap bg-gray-50 rounded-xl p-3">${escapeHtml(val)}</div>` : '';
+            const hour = r.visit_hour != null ? `${String(r.visit_hour).padStart(2,'0')}:00 - ${String(r.visit_end_hour ?? r.visit_hour).padStart(2,'0')}:00` : '';
+
+            let html = '';
+            html += section('会议信息',
+                row('会议名称', r.meeting_name) +
+                row('RM组别', r.rm_group) +
+                row('日期', r.visit_date) +
+                row('时间', hour) +
+                row('地点', r.city || r.branch) +
+                row('主席', tmpl.chairman) +
+                row('记录', tmpl.recorder)
+            );
+            html += section('出席人员', block(tmpl.attendeeText));
+
+            const daily = Array.isArray(tmpl.dailySections) ? tmpl.dailySections : [];
+            html += section('日常会议内容', daily
+                .filter(sec => sec && (sec.dept || sec.content))
+                .map(sec => block(`${sec.dept || '全员'}\n${sec.content || ''}`))
+                .join('')
+            );
+
+            const quads = tmpl.todoQuadrants || {};
+            const todoHtml = [
+                ['紧急且重要', quads.urgentImportant],
+                ['重要不紧急', quads.importantNotUrgent],
+                ['紧急不重要', quads.urgentNotImportant],
+                ['不重要不紧急', quads.notUrgentNotImportant]
+            ].filter(([, val]) => val).map(([label, val]) => block(`${label}\n${val}`)).join('');
+            html += section('待办四象限', todoHtml);
+
+            const discussions = tmpl.discussions || {};
+            const discussionHtml = Object.keys(discussions)
+                .filter(k => discussions[k])
+                .map(k => {
+                    const idx = DEPARTMENTS_LIST.indexOf(k);
+                    const label = idx >= 0 ? DEPARTMENTS_LIST_CN[idx] : k;
+                    return block(`${label}\n${discussions[k]}`);
+                }).join('');
+            html += section('部门讨论', discussionHtml);
+
+            return html || `<div class="px-4 py-10 text-center text-[14px] text-[color:var(--label-secondary)]">此会议暂无详细内容</div>`;
         }
 
         function switchView(name) {

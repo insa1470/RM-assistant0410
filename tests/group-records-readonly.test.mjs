@@ -12,7 +12,7 @@ assert.match(workerJs, /handleGroupRecords/, 'worker should expose read-only gro
 assert.match(workerJs, /handleSetGroupLeaderPasscode/, 'admin should reset group leader management codes');
 assert.match(workerJs, /handleLeaderSetGroupPasscode/, 'group leaders should reset their own group view passcodes');
 assert.match(workerJs, /hashPasscode/, 'worker should hash group passcodes instead of storing plaintext');
-assert.match(workerJs, /type IN \('report','site'\)/, 'group records should only include reports and site records');
+assert.match(workerJs, /type IN \('report','site'\) OR \(type = 'meeting' AND meeting_name IN \('待办会议','待辦會議','日常会议','日常會議'\)\)/, 'group records should include only reports, site records, and group-scoped todo/daily meetings');
 assert.match(workerJs, /rm_group = \?/, 'group records should be constrained to the authenticated group');
 assert.match(workerJs, /ALLOWED_RM_GROUPS\.includes/, 'group records should reject unmanaged groups');
 
@@ -24,6 +24,7 @@ assert.match(indexHtml, /组长设置/, 'frontend should expose a leader setting
 assert.match(indexHtml, /api\/group-passcode/, 'frontend should let leaders reset the group view passcode');
 assert.match(indexHtml, /leaderPasscode/, 'leader settings should use the group leader management code');
 assert.match(indexHtml, /readOnlyGroupRecord/, 'frontend should render group records as read-only');
+assert.match(indexHtml, /renderReadOnlyMeetingRecord/, 'frontend should render same-group meeting records as read-only');
 assert.match(indexHtml, /请输入本组查看码/, 'group records login should ask for the same group view code');
 assert.doesNotMatch(indexHtml, /组别通行码|通行码/, 'group records user UI should not mix passcode wording with view code wording');
 assert.match(indexHtml, /设置本组查看码/, 'leader settings action should use setup wording');
