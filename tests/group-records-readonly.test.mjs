@@ -41,6 +41,7 @@ assert.match(indexHtml, /oncompositionstart="beginGroupRecordsSearchComposition\
 assert.match(indexHtml, /oncompositionend="endGroupRecordsSearchComposition\(this\.value\)"/, 'group records search should wait until IME composition ends before searching');
 assert.match(indexHtml, /runGroupRecordsSearch/, 'group records search should run only when the user taps the search button');
 assert.match(indexHtml, />搜索</, 'group records should show an explicit search button');
+assert.match(indexHtml, /const input = document\.getElementById\('group-records-search'\)[\s\S]*groupRecordsSearchTerm = input \? input\.value : groupRecordsSearchTerm[\s\S]*loadGroupRecords/, 'group records search button should read the current input value before loading');
 assert.doesNotMatch(indexHtml, /setTimeout\(\(\) => loadGroupRecords/, 'group records typing should not automatically trigger remote search');
 
 assert.match(adminHtml, /組長管理碼|组长管理码/, 'admin should expose group leader management code reset');

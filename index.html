@@ -1719,6 +1719,8 @@
 
         function runGroupRecordsSearch() {
             if (groupRecordsSearchTimer) clearTimeout(groupRecordsSearchTimer);
+            const input = document.getElementById('group-records-search');
+            groupRecordsSearchTerm = input ? input.value : groupRecordsSearchTerm;
             if (groupRecordsAuth) loadGroupRecords({ preserveSearchFocus: true });
             else switchView('history');
         }
@@ -1767,13 +1769,13 @@
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <p class="text-[16px] font-bold text-gray-900">${groupRecordsAuth.rmGroup} 本组记录</p>
-                            <p class="text-[12px] text-[color:var(--label-secondary)] mt-0.5">只读 · 仅访谈与现场记录</p>
+                            <p class="text-[12px] text-[color:var(--label-secondary)] mt-0.5">只读 · 访谈、现场与本组会议</p>
                         </div>
                         <button onclick="clearGroupRecordsAuth()" class="text-[13px] font-semibold text-[color:var(--ios-red)]">退出</button>
                     </div>
                     <div class="ios-search mt-4">
                         <i data-lucide="search" class="w-4 h-4 text-[color:var(--label-tertiary)] flex-shrink-0"></i>
-                        <input id="group-records-search" type="text" value="${escapeHtml(groupRecordsSearchTerm)}" oncompositionstart="beginGroupRecordsSearchComposition()" oncompositionend="endGroupRecordsSearchComposition(this.value)" oninput="searchGroupRecords(this.value, event)" placeholder="搜索公司、人员、地点">
+                        <input id="group-records-search" type="text" value="${escapeHtml(groupRecordsSearchTerm)}" oncompositionstart="beginGroupRecordsSearchComposition()" oncompositionend="endGroupRecordsSearchComposition(this.value)" oninput="searchGroupRecords(this.value, event)" onkeydown="if(event.key==='Enter')runGroupRecordsSearch()" placeholder="搜索公司、会议、人员、地点">
                         <button onclick="clearGroupRecordsSearch()" class="text-[color:var(--ios-gray2)] flex-shrink-0"><i data-lucide="x-circle" class="w-4 h-4"></i></button>
                         <button onclick="runGroupRecordsSearch()" class="px-3 py-1.5 rounded-full bg-[color:var(--brand)] text-white text-[13px] font-semibold flex-shrink-0">搜索</button>
                     </div>
