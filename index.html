@@ -344,6 +344,15 @@
             bottom: -40px; left: 20px;
             border-radius: 50%;
         }
+        .hero-card::before,
+        .hero-card::after {
+            pointer-events: none;
+            z-index: 0;
+        }
+        .hero-card > * {
+            position: relative;
+            z-index: 1;
+        }
 
         /* ─── Draft Banner ─── */
         .draft-banner {
