@@ -1703,10 +1703,6 @@
             const input = document.getElementById('group-records-search');
             if (input && input.value !== val) input.value = val;
             if (groupRecordsSearchComposing || event?.isComposing) return;
-            if (groupRecordsAuth) {
-                groupRecordsSearchTimer = setTimeout(() => loadGroupRecords({ preserveSearchFocus: true, silent: true }), 450);
-            }
-            else switchView('history');
         }
 
         function beginGroupRecordsSearchComposition() {
@@ -1717,6 +1713,19 @@
         function endGroupRecordsSearchComposition(val) {
             groupRecordsSearchComposing = false;
             searchGroupRecords(val);
+        }
+
+        function runGroupRecordsSearch() {
+            if (groupRecordsSearchTimer) clearTimeout(groupRecordsSearchTimer);
+            if (groupRecordsAuth) loadGroupRecords({ preserveSearchFocus: true });
+            else switchView('history');
+        }
+
+        function clearGroupRecordsSearch() {
+            groupRecordsSearchTerm = '';
+            const input = document.getElementById('group-records-search');
+            if (input) input.value = '';
+            runGroupRecordsSearch();
         }
 
         function escapeHtml(val) {
@@ -1763,7 +1772,8 @@
                     <div class="ios-search mt-4">
                         <i data-lucide="search" class="w-4 h-4 text-[color:var(--label-tertiary)] flex-shrink-0"></i>
                         <input id="group-records-search" type="text" value="${escapeHtml(groupRecordsSearchTerm)}" oncompositionstart="beginGroupRecordsSearchComposition()" oncompositionend="endGroupRecordsSearchComposition(this.value)" oninput="searchGroupRecords(this.value, event)" placeholder="搜索公司、人员、地点">
-                        ${groupRecordsSearchTerm ? `<button onclick="searchGroupRecords('')" class="text-[color:var(--ios-gray2)] flex-shrink-0"><i data-lucide="x-circle" class="w-4 h-4"></i></button>` : ''}
+                        <button onclick="clearGroupRecordsSearch()" class="text-[color:var(--ios-gray2)] flex-shrink-0"><i data-lucide="x-circle" class="w-4 h-4"></i></button>
+                        <button onclick="runGroupRecordsSearch()" class="px-3 py-1.5 rounded-full bg-[color:var(--brand)] text-white text-[13px] font-semibold flex-shrink-0">搜索</button>
                     </div>
                 </div>
 
@@ -1880,10 +1890,8 @@
             if (!groupRecordsAuth) return;
             const shouldRestoreSearchFocus = Boolean(options.preserveSearchFocus) && document.activeElement?.id === 'group-records-search';
             const searchTermAtRequest = groupRecordsSearchTerm;
-            if (!options.silent) {
-                groupRecordsLoading = true;
-                switchView('history');
-            }
+            groupRecordsLoading = true;
+            switchView('history');
             try {
                 const url = new URL(`${WORKER_URL}/api/group-records`);
                 url.searchParams.set('rmGroup', groupRecordsAuth.rmGroup);
@@ -1893,14 +1901,13 @@
                 const res = await fetch(url.toString());
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || '载入失败');
-                if (options.silent && searchTermAtRequest !== groupRecordsSearchTerm) return;
                 groupRecords = data.records || [];
             } catch(e) {
                 showToast(`❌ ${e.message || '本组记录载入失败'}`);
                 if (String(e.message || '').includes('授权')) clearGroupRecordsAuth();
             } finally {
-                if (!options.silent) groupRecordsLoading = false;
-                if (!options.silent || searchTermAtRequest === groupRecordsSearchTerm) switchView('history');
+                groupRecordsLoading = false;
+                switchView('history');
                 if (shouldRestoreSearchFocus) restoreGroupRecordsSearchFocus();
             }
         }

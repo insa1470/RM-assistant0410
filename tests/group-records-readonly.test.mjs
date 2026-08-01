@@ -36,8 +36,9 @@ assert.match(indexHtml, /groupRecordsSearchComposing/, 'group records search sho
 assert.match(indexHtml, /event\?\.isComposing/, 'group records search should respect Android IME composing input events');
 assert.match(indexHtml, /oncompositionstart="beginGroupRecordsSearchComposition\(\)"/, 'group records search should not reload while IME composition starts');
 assert.match(indexHtml, /oncompositionend="endGroupRecordsSearchComposition\(this\.value\)"/, 'group records search should wait until IME composition ends before searching');
-assert.match(indexHtml, /silent:\s*true/, 'group records search should load in the background instead of replacing the list with a loading state');
-assert.match(indexHtml, /searchTermAtRequest/, 'group records search should ignore stale results if the user keeps typing');
+assert.match(indexHtml, /runGroupRecordsSearch/, 'group records search should run only when the user taps the search button');
+assert.match(indexHtml, />搜索</, 'group records should show an explicit search button');
+assert.doesNotMatch(indexHtml, /setTimeout\(\(\) => loadGroupRecords/, 'group records typing should not automatically trigger remote search');
 
 assert.match(adminHtml, /組長管理碼|组长管理码/, 'admin should expose group leader management code reset');
 assert.match(adminHtml, /api\/admin\/group-leader-passcode/, 'admin should reset group leader management codes through the worker');
