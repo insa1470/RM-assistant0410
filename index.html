@@ -763,6 +763,7 @@
         const WORKER_URL     = 'https://rm-api.deepmystic.net';
 
         const ADMIN_NAMES = ['insahung', 'sz0453', '洪紹書'];
+        const GROUP_ACCESS_RM_GROUPS = ['300','301','302','303','305','306','321','322','323'];
 
         let reports  = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         let drafts   = JSON.parse(localStorage.getItem(DRAFTS_KEY)  || '[]');
@@ -1215,7 +1216,7 @@
                             <span class="ios-row-label text-[15px]">RM组别</span>
                             <select onchange="updateMeetingRmGroup(this.value)" class="text-right flex-1 text-[15px]">
                                 <option value="" ${!draft.rmGroup?'selected':''}>请选择</option>
-                                ${['301','302','303','305','306','321','322','323'].map(g => `<option value="${g}" ${draft.rmGroup===g?'selected':''}>${g}</option>`).join('')}
+                                ${GROUP_ACCESS_RM_GROUPS.map(g => `<option value="${g}" ${draft.rmGroup===g?'selected':''}>${g}</option>`).join('')}
                             </select>
                             <i data-lucide="chevron-right" class="w-4 h-4 text-[color:var(--ios-gray3)] flex-shrink-0"></i>
                         </div>` : ''}

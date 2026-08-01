@@ -22,6 +22,7 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 const ALLOWED_RM_GROUPS = ['301','302','303','305','306','321','322','323'];
+const GROUP_ACCESS_RM_GROUPS = ['300',...ALLOWED_RM_GROUPS];
 const WEEKLY_VISIT_TARGET = 1.5;
 
 export default {
@@ -561,7 +562,7 @@ async function handleRecords(request, env) {
 async function handleGroupAuth(request, env) {
   const { rmGroup, passcode } = await request.json();
   const group = sanitizeRmGroup(rmGroup);
-  if (!ALLOWED_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
+  if (!GROUP_ACCESS_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
   if (!passcode) return jsonRes({ error: '請輸入本組查看碼' }, 400);
 
   const row = await env.DB.prepare(
@@ -588,7 +589,7 @@ async function handleGroupRecords(request, env) {
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
   const offset = parseInt(url.searchParams.get('offset') || '0');
 
-  if (!ALLOWED_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
+  if (!GROUP_ACCESS_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
   const row = await env.DB.prepare(
     `SELECT passcode_hash FROM group_passcodes WHERE rm_group = ?`
   ).bind(group).first();
@@ -630,7 +631,7 @@ async function handleGroupRecords(request, env) {
 async function handleLeaderSetGroupPasscode(request, env) {
   const { rmGroup, leaderPasscode, passcode } = await request.json();
   const group = sanitizeRmGroup(rmGroup);
-  if (!ALLOWED_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
+  if (!GROUP_ACCESS_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
   if (!leaderPasscode) return jsonRes({ error: '請輸入組長管理碼' }, 400);
 
   const row = await env.DB.prepare(
@@ -658,7 +659,7 @@ async function handleSetGroupLeaderPasscode(request, env) {
   if (!checkAdmin(request, env)) return jsonRes({ error: '密碼錯誤' }, 401);
   const { rmGroup, passcode } = await request.json();
   const group = sanitizeRmGroup(rmGroup);
-  if (!ALLOWED_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
+  if (!GROUP_ACCESS_RM_GROUPS.includes(group)) return jsonRes({ error: '此組別未開放本組紀錄' }, 403);
   const plain = String(passcode || '').trim() || generatePasscode();
   if (plain.length < 4) return jsonRes({ error: '組長管理碼至少 4 碼' }, 400);
   const leaderPasscodeHash = await hashPasscode(plain, env);

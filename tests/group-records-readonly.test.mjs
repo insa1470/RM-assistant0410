@@ -14,7 +14,8 @@ assert.match(workerJs, /handleLeaderSetGroupPasscode/, 'group leaders should res
 assert.match(workerJs, /hashPasscode/, 'worker should hash group passcodes instead of storing plaintext');
 assert.match(workerJs, /type IN \('report','site'\) OR \(type = 'meeting' AND meeting_name IN \('待办会议','待辦會議','日常会议','日常會議'\)\)/, 'group records should include only reports, site records, and group-scoped todo/daily meetings');
 assert.match(workerJs, /rm_group = \?/, 'group records should be constrained to the authenticated group');
-assert.match(workerJs, /ALLOWED_RM_GROUPS\.includes/, 'group records should reject unmanaged groups');
+assert.match(workerJs, /const GROUP_ACCESS_RM_GROUPS = \['300',\.\.\.ALLOWED_RM_GROUPS\]/, 'same-group access should include the admin group without changing managed statistics groups');
+assert.match(workerJs, /GROUP_ACCESS_RM_GROUPS\.includes/, 'group records should reject groups outside the access list');
 
 assert.match(indexHtml, /本组记录/, 'frontend should expose a same-group records tab');
 assert.match(indexHtml, /group-records/, 'frontend should include a group records view');
@@ -28,6 +29,7 @@ assert.match(indexHtml, /renderReadOnlyMeetingRecord/, 'frontend should render s
 assert.match(indexHtml, /请输入本组查看码/, 'group records login should ask for the same group view code');
 assert.doesNotMatch(indexHtml, /组别通行码|通行码/, 'group records user UI should not mix passcode wording with view code wording');
 assert.match(indexHtml, /设置本组查看码/, 'leader settings action should use setup wording');
+assert.match(indexHtml, /GROUP_ACCESS_RM_GROUPS = \['300','301','302','303','305','306','321','322','323'\]/, 'frontend group access controls should include the admin group');
 assert.doesNotMatch(indexHtml, /重设本组查看码/, 'leader settings action should not use reset wording');
 assert.match(indexHtml, /id="group-records-search"/, 'group records search input should have a stable id for focus restore');
 assert.match(indexHtml, /groupRecordsSearchTimer/, 'group records search should debounce remote loading so typing is not interrupted');
@@ -42,6 +44,7 @@ assert.match(indexHtml, />搜索</, 'group records should show an explicit searc
 assert.doesNotMatch(indexHtml, /setTimeout\(\(\) => loadGroupRecords/, 'group records typing should not automatically trigger remote search');
 
 assert.match(adminHtml, /組長管理碼|组长管理码/, 'admin should expose group leader management code reset');
+assert.match(adminHtml, /<option value="300">300<\/option>/, 'admin should allow resetting the admin group leader management code');
 assert.match(adminHtml, /api\/admin\/group-leader-passcode/, 'admin should reset group leader management codes through the worker');
 assert.match(adminHtml, /resetGroupLeaderPasscode/, 'admin should implement leader code reset action');
 assert.doesNotMatch(adminHtml, /api\/admin\/group-passcode/, 'admin should not directly manage regular group view passcodes');
