@@ -32,6 +32,12 @@ assert.match(indexHtml, /id="group-records-search"/, 'group records search input
 assert.match(indexHtml, /groupRecordsSearchTimer/, 'group records search should debounce remote loading so typing is not interrupted');
 assert.match(indexHtml, /clearTimeout\(groupRecordsSearchTimer\)/, 'group records search should cancel pending search loads while typing');
 assert.match(indexHtml, /restoreGroupRecordsSearchFocus/, 'group records reload should restore focus to the search field');
+assert.match(indexHtml, /groupRecordsSearchComposing/, 'group records search should track IME composition state');
+assert.match(indexHtml, /event\?\.isComposing/, 'group records search should respect Android IME composing input events');
+assert.match(indexHtml, /oncompositionstart="beginGroupRecordsSearchComposition\(\)"/, 'group records search should not reload while IME composition starts');
+assert.match(indexHtml, /oncompositionend="endGroupRecordsSearchComposition\(this\.value\)"/, 'group records search should wait until IME composition ends before searching');
+assert.match(indexHtml, /silent:\s*true/, 'group records search should load in the background instead of replacing the list with a loading state');
+assert.match(indexHtml, /searchTermAtRequest/, 'group records search should ignore stale results if the user keeps typing');
 
 assert.match(adminHtml, /組長管理碼|组长管理码/, 'admin should expose group leader management code reset');
 assert.match(adminHtml, /api\/admin\/group-leader-passcode/, 'admin should reset group leader management codes through the worker');

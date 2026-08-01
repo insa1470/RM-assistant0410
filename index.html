@@ -772,6 +772,7 @@
         let historyMode = 'mine';
         let groupRecordsSearchTerm = '';
         let groupRecordsSearchTimer = null;
+        let groupRecordsSearchComposing = false;
         let groupRecords = [];
         let groupRecordsLoading = false;
         let groupRecordsAuth = JSON.parse(localStorage.getItem(GROUP_AUTH_KEY) || 'null');
@@ -1696,15 +1697,26 @@
             switchView('history');
             if (mode === 'group' && groupRecordsAuth && groupRecords.length === 0) loadGroupRecords();
         }
-        function searchGroupRecords(val) {
+        function searchGroupRecords(val, event) {
             groupRecordsSearchTerm = val;
             if (groupRecordsSearchTimer) clearTimeout(groupRecordsSearchTimer);
             const input = document.getElementById('group-records-search');
             if (input && input.value !== val) input.value = val;
+            if (groupRecordsSearchComposing || event?.isComposing) return;
             if (groupRecordsAuth) {
-                groupRecordsSearchTimer = setTimeout(() => loadGroupRecords({ preserveSearchFocus: true }), 250);
+                groupRecordsSearchTimer = setTimeout(() => loadGroupRecords({ preserveSearchFocus: true, silent: true }), 450);
             }
             else switchView('history');
+        }
+
+        function beginGroupRecordsSearchComposition() {
+            groupRecordsSearchComposing = true;
+            if (groupRecordsSearchTimer) clearTimeout(groupRecordsSearchTimer);
+        }
+
+        function endGroupRecordsSearchComposition(val) {
+            groupRecordsSearchComposing = false;
+            searchGroupRecords(val);
         }
 
         function escapeHtml(val) {
@@ -1750,7 +1762,7 @@
                     </div>
                     <div class="ios-search mt-4">
                         <i data-lucide="search" class="w-4 h-4 text-[color:var(--label-tertiary)] flex-shrink-0"></i>
-                        <input id="group-records-search" type="text" value="${escapeHtml(groupRecordsSearchTerm)}" oninput="searchGroupRecords(this.value)" placeholder="搜索公司、人员、地点">
+                        <input id="group-records-search" type="text" value="${escapeHtml(groupRecordsSearchTerm)}" oncompositionstart="beginGroupRecordsSearchComposition()" oncompositionend="endGroupRecordsSearchComposition(this.value)" oninput="searchGroupRecords(this.value, event)" placeholder="搜索公司、人员、地点">
                         ${groupRecordsSearchTerm ? `<button onclick="searchGroupRecords('')" class="text-[color:var(--ios-gray2)] flex-shrink-0"><i data-lucide="x-circle" class="w-4 h-4"></i></button>` : ''}
                     </div>
                 </div>
@@ -1867,24 +1879,28 @@
         async function loadGroupRecords(options = {}) {
             if (!groupRecordsAuth) return;
             const shouldRestoreSearchFocus = Boolean(options.preserveSearchFocus) && document.activeElement?.id === 'group-records-search';
-            groupRecordsLoading = true;
-            switchView('history');
+            const searchTermAtRequest = groupRecordsSearchTerm;
+            if (!options.silent) {
+                groupRecordsLoading = true;
+                switchView('history');
+            }
             try {
                 const url = new URL(`${WORKER_URL}/api/group-records`);
                 url.searchParams.set('rmGroup', groupRecordsAuth.rmGroup);
                 url.searchParams.set('token', groupRecordsAuth.token);
                 url.searchParams.set('limit', '80');
-                if (groupRecordsSearchTerm.trim()) url.searchParams.set('q', groupRecordsSearchTerm.trim());
+                if (searchTermAtRequest.trim()) url.searchParams.set('q', searchTermAtRequest.trim());
                 const res = await fetch(url.toString());
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || '载入失败');
+                if (options.silent && searchTermAtRequest !== groupRecordsSearchTerm) return;
                 groupRecords = data.records || [];
             } catch(e) {
                 showToast(`❌ ${e.message || '本组记录载入失败'}`);
                 if (String(e.message || '').includes('授权')) clearGroupRecordsAuth();
             } finally {
-                groupRecordsLoading = false;
-                switchView('history');
+                if (!options.silent) groupRecordsLoading = false;
+                if (!options.silent || searchTermAtRequest === groupRecordsSearchTerm) switchView('history');
                 if (shouldRestoreSearchFocus) restoreGroupRecordsSearchFocus();
             }
         }
