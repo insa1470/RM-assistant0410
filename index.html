@@ -746,7 +746,7 @@
         </div>
         <div class="flex-1 p-4 pb-[calc(18px+env(safe-area-inset-bottom))] min-h-0">
             <div class="ios-group h-full p-4 flex flex-col">
-                <textarea id="meeting-editor-textarea" class="meeting-editor-textarea" placeholder="请输入会议内容..." oninput="applyMeetingTextEditorValue(this.value)"></textarea>
+                <textarea id="meeting-editor-textarea" class="meeting-editor-textarea" placeholder="请输入会议内容..." onpaste="handleMeetingTablePaste(event)" oninput="applyMeetingTextEditorValue(this.value)"></textarea>
             </div>
         </div>
     </div>
@@ -1255,7 +1255,7 @@
                     <p class="form-section-label">出席人员</p>
                     <div class="ios-group">
                         <div class="ios-row items-start py-3">
-                            <textarea onfocus="rememberMeetingEditAnchor('meeting-attendee-section')" onblur="restoreMeetingEditAnchor()" oninput="updateDraft('attendeeText',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[70px] leading-relaxed" placeholder="请输入出席者姓名...">${draft.attendeeText||''}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-attendee-section')" onblur="restoreMeetingEditAnchor()" onpaste="handleMeetingTablePaste(event)" oninput="updateDraft('attendeeText',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[70px] leading-relaxed" placeholder="请输入出席者姓名...">${draft.attendeeText||''}</textarea>
                         </div>
                         <div class="px-4 pb-3 meeting-expand-row">
                             <button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('attendeeText',null,'出席人员')">
@@ -1277,7 +1277,7 @@
                             <input type="text" value="${sec.dept||''}" oninput="updateDailySection(${idx},'dept',this.value)" placeholder="例：深圳二组">
                         </div>
                         <div class="ios-row items-start py-3">
-                            <textarea onfocus="rememberMeetingEditAnchor('meeting-daily-section-${idx}')" onblur="restoreMeetingEditAnchor()" oninput="updateDailySection(${idx},'content',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[100px] leading-relaxed" placeholder="讨论内容与决议...">${sec.content||''}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-daily-section-${idx}')" onblur="restoreMeetingEditAnchor()" onpaste="handleMeetingTablePaste(event)" oninput="updateDailySection(${idx},'content',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[100px] leading-relaxed" placeholder="讨论内容与决议...">${sec.content||''}</textarea>
                         </div>
                         <div class="px-4 pb-3 meeting-expand-row">
                             <button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('dailySection',${idx},'会议内容')">
@@ -1298,22 +1298,22 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div class="quad-card" style="background:rgba(255,59,48,0.06)">
                             <p class="quad-label text-red-600">紧急且重要</p>
-                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" oninput="updateQuadrant('urgentImportant',this.value)" placeholder="立即处理...">${draft.todoQuadrants.urgentImportant}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" onpaste="handleMeetingTablePaste(event)" oninput="updateQuadrant('urgentImportant',this.value)" placeholder="立即处理...">${draft.todoQuadrants.urgentImportant}</textarea>
                             <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','urgentImportant','紧急且重要')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                         <div class="quad-card" style="background:rgba(255,149,0,0.06)">
                             <p class="quad-label text-orange-600">重要不紧急</p>
-                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" oninput="updateQuadrant('importantNotUrgent',this.value)" placeholder="计划安排...">${draft.todoQuadrants.importantNotUrgent}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" onpaste="handleMeetingTablePaste(event)" oninput="updateQuadrant('importantNotUrgent',this.value)" placeholder="计划安排...">${draft.todoQuadrants.importantNotUrgent}</textarea>
                             <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','importantNotUrgent','重要不紧急')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                         <div class="quad-card" style="background:rgba(0,122,255,0.06)">
                             <p class="quad-label text-blue-600">紧急不重要</p>
-                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" oninput="updateQuadrant('urgentNotImportant',this.value)" placeholder="委托处理...">${draft.todoQuadrants.urgentNotImportant}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" onpaste="handleMeetingTablePaste(event)" oninput="updateQuadrant('urgentNotImportant',this.value)" placeholder="委托处理...">${draft.todoQuadrants.urgentNotImportant}</textarea>
                             <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','urgentNotImportant','紧急不重要')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                         <div class="quad-card" style="background:rgba(142,142,147,0.06)">
                             <p class="quad-label text-gray-500">不重要不紧急</p>
-                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" oninput="updateQuadrant('notUrgentNotImportant',this.value)" placeholder="低优先...">${draft.todoQuadrants.notUrgentNotImportant}</textarea>
+                            <textarea onfocus="rememberMeetingEditAnchor('meeting-todo-section')" onblur="restoreMeetingEditAnchor()" onpaste="handleMeetingTablePaste(event)" oninput="updateQuadrant('notUrgentNotImportant',this.value)" placeholder="低优先...">${draft.todoQuadrants.notUrgentNotImportant}</textarea>
                             <div class="meeting-expand-row"><button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('quadrant','notUrgentNotImportant','不重要不紧急')"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i><span>展开编辑</span></button></div>
                         </div>
                     </div>
@@ -1337,7 +1337,7 @@
                                 <button onclick="toggleDeptDiscussion('${dept}',false)" class="text-[color:var(--ios-gray2)]"><i data-lucide="x" class="w-4 h-4"></i></button>
                             </div>
                             <div class="ios-row items-start py-3">
-                                <textarea onfocus="rememberMeetingEditAnchor('meeting-dept-${dept}')" onblur="restoreMeetingEditAnchor()" oninput="updateDeptContent('${dept}',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[90px] leading-relaxed" placeholder="部门报告或讨论内容...">${draft.discussions[dept]}</textarea>
+                                <textarea onfocus="rememberMeetingEditAnchor('meeting-dept-${dept}')" onblur="restoreMeetingEditAnchor()" onpaste="handleMeetingTablePaste(event)" oninput="updateDeptContent('${dept}',this.value)" class="flex-1 bg-transparent border-none outline-none text-[15px] resize-none min-h-[90px] leading-relaxed" placeholder="部门报告或讨论内容...">${draft.discussions[dept]}</textarea>
                             </div>
                             <div class="px-4 pb-3 meeting-expand-row">
                                 <button type="button" class="meeting-expand-btn" onclick="openMeetingTextEditor('discussion','${dept}','${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(dept)]} 部门')">
@@ -1515,16 +1515,16 @@
                 let mainContentHtml = '';
                 if (mName.includes('日常')) {
                     mainContentHtml = `<div style="font-weight:bold;margin:12px 0 8px;">会议讨论事项摘要：</div>
-                        ${draft.dailySections.map(sec=>`<table style="width:100%;border-collapse:collapse;border:1px solid #ccc;margin-bottom:7px;"><tr><td style="background:#f2f2f2;padding:4px 9px;font-weight:bold;font-size:11px;">部门汇报：${sec.dept||'全员'}</td></tr><tr><td style="padding:7px 9px;font-size:12px;white-space:pre-wrap;line-height:1.5;">${sec.content||'未输入'}</td></tr></table>`).join('')}`;
+                        ${draft.dailySections.map(sec=>`<table style="width:100%;border-collapse:collapse;border:1px solid #ccc;margin-bottom:7px;"><tr><td style="background:#f2f2f2;padding:4px 9px;font-weight:bold;font-size:11px;">部门汇报：${sec.dept||'全员'}</td></tr><tr><td style="padding:7px 9px;font-size:12px;white-space:pre-wrap;line-height:1.5;">${sec.content ? meetingTextHtml(sec.content) : '未输入'}</td></tr></table>`).join('')}`;
                 } else if (mName.includes('待办')) {
                     mainContentHtml = `<div style="font-weight:bold;margin-bottom:8px;margin-top:14px;">待办事项四象限分析：</div>
                         <table style="width:100%;border-collapse:collapse;border:1px solid black;font-size:11px;">
-                        <tr><td style="border:1px solid black;background:#fff1f0;padding:7px;height:90px;vertical-align:top;"><div style="color:#cf1322;font-weight:bold;margin-bottom:3px;">【紧急且重要】</div>${draft.todoQuadrants.urgentImportant}</td>
-                            <td style="border:1px solid black;background:#fff2e8;padding:7px;height:90px;vertical-align:top;"><div style="color:#d4380d;font-weight:bold;margin-bottom:3px;">【重要不紧急】</div>${draft.todoQuadrants.importantNotUrgent}</td></tr>
-                        <tr><td style="border:1px solid black;background:#e6f7ff;padding:7px;height:90px;vertical-align:top;"><div style="color:#096dd9;font-weight:bold;margin-bottom:3px;">【紧急不重要】</div>${draft.todoQuadrants.urgentNotImportant}</td>
-                            <td style="border:1px solid black;background:#f5f5f5;padding:7px;height:90px;vertical-align:top;"><div style="color:#595959;font-weight:bold;margin-bottom:3px;">【不重要不紧急】</div>${draft.todoQuadrants.notUrgentNotImportant}</td></tr></table>`;
+                        <tr><td style="border:1px solid black;background:#fff1f0;padding:7px;height:90px;vertical-align:top;"><div style="color:#cf1322;font-weight:bold;margin-bottom:3px;">【紧急且重要】</div>${meetingTextHtml(draft.todoQuadrants.urgentImportant)}</td>
+                            <td style="border:1px solid black;background:#fff2e8;padding:7px;height:90px;vertical-align:top;"><div style="color:#d4380d;font-weight:bold;margin-bottom:3px;">【重要不紧急】</div>${meetingTextHtml(draft.todoQuadrants.importantNotUrgent)}</td></tr>
+                        <tr><td style="border:1px solid black;background:#e6f7ff;padding:7px;height:90px;vertical-align:top;"><div style="color:#096dd9;font-weight:bold;margin-bottom:3px;">【紧急不重要】</div>${meetingTextHtml(draft.todoQuadrants.urgentNotImportant)}</td>
+                            <td style="border:1px solid black;background:#f5f5f5;padding:7px;height:90px;vertical-align:top;"><div style="color:#595959;font-weight:bold;margin-bottom:3px;">【不重要不紧急】</div>${meetingTextHtml(draft.todoQuadrants.notUrgentNotImportant)}</td></tr></table>`;
                 } else {
-                    const discHtml = Object.keys(draft.discussions).sort((a,b)=>DEPARTMENTS_LIST.indexOf(a)-DEPARTMENTS_LIST.indexOf(b)).filter(d=>draft.discussions[d].trim()!=='').map(d=>`<table style="width:100%;border-collapse:collapse;border:1px solid #ccc;margin-bottom:7px;"><tr><td style="background:#f2f2f2;padding:4px 9px;font-weight:bold;font-size:11px;">部门汇报：${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(d)]}</td></tr><tr><td style="padding:7px 9px;font-size:12px;white-space:pre-wrap;line-height:1.4;">${draft.discussions[d]}</td></tr></table>`).join('');
+                    const discHtml = Object.keys(draft.discussions).sort((a,b)=>DEPARTMENTS_LIST.indexOf(a)-DEPARTMENTS_LIST.indexOf(b)).filter(d=>draft.discussions[d].trim()!=='').map(d=>`<table style="width:100%;border-collapse:collapse;border:1px solid #ccc;margin-bottom:7px;"><tr><td style="background:#f2f2f2;padding:4px 9px;font-weight:bold;font-size:11px;">部门汇报：${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(d)]}</td></tr><tr><td style="padding:7px 9px;font-size:12px;white-space:pre-wrap;line-height:1.4;">${meetingTextHtml(draft.discussions[d])}</td></tr></table>`).join('');
                     mainContentHtml = `<div style="font-weight:bold;margin:12px 0 8px;">各部门讨论事项摘要：</div>${discHtml||'无讨论事项'}`;
                 }
                 previewHtml = `<div id="word-content" style="font-family:'SimSun',serif;font-size:12px;line-height:1.4;color:black;">
@@ -2472,6 +2472,46 @@
         }
 
         let meetingEditorTarget = null;
+        function displayWidth(text) {
+            return Array.from(String(text || '')).reduce((sum, ch) => {
+                return sum + (/[\u1100-\u115F\u2329\u232A\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE10-\uFE19\uFE30-\uFE6F\uFF00-\uFF60\uFFE0-\uFFE6]/.test(ch) ? 2 : 1);
+            }, 0);
+        }
+        function formatPastedTableText(text) {
+            const raw = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n+$/g, '');
+            if (!raw.includes('\t')) return null;
+            const rows = raw.split('\n').map(line => line.split('\t').map(cell => cell.trim()));
+            if (rows.length < 1 || !rows.some(row => row.length > 1)) return null;
+            const colCount = Math.max(...rows.map(row => row.length));
+            const widths = Array.from({ length: colCount }, (_, i) => Math.max(...rows.map(row => displayWidth(row[i] || ''))));
+            return rows.map(row => {
+                return Array.from({ length: colCount }, (_, i) => {
+                    const cell = row[i] || '';
+                    const gap = i === colCount - 1 ? 0 : widths[i] - displayWidth(cell) + 3;
+                    return cell + ' '.repeat(Math.max(gap, 0));
+                }).join('').trimEnd();
+            }).join('\n');
+        }
+        function handleMeetingTablePaste(event) {
+            const text = event.clipboardData?.getData('text/plain') || '';
+            const formatted = formatPastedTableText(text);
+            if (!formatted) return;
+            event.preventDefault();
+            const textarea = event.target;
+            const start = textarea.selectionStart ?? textarea.value.length;
+            const end = textarea.selectionEnd ?? textarea.value.length;
+            const before = textarea.value.slice(0, start);
+            const after = textarea.value.slice(end);
+            const nextValue = before + formatted + after;
+            textarea.value = nextValue;
+            const nextPos = before.length + formatted.length;
+            textarea.setSelectionRange(nextPos, nextPos);
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            showToast('✅ 表格已转换为整齐文字');
+        }
+        function meetingTextHtml(text) {
+            return `<span style="white-space:pre-wrap;font-family:Consolas, 'Courier New', monospace;">${escapeHtml(text || '')}</span>`;
+        }
         function getMeetingTextEditorValue(kind, key) {
             if (!draft) return '';
             if (kind === 'attendeeText') return draft.attendeeText || '';
@@ -2642,18 +2682,18 @@
                 let meetingBody = '';
                 if (mName.includes('日常')) {
                     meetingBody = `<p style="font-family:SimHei;font-weight:bold;margin:14pt 0 8pt;">会议内容摘要：</p>` +
-                        draft.dailySections.map(sec=>`<table style="border:0.5pt solid black;margin-bottom:9pt;width:100%;"><tr><td style="background:#F2F2F2;font-weight:bold;padding:4pt 8pt;border-bottom:0.5pt solid black;">部门汇报：${sec.dept||'全员'}</td></tr><tr><td style="padding:7pt 9pt;line-height:1.5;">${(sec.content||'').replace(/\n/g,'<br>')}</td></tr></table>`).join('');
+                        draft.dailySections.map(sec=>`<table style="border:0.5pt solid black;margin-bottom:9pt;width:100%;"><tr><td style="background:#F2F2F2;font-weight:bold;padding:4pt 8pt;border-bottom:0.5pt solid black;">部门汇报：${sec.dept||'全员'}</td></tr><tr><td style="padding:7pt 9pt;line-height:1.5;">${meetingTextHtml(sec.content)}</td></tr></table>`).join('');
                 } else if (mName.includes('待办')) {
                     meetingBody = `<p style="font-family:SimHei;font-weight:bold;margin-top:14pt;">待办事项四象限分析：</p>
                     <table style="border:1pt solid black;width:100%;table-layout:fixed;">
-                    <tr><td style="background:#fff1f0;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【紧急且重要】</b><br>${(draft.todoQuadrants.urgentImportant||'').replace(/\n/g,'<br>')}</td>
-                        <td style="background:#fff2e8;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【重要不紧急】</b><br>${(draft.todoQuadrants.importantNotUrgent||'').replace(/\n/g,'<br>')}</td></tr>
-                    <tr><td style="background:#e6f7ff;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【紧急不重要】</b><br>${(draft.todoQuadrants.urgentNotImportant||'').replace(/\n/g,'<br>')}</td>
-                        <td style="background:#f5f5f5;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【不重要不紧急】</b><br>${(draft.todoQuadrants.notUrgentNotImportant||'').replace(/\n/g,'<br>')}</td></tr></table>`;
+                    <tr><td style="background:#fff1f0;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【紧急且重要】</b><br>${meetingTextHtml(draft.todoQuadrants.urgentImportant)}</td>
+                        <td style="background:#fff2e8;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【重要不紧急】</b><br>${meetingTextHtml(draft.todoQuadrants.importantNotUrgent)}</td></tr>
+                    <tr><td style="background:#e6f7ff;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【紧急不重要】</b><br>${meetingTextHtml(draft.todoQuadrants.urgentNotImportant)}</td>
+                        <td style="background:#f5f5f5;height:110pt;vertical-align:top;border:0.5pt solid black;padding:7pt;word-break:break-all;"><b>【不重要不紧急】</b><br>${meetingTextHtml(draft.todoQuadrants.notUrgentNotImportant)}</td></tr></table>`;
                 } else {
                     const depts = Object.keys(draft.discussions).sort((a,b)=>DEPARTMENTS_LIST.indexOf(a)-DEPARTMENTS_LIST.indexOf(b)).filter(d=>draft.discussions[d].trim()!=='');
                     meetingBody = `<p style="font-family:SimHei;font-weight:bold;margin:14pt 0 8pt;">各部门讨论事项摘要：</p>` +
-                        (depts.map(d=>`<table style="border:0.5pt solid black;margin-bottom:9pt;width:100%;"><tr><td style="background:#F2F2F2;font-weight:bold;padding:4pt 8pt;border-bottom:0.5pt solid black;">部门汇报：${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(d)]}</td></tr><tr><td style="padding:7pt 9pt;line-height:1.5;">${draft.discussions[d].replace(/\n/g,'<br>')}</td></tr></table>`).join('')||'无内容');
+                        (depts.map(d=>`<table style="border:0.5pt solid black;margin-bottom:9pt;width:100%;"><tr><td style="background:#F2F2F2;font-weight:bold;padding:4pt 8pt;border-bottom:0.5pt solid black;">部门汇报：${DEPARTMENTS_LIST_CN[DEPARTMENTS_LIST.indexOf(d)]}</td></tr><tr><td style="padding:7pt 9pt;line-height:1.5;">${meetingTextHtml(draft.discussions[d])}</td></tr></table>`).join('')||'无内容');
                 }
                 html = `<html><head><meta charset="utf-8"><style>table{border-collapse:collapse;width:100%;}td{border:0.5pt solid windowtext;padding:4pt 7pt;font-family:SimSun;font-size:10pt;line-height:1.3;}</style></head>
                 <body><h2 style="text-align:center;font-family:SimHei;font-size:17pt;margin-bottom:11pt;">玉山银行 ${draft.branch||''} 会议记录</h2>
